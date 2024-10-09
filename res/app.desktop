@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=cosmicding
+Exec=cosmicding %F
+Terminal=false
+Type=Application
+StartupNotify=true
+Icon=com.vkhitrin.cosmicding
+Categories=Utility;
+Keywords=Bookmarks
+MMimeType=inode/directory;
