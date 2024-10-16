@@ -767,7 +767,7 @@ impl ContextPage {
             Self::EditAccountForm => fl!("edit-account"),
             Self::NewBookmarkForm => fl!("add-bookmark"),
             Self::EditBookmarkForm => fl!("edit-bookmark"),
-            Self::ViewBookmarkNotes => fl!("bookmarks-form-notes"),
+            Self::ViewBookmarkNotes => fl!("notes"),
         }
     }
 }

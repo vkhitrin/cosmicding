@@ -158,7 +158,7 @@ impl BookmarksView {
                     ));
                 if !item.notes.is_empty() {
                     actions_row = actions_row.push(
-                        widget::button::link(fl!("bookmarks-form-notes"))
+                        widget::button::link(fl!("notes"))
                             .on_press(BookmarksMessage::ViewNotes(item.clone())),
                     );
                 }
@@ -193,7 +193,7 @@ impl BookmarksView {
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(3)
                     .align_items(Alignment::Center)
-                    .push(widget::text::title3(fl!("bookmarks-view-title")))
+                    .push(widget::text::title3(fl!("bookmarks")))
                     .spacing(spacing.space_xxs)
                     .padding([
                         spacing.space_none,
@@ -282,39 +282,39 @@ where
     'b: 'a,
 {
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
-    let account_widget_title = widget::text::body(fl!("bookmarks-form-account"));
+    let account_widget_title = widget::text::body(fl!("account"));
     let account_widget_dropdown = widget::dropdown(&accounts, Some(selected_account), move |idx| {
         Message::AddBookmarkFormAccountIndex(idx)
     });
-    let url_widget_title = widget::text::body(fl!("bookmarks-form-url"));
+    let url_widget_title = widget::text::body(fl!("url"));
     let url_widget_text_input =
         widget::text_input("URL", bookmark.url.clone()).on_input(Message::SetBookmarkURL);
-    let title_widget_title = widget::text::body(fl!("bookmarks-form-title"));
+    let title_widget_title = widget::text::body(fl!("title"));
     let title_widget_text_input =
         widget::text_input("Title", bookmark.title.clone()).on_input(Message::SetBookmarkTitle);
-    let description_widget_title = widget::text::body(fl!("bookmarks-form-description"));
+    let description_widget_title = widget::text::body(fl!("description"));
     let description_widget_text_input =
         widget::text_input("Description", bookmark.description.clone())
             .on_input(Message::SetBookmarkDescription);
-    let notes_widget_title = widget::text::body(fl!("bookmarks-form-notes"));
+    let notes_widget_title = widget::text::body(fl!("notes"));
     let notes_widget_text_input =
         widget::text_input("notes", bookmark.notes.clone()).on_input(Message::SetBookmarkNotes);
-    let tags_widget_title = widget::text::body(fl!("bookmarks-form-tags"));
-    let tags_widget_subtext = widget::text::caption(fl!("bookmarks-form-tags-guidelines"));
+    let tags_widget_title = widget::text::body(fl!("tags"));
+    let tags_widget_subtext = widget::text::caption(fl!("tags-guidelines"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
     let archived_widget_checkbox = widget::checkbox(
-        fl!("bookmarks-form-archived"),
+        fl!("archived"),
         bookmark.is_archived,
         Message::SetBookmarkArchived,
     );
     let unread_widget_checkbox = widget::checkbox(
-        fl!("bookmarks-form-unread"),
+        fl!("unread"),
         bookmark.unread,
         Message::SetBookmarkUnread,
     );
     let shared_widget_checkbox = widget::checkbox(
-        fl!("bookmarks-form-shared"),
+        fl!("shared"),
         bookmark.shared,
         Message::SetBookmarkShared,
     );
@@ -362,35 +362,35 @@ where
         .iter()
         .find(|account| account.id == bookmark.user_account_id)
         .cloned();
-    let url_widget_title = widget::text::body(fl!("bookmarks-form-url"));
+    let url_widget_title = widget::text::body(fl!("url"));
     let url_widget_text_input =
         widget::text_input("URL", bookmark.url.clone()).on_input(Message::SetBookmarkURL);
-    let title_widget_title = widget::text::body(fl!("bookmarks-form-title"));
+    let title_widget_title = widget::text::body(fl!("title"));
     let title_widget_text_input =
         widget::text_input("Title", bookmark.title.clone()).on_input(Message::SetBookmarkTitle);
-    let description_widget_title = widget::text::body(fl!("bookmarks-form-description"));
+    let description_widget_title = widget::text::body(fl!("description"));
     let description_widget_text_input =
         widget::text_input("Description", bookmark.description.clone())
             .on_input(Message::SetBookmarkDescription);
-    let notes_widget_title = widget::text::body(fl!("bookmarks-form-notes"));
+    let notes_widget_title = widget::text::body(fl!("notes"));
     let notes_widget_text_input =
         widget::text_input("notes", bookmark.notes.clone()).on_input(Message::SetBookmarkNotes);
-    let tags_widget_title = widget::text::body(fl!("bookmarks-form-tags"));
-    let tags_widget_subtext = widget::text::caption(fl!("bookmarks-form-tags-guidelines"));
+    let tags_widget_title = widget::text::body(fl!("tags"));
+    let tags_widget_subtext = widget::text::caption(fl!("tags-guidelines"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
     let archived_widget_checkbox = widget::checkbox(
-        fl!("bookmarks-form-archived"),
+        fl!("archived"),
         bookmark.is_archived,
         Message::SetBookmarkArchived,
     );
     let unread_widget_checkbox = widget::checkbox(
-        fl!("bookmarks-form-unread"),
+        fl!("unread"),
         bookmark.unread,
         Message::SetBookmarkUnread,
     );
     let shared_widget_checkbox = widget::checkbox(
-        fl!("bookmarks-form-shared"),
+        fl!("shared"),
         bookmark.shared,
         Message::SetBookmarkShared,
     );

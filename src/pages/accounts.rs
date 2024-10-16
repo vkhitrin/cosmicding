@@ -122,7 +122,7 @@ impl AccountsView {
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(2)
                     .align_items(Alignment::Center)
-                    .push(widget::text::title3(fl!("accounts-nav-view-title")))
+                    .push(widget::text::title3(fl!("accounts")))
                     .spacing(spacing.space_xxs)
                     .padding([
                         spacing.space_none,
@@ -178,18 +178,18 @@ impl AccountsView {
 
 pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
-    let display_name_widget_title = widget::text::body(fl!("accounts-form-display-name"));
+    let display_name_widget_title = widget::text::body(fl!("display-name"));
     let display_name_widget_text_input = widget::text_input("Name", account.display_name.clone())
         .on_input(Message::SetAccountDisplayName);
-    let instance_widget_title = widget::text::body(fl!("accounts-form-instance"));
+    let instance_widget_title = widget::text::body(fl!("instance"));
     let instance_widget_text_input = widget::text_input("Instance", account.instance.clone())
         .on_input(Message::SetAccountInstance);
-    let api_key_widget_title = widget::text::body(fl!("accounts-form-api-key"));
+    let api_key_widget_title = widget::text::body(fl!("api-key"));
     let api_key_widget_text_input =
         widget::secure_input("Token", account.api_token.clone(), None, true)
             .on_input(Message::SetAccountAPIKey);
     let tls_widget_checkbox = widget::checkbox(
-        fl!("accounts-form-tls"),
+        fl!("tls"),
         account.tls,
         Message::SetAccountTLS,
     );
@@ -218,18 +218,18 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
 
 pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
-    let display_name_widget_title = widget::text::body(fl!("accounts-form-display-name"));
+    let display_name_widget_title = widget::text::body(fl!("display-name"));
     let display_name_widget_text_input = widget::text_input("Name", account.display_name.clone())
         .on_input(Message::SetAccountDisplayName);
-    let instance_widget_title = widget::text::body(fl!("accounts-form-instance"));
+    let instance_widget_title = widget::text::body(fl!("instance"));
     let instance_widget_text_input = widget::text_input("Instance", account.instance.clone())
         .on_input(Message::SetAccountInstance);
-    let api_key_widget_title = widget::text::body(fl!("accounts-form-api-key"));
+    let api_key_widget_title = widget::text::body(fl!("api-key"));
     let api_key_widget_text_input =
         widget::secure_input("Token", account.api_token.clone(), None, true)
             .on_input(Message::SetAccountAPIKey);
     let tls_widget_checkbox = widget::checkbox(
-        fl!("accounts-form-tls"),
+        fl!("tls"),
         account.tls,
         Message::SetAccountTLS,
     );

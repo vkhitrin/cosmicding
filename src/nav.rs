@@ -18,8 +18,8 @@ impl Default for &NavPage {
 impl NavPage {
     pub fn title(&self) -> String {
         match self {
-            Self::BookmarksView => fl!("bookmarks-view-title"),
-            Self::AccountsView => fl!("accounts-nav-view-title"),
+            Self::BookmarksView => fl!("bookmarks"),
+            Self::AccountsView => fl!("accounts"),
         }
     }
     pub fn icon(&self) -> cosmic::widget::Icon {
