@@ -53,8 +53,8 @@ In preparation for the first initial "stable" release, the following must be com
   - [ ] Database schema check.
   - [ ] Application side validation.
 - [ ] [Application] Throw exceptions when failed to execute database queries.
-- [ ] [Application] Throw exceptions when failed to invoke REST API requests.
-- [ ] [UI] Notifications/toasts.
+- [x] [Application] Throw exceptions when failed to invoke REST API requests.
+- [x] [UI] Notifications/toasts.
   - [x] Account deletion.
   - [x] Updating account.
   - [x] Adding account.
@@ -66,6 +66,7 @@ In preparation for the first initial "stable" release, the following must be com
 - [ ] [Application] logging.
 - [ ] [Application] Avoid refreshing on every change/update.
   - [ ] Update database in-place when possible.
+- [ ] CI
 
 ### Future
 

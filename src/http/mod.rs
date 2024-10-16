@@ -215,3 +215,43 @@ pub async fn edit_bookmark(
         ))),
     }
 }
+
+pub async fn check_instance(account: &Account) -> Result<(), Box<dyn std::error::Error>> {
+    let mut rest_api_url: String = "".to_owned();
+    write!(
+        &mut rest_api_url,
+        "{}/api/bookmarks/?limit=1",
+        account.instance,
+    )
+    .unwrap();
+    let mut headers = HeaderMap::new();
+    let http_client = ClientBuilder::new()
+        .danger_accept_invalid_certs(account.tls)
+        .build()?;
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Token {}", account.api_token)).unwrap(),
+    );
+    let response: reqwest::Response = http_client
+        .get(rest_api_url)
+        .headers(headers)
+        .send()
+        .await?;
+    match response.status() {
+        StatusCode::OK => match response.json::<BookmarksApiResponse>().await {
+            Ok(_value) => Ok(()),
+            Err(_e) => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to find linkding API endpoint"),
+            ))),
+        },
+        StatusCode::UNAUTHORIZED => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Invalid API token"),
+        ))),
+        _ => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Unexpected HTTP return code {}", response.status()),
+        ))),
+    }
+}

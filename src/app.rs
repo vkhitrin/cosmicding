@@ -410,22 +410,49 @@ impl Application for Cosmicding {
                 );
             }
             Message::CompleteAddAccount(account) => {
+                let mut valid_account = false;
                 block_on(async {
-                    db::SqliteDatabase::create_account(&mut self.db, &account).await
+                    match http::check_instance(&account).await {
+                        Ok(()) => {
+                            valid_account = true;
+                        }
+                        Err(e) => {
+                            if e.to_string().contains("builder error") {
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(format!(
+                                            "Provided URL is not valid"
+                                        )))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            } else {
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(format!("{e}")))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                        }
+                    }
                 });
-                commands.push(self.update(Message::FetchAccounts));
-                commands.push(self.update(Message::RefreshBookmarksForAccount(
-                    self.accounts_view.accounts.last().unwrap().clone(),
-                )));
+                if valid_account {
+                    block_on(async {
+                        db::SqliteDatabase::create_account(&mut self.db, &account).await
+                    });
+                    commands.push(self.update(Message::FetchAccounts));
+                    commands.push(self.update(Message::RefreshBookmarksForAccount(
+                        self.accounts_view.accounts.last().unwrap().clone(),
+                    )));
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(format!(
+                                "Added account {}",
+                                &account.display_name
+                            )))
+                            .map(cosmic::app::Message::App),
+                    );
+                }
                 self.core.window.show_context = false;
-                commands.push(
-                    self.toasts
-                        .push(widget::toaster::Toast::new(format!(
-                            "Added account '{}'",
-                            &account.display_name
-                        )))
-                        .map(cosmic::app::Message::App),
-                );
             }
             Message::UpdateAccount(account) => {
                 block_on(async {
@@ -449,9 +476,6 @@ impl Application for Cosmicding {
             ),
             Message::RefreshAllBookmarks => {
                 if !self.accounts_view.accounts.is_empty() {
-                    // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
-                    //                  bad user experience when the application hangs during
-                    //                  requests.
                     let remote_bookmarks = block_on(async {
                         http::fetch_all_bookmarks_from_accounts(self.accounts_view.accounts.clone())
                             .await
@@ -606,9 +630,6 @@ impl Application for Cosmicding {
                 }
             }
             Message::AddBookmark(account, bookmark) => {
-                // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
-                //                  bad user experience when the application hangs during
-                //                  requests.
                 let mut refresh_needed = false;
                 block_on(async {
                     match http::add_bookmark(&account, &bookmark).await {
@@ -640,9 +661,6 @@ impl Application for Cosmicding {
                 self.core.window.show_context = false;
             }
             Message::RemoveBookmark(account, bookmark) => {
-                // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
-                //                  bad user experience when the application hangs during
-                //                  requests.
                 let mut refresh_required = false;
                 block_on(async {
                     match http::remove_bookmark(&account, &bookmark).await {
@@ -651,8 +669,8 @@ impl Application for Cosmicding {
                             commands.push(
                                 self.toasts
                                     .push(widget::toaster::Toast::new(format!(
-                                        "Removed bookmark {} from account {}",
-                                        &bookmark.url, &account.display_name
+                                        "Removed bookmark from account {}",
+                                        &account.display_name
                                     )))
                                     .map(cosmic::app::Message::App),
                             );
@@ -683,9 +701,6 @@ impl Application for Cosmicding {
                     .push(self.update(Message::ToggleContextPage(ContextPage::EditBookmarkForm)));
             }
             Message::UpdateBookmark(account, bookmark) => {
-                // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
-                //                  bad user experience when the application hangs during
-                //                  requests.
                 let mut refresh_required = false;
                 block_on(async {
                     match http::edit_bookmark(&account, &bookmark).await {
