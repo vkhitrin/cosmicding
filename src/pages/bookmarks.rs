@@ -1,4 +1,7 @@
 use crate::app::Message;
+use crate::fl;
+use crate::models::account::Account;
+use crate::models::bookmarks::Bookmark;
 use cosmic::iced::Length;
 use cosmic::{cosmic_theme, theme};
 use cosmic::{
@@ -6,10 +9,7 @@ use cosmic::{
     widget::{self},
     Apply, Command, Element,
 };
-use crate::fl;
 use iced::alignment::{Horizontal, Vertical};
-use crate::models::account::Account;
-use crate::models::bookmarks::Bookmark;
 
 use std::borrow::Cow;
 
@@ -297,8 +297,8 @@ where
         widget::text_input("Description", bookmark.description.clone())
             .on_input(Message::SetBookmarkDescription);
     let notes_widget_title = widget::text::body(fl!("notes"));
-    let notes_widget_text_input =
-        widget::text_input("notes", bookmark.notes.clone()).on_input(Message::SetBookmarkNotes);
+    let notes_widget_text_input = widget::text_input(fl!("notes"), bookmark.notes.clone())
+        .on_input(Message::SetBookmarkNotes);
     let tags_widget_title = widget::text::body(fl!("tags"));
     let tags_widget_subtext = widget::text::caption(fl!("tags-guidelines"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
@@ -308,16 +308,10 @@ where
         bookmark.is_archived,
         Message::SetBookmarkArchived,
     );
-    let unread_widget_checkbox = widget::checkbox(
-        fl!("unread"),
-        bookmark.unread,
-        Message::SetBookmarkUnread,
-    );
-    let shared_widget_checkbox = widget::checkbox(
-        fl!("shared"),
-        bookmark.shared,
-        Message::SetBookmarkShared,
-    );
+    let unread_widget_checkbox =
+        widget::checkbox(fl!("unread"), bookmark.unread, Message::SetBookmarkUnread);
+    let shared_widget_checkbox =
+        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared);
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)
@@ -384,16 +378,10 @@ where
         bookmark.is_archived,
         Message::SetBookmarkArchived,
     );
-    let unread_widget_checkbox = widget::checkbox(
-        fl!("unread"),
-        bookmark.unread,
-        Message::SetBookmarkUnread,
-    );
-    let shared_widget_checkbox = widget::checkbox(
-        fl!("shared"),
-        bookmark.shared,
-        Message::SetBookmarkShared,
-    );
+    let unread_widget_checkbox =
+        widget::checkbox(fl!("unread"), bookmark.unread, Message::SetBookmarkUnread);
+    let shared_widget_checkbox =
+        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared);
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)

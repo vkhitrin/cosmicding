@@ -402,9 +402,9 @@ impl Application for Cosmicding {
                 commands.push(self.update(Message::RefreshAllBookmarks));
                 commands.push(
                     self.toasts
-                        .push(widget::toaster::Toast::new(format!(
-                            "Removed account '{}'",
-                            &account.display_name
+                        .push(widget::toaster::Toast::new(fl!(
+                            "removed-account",
+                            acc = account.display_name
                         )))
                         .map(cosmic::app::Message::App),
                 );
@@ -445,9 +445,9 @@ impl Application for Cosmicding {
                     )));
                     commands.push(
                         self.toasts
-                            .push(widget::toaster::Toast::new(format!(
-                                "Added account {}",
-                                &account.display_name
+                            .push(widget::toaster::Toast::new(fl!(
+                                "added-account",
+                                acc = account.display_name
                             )))
                             .map(cosmic::app::Message::App),
                     );
@@ -462,9 +462,9 @@ impl Application for Cosmicding {
                 self.core.window.show_context = false;
                 commands.push(
                     self.toasts
-                        .push(widget::toaster::Toast::new(format!(
-                            "Updated account '{}'",
-                            &account.display_name
+                        .push(widget::toaster::Toast::new(fl!(
+                            "updated-account",
+                            acc = account.display_name
                         )))
                         .map(cosmic::app::Message::App),
                 );
@@ -490,9 +490,7 @@ impl Application for Cosmicding {
                 if !self.bookmarks_view.bookmarks.is_empty() {
                     commands.push(
                         self.toasts
-                            .push(widget::toaster::Toast::new(format!(
-                                "Refreshed all bookmarks",
-                            )))
+                            .push(widget::toaster::Toast::new(fl!("refreshed-all-bookmarks")))
                             .map(cosmic::app::Message::App),
                     );
                 }
@@ -522,18 +520,18 @@ impl Application for Cosmicding {
                 if !self.bookmarks_view.bookmarks.is_empty() {
                     commands.push(
                         self.toasts
-                            .push(widget::toaster::Toast::new(format!(
-                                "Refreshed bookmarks for account '{}'",
-                                &account.display_name
+                            .push(widget::toaster::Toast::new(fl!(
+                                "refreshed-bookmarks-for-account",
+                                acc = account.display_name
                             )))
                             .map(cosmic::app::Message::App),
                     );
                 } else {
                     commands.push(
                         self.toasts
-                            .push(widget::toaster::Toast::new(format!(
-                                "No bookmarks found for account '{}'",
-                                &account.display_name
+                            .push(widget::toaster::Toast::new(fl!(
+                                "no-bookmarks-found-for-account",
+                                acc = account.display_name
                             )))
                             .map(cosmic::app::Message::App),
                     );
@@ -637,9 +635,10 @@ impl Application for Cosmicding {
                             refresh_needed = true;
                             commands.push(
                                 self.toasts
-                                    .push(widget::toaster::Toast::new(format!(
-                                        "Added bookmark {} to account {}",
-                                        &bookmark.url, &account.display_name
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "added-bookmark-to-account",
+                                        bkmrk = bookmark.url,
+                                        acc = account.display_name.clone()
                                     )))
                                     .map(cosmic::app::Message::App),
                             );
@@ -668,9 +667,9 @@ impl Application for Cosmicding {
                             refresh_required = true;
                             commands.push(
                                 self.toasts
-                                    .push(widget::toaster::Toast::new(format!(
-                                        "Removed bookmark from account {}",
-                                        &account.display_name
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "removed-bookmark-from-account",
+                                        acc = account.display_name.clone()
                                     )))
                                     .map(cosmic::app::Message::App),
                             );
@@ -708,9 +707,9 @@ impl Application for Cosmicding {
                             refresh_required = true;
                             commands.push(
                                 self.toasts
-                                    .push(widget::toaster::Toast::new(format!(
-                                        "Updated bookmark {} from account {}",
-                                        &bookmark.title, &account.display_name
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "updated-bookmark-in-account",
+                                        acc = account.display_name.clone()
                                     )))
                                     .map(cosmic::app::Message::App),
                             );
