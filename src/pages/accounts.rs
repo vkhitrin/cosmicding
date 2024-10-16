@@ -89,6 +89,10 @@ impl AccountsView {
                 let actions_row = widget::row::with_capacity(1)
                     .spacing(spacing.space_xxs)
                     .push(
+                        widget::button::link(fl!("refresh"))
+                            .on_press(AccountsMessage::RefreshBookmarksForAccount(item.to_owned())),
+                    )
+                    .push(
                         widget::button::link(fl!("edit"))
                             .on_press(AccountsMessage::EditAccount(item.to_owned())),
                     )

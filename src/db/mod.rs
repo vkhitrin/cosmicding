@@ -82,25 +82,25 @@ impl SqliteDatabase {
             .await
             .unwrap();
     }
-    pub async fn update_account(&mut self, account: Account) {
+    pub async fn update_account(&mut self, account: &Account) {
         let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, tls=$5 WHERE id=$1;";
         sqlx::query(query)
-            .bind(account.id)
-            .bind(account.display_name)
-            .bind(account.instance)
-            .bind(account.api_token)
-            .bind(account.tls)
+            .bind(&account.id)
+            .bind(&account.display_name)
+            .bind(&account.instance)
+            .bind(&account.api_token)
+            .bind(&account.tls)
             .execute(&mut self.conn)
             .await
             .unwrap();
     }
-    pub async fn create_account(&mut self, account: Account) {
+    pub async fn create_account(&mut self, account: &Account) {
         let query: &str = "INSERT INTO UserAccounts (display_name, instance, api_token, last_sync_status, last_sync_timestamp, tls) VALUES ($1, $2, $3, 0, 0, $4);";
         sqlx::query(query)
-            .bind(account.display_name)
-            .bind(account.instance)
-            .bind(account.api_token)
-            .bind(account.tls)
+            .bind(&account.display_name)
+            .bind(&account.instance)
+            .bind(&account.api_token)
+            .bind(&account.tls)
             .execute(&mut self.conn)
             .await
             .unwrap();
@@ -119,7 +119,7 @@ impl SqliteDatabase {
             }
         }
     }
-    pub async fn cache_bookmarks_for_acount(&mut self, account: Account, bookmarks: Vec<Bookmark>) {
+    pub async fn cache_bookmarks_for_acount(&mut self, account: &Account, bookmarks: Vec<Bookmark>) {
         let truncate_query: &str = "DELETE FROM Bookmarks where user_account_id = $1;";
         sqlx::query(truncate_query)
             .bind(account.id)

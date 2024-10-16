@@ -3,7 +3,7 @@ use crate::models::bookmarks::{Bookmark, BookmarksApiResponse};
 use anyhow::Result;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
-    ClientBuilder,
+    ClientBuilder, StatusCode,
 };
 use serde_json::Value;
 use std::fmt::Write;
@@ -86,9 +86,9 @@ pub async fn fetch_bookmarks_for_account(
     Ok(bookmarks)
 }
 
-pub async fn new_bookmark(
-    account: Account,
-    bookmark: Bookmark,
+pub async fn add_bookmark(
+    account: &Account,
+    bookmark: &Bookmark,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
     let mut headers = HeaderMap::new();
@@ -119,23 +119,31 @@ pub async fn new_bookmark(
         .json(&transformed_json_value)
         .send()
         .await?;
-    if response.status().is_success() {
-    } else {
-        println!(
-            "HTTP Error {:?}:\n{:?}",
-            response.status(),
-            response.text().await
-        );
+
+    match response.status() {
+        StatusCode::CREATED => Ok(()),
+        status => {
+            // Return an error with the status code
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("HTTP error {}: {}", status, response.text().await?),
+            )))
+        }
     }
-    Ok(())
 }
 
-pub async fn delete_bookmark(
-    account: Account,
-    bookmark: Bookmark,
+pub async fn remove_bookmark(
+    account: &Account,
+    bookmark: &Bookmark,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rest_api_url: String = "".to_owned();
-    write!(&mut rest_api_url, "{}/api/bookmarks/{:?}/", account.instance.clone(), bookmark.linkding_internal_id.clone().unwrap()).unwrap();
+    write!(
+        &mut rest_api_url,
+        "{}/api/bookmarks/{:?}/",
+        account.instance.clone(),
+        bookmark.linkding_internal_id.clone().unwrap()
+    )
+    .unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
         .danger_accept_invalid_certs(account.tls)
@@ -150,23 +158,27 @@ pub async fn delete_bookmark(
         .headers(headers)
         .send()
         .await?;
-    if response.status().is_success() {
-    } else {
-        println!(
-            "HTTP Error {:?}:\n{:?}",
-            response.status(),
-            response.text().await
-        );
+    match response.status() {
+        StatusCode::NO_CONTENT => Ok(()),
+        status => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("HTTP error {}: {}", status, response.text().await?),
+        ))),
     }
-    Ok(())
 }
 
 pub async fn edit_bookmark(
-    account: Account,
-    bookmark: Bookmark,
+    account: &Account,
+    bookmark: &Bookmark,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rest_api_url: String = "".to_owned();
-    write!(&mut rest_api_url, "{}/api/bookmarks/{:?}/", account.instance.clone(), bookmark.linkding_internal_id.clone().unwrap()).unwrap();
+    write!(
+        &mut rest_api_url,
+        "{}/api/bookmarks/{:?}/",
+        account.instance.clone(),
+        bookmark.linkding_internal_id.clone().unwrap()
+    )
+    .unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
         .danger_accept_invalid_certs(account.tls)
@@ -195,13 +207,11 @@ pub async fn edit_bookmark(
         .json(&transformed_json_value)
         .send()
         .await?;
-    if response.status().is_success() {
-    } else {
-        println!(
-            "HTTP Error {:?}:\n{:?}",
-            response.status(),
-            response.text().await
-        );
+    match response.status() {
+        StatusCode::OK => Ok(()),
+        status => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("HTTP error {}: {}", status, response.text().await?),
+        ))),
     }
-    Ok(())
 }

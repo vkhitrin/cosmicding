@@ -55,7 +55,17 @@ In preparation for the first initial "stable" release, the following must be com
 - [ ] [Application] Throw exceptions when failed to execute database queries.
 - [ ] [Application] Throw exceptions when failed to invoke REST API requests.
 - [ ] [UI] Notifications/toasts.
+  - [x] Account deletion.
+  - [x] Updating account.
+  - [x] Adding account.
+  - [x] Refreshing bookmarks for account.
+  - [x] Refreshing bookmarks for all accounts.
+  - [x] Bookmark deletion.
+  - [x] Updating bookmark.
+  - [x] Adding bookmark.
 - [ ] [Application] logging.
+- [ ] [Application] Avoid refreshing on every change/update.
+  - [ ] Update database in-place when possible.
 
 ### Future
 
@@ -69,6 +79,7 @@ In preparation for the first initial "stable" release, the following must be com
 - [UI] Pagination (if possible).
 - [Application] use user-provided TLS certificate.
 - [UI] Visual indicator for last sync status.
+- [Application] Consider leveraging `/check` endpoint when adding bookmarks.
 
 ## Thanks
 

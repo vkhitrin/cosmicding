@@ -231,7 +231,7 @@ impl BookmarksView {
                 commands.push(Command::perform(async {}, |_| Message::OpenAccountsPage));
             }
             BookmarksMessage::RefreshBookmarks => {
-                commands.push(Command::perform(async {}, |_| Message::FetchBookmarks));
+                commands.push(Command::perform(async {}, |_| Message::RefreshAllBookmarks));
             }
             BookmarksMessage::NewBookmark => {
                 commands.push(Command::perform(async {}, |_| Message::AddBookmarkForm));
@@ -256,7 +256,7 @@ impl BookmarksView {
             }
             BookmarksMessage::ClearSearch => {
                 self.query_placeholder = Cow::Owned("".to_string());
-                commands.push(Command::perform(async {}, |_| Message::FetchBookmarks));
+                commands.push(Command::perform(async {}, |_| Message::RefreshAllBookmarks));
             }
             BookmarksMessage::OpenExternalURL(url) => {
                 commands.push(Command::perform(async {}, |_| {

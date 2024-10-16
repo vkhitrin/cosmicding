@@ -6,7 +6,10 @@ use crate::key_binds::key_binds;
 use crate::models::account::Account;
 use crate::models::bookmarks::Bookmark;
 use crate::nav::NavPage;
-use cosmic::{theme, Application, ApplicationExt, Element};
+use crate::pages::accounts::{add_account, edit_account, AccountsMessage, AccountsView};
+use crate::pages::bookmarks::{
+    edit_bookmark, new_bookmark, view_notes, BookmarksMessage, BookmarksView,
+};
 use cosmic::app::{Command, Core};
 use cosmic::cosmic_config::{self, CosmicConfigEntry, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
@@ -15,12 +18,9 @@ use cosmic::iced::{
     keyboard::{Event as KeyEvent, Key, Modifiers},
     Alignment, Event, Length, Subscription,
 };
-use crate::pages::accounts::{add_account, edit_account, AccountsMessage, AccountsView};
-use crate::pages::bookmarks::{
-    edit_bookmark, new_bookmark, view_notes, BookmarksMessage, BookmarksView,
-};
 use cosmic::widget::menu::action::MenuAction as _MenuAction;
 use cosmic::widget::{self, icon, menu, nav_bar};
+use cosmic::{theme, Application, ApplicationExt, Element};
 use futures::executor::block_on;
 use std::any::TypeId;
 use std::collections::{HashMap, VecDeque};
@@ -38,7 +38,7 @@ pub struct Flags {
     pub config: Config,
 }
 
-pub struct AppModel {
+pub struct Cosmicding {
     core: Core,
     context_page: ContextPage,
     nav: nav_bar::Model,
@@ -54,6 +54,7 @@ pub struct AppModel {
     placeholder_account: Option<Account>,
     placeholder_bookmark: Option<Bookmark>,
     placeholder_selected_account_index: usize,
+    toasts: widget::toaster::Toasts<Message>,
 }
 
 #[derive(Debug, Clone)]
@@ -65,20 +66,21 @@ pub enum Message {
     AddBookmarkFormAccountIndex(usize),
     AppTheme(AppTheme),
     BookmarksView(BookmarksMessage),
+    CloseToast(widget::ToastId),
     CompleteAddAccount(Account),
-    CompleteRemovetDialog(Account, Option<Bookmark>),
+    CompleteRemoveDialog(Account, Option<Bookmark>),
     DialogCancel,
     DialogUpdate(DialogPage),
     EditAccount(Account),
     EditBookmark(Account, Bookmark),
     FetchAccounts,
-    FetchBookmarks,
     Key(Modifiers, Key),
     Modifiers(Modifiers),
     OpenAccountsPage,
     OpenExternalUrl(String),
     OpenRemoveAccountDialog(Account),
     OpenRemoveBookmarkDialog(Account, Bookmark),
+    RefreshAllBookmarks,
     RefreshBookmarksForAccount(Account),
     RemoveAccount(Account),
     RemoveBookmark(Account, Bookmark),
@@ -110,7 +112,7 @@ pub enum DialogPage {
     RemoveBookmark(Account, Bookmark),
 }
 
-impl Application for AppModel {
+impl Application for Cosmicding {
     type Executor = cosmic::executor::Default;
 
     type Flags = Flags;
@@ -145,7 +147,7 @@ impl Application for AppModel {
             }
         }
 
-        let mut app = AppModel {
+        let mut app = Cosmicding {
             core,
             context_page: ContextPage::default(),
             nav,
@@ -166,12 +168,13 @@ impl Application for AppModel {
             placeholder_account: None,
             placeholder_bookmark: None,
             placeholder_selected_account_index: 0,
+            toasts: widget::toaster::Toasts::new(Message::CloseToast),
         };
 
         let commands = vec![
             app.update_title(),
             app.update(Message::FetchAccounts),
-            app.update(Message::FetchBookmarks),
+            app.update(Message::RefreshAllBookmarks),
         ];
 
         (app, Command::batch(commands))
@@ -228,9 +231,11 @@ impl Application for AppModel {
                 widget::dialog(fl!("remove") + " " + { &account.display_name })
                     .icon(icon::from_name("dialog-warning-symbolic").size(58).icon())
                     .body(fl!("remove-account-confirm"))
-                    .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
-                        Message::CompleteRemovetDialog(account.clone(), None),
-                    )))
+                    .primary_action(
+                        widget::button::destructive(fl!("yes")).on_press_maybe(Some(
+                            Message::CompleteRemoveDialog(account.clone(), None),
+                        )),
+                    )
                     .secondary_action(
                         widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
                     )
@@ -240,7 +245,7 @@ impl Application for AppModel {
                     .icon(icon::from_name("dialog-warning-symbolic").size(58).icon())
                     .body(fl!("remove-bookmark-confirm"))
                     .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
-                        Message::CompleteRemovetDialog(account.clone(), Some(bookmark.clone())),
+                        Message::CompleteRemoveDialog(account.clone(), Some(bookmark.clone())),
                     )))
                     .secondary_action(
                         widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
@@ -256,12 +261,20 @@ impl Application for AppModel {
         let entity = self.nav.active();
         let nav_page = self.nav.data::<NavPage>(entity).unwrap_or_default();
 
-        widget::column::with_children(vec![nav_page.view(self)])
-            .padding(spacing.space_xs)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_items(Alignment::Center)
-            .into()
+        widget::column::with_children(vec![
+            (widget::toaster(&self.toasts, widget::horizontal_space(Length::Fill)).into()),
+            nav_page.view(self),
+        ])
+        .padding([
+            spacing.space_none,
+            spacing.space_xs,
+            spacing.space_none,
+            spacing.space_xs,
+        ])
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_items(Alignment::Center)
+        .into()
     }
     fn subscription(&self) -> Subscription<Self::Message> {
         struct ConfigSubscription;
@@ -386,27 +399,55 @@ impl Application for AppModel {
                     db::SqliteDatabase::delete_account(&mut self.db, &account).await
                 });
                 commands.push(self.update(Message::FetchAccounts));
-                commands.push(self.update(Message::FetchBookmarks));
+                commands.push(self.update(Message::RefreshAllBookmarks));
+                commands.push(
+                    self.toasts
+                        .push(widget::toaster::Toast::new(format!(
+                            "Removed account '{}'",
+                            &account.display_name
+                        )))
+                        .map(cosmic::app::Message::App),
+                );
             }
             Message::CompleteAddAccount(account) => {
-                block_on(async { db::SqliteDatabase::create_account(&mut self.db, account).await });
+                block_on(async {
+                    db::SqliteDatabase::create_account(&mut self.db, &account).await
+                });
                 commands.push(self.update(Message::FetchAccounts));
                 commands.push(self.update(Message::RefreshBookmarksForAccount(
                     self.accounts_view.accounts.last().unwrap().clone(),
                 )));
                 self.core.window.show_context = false;
+                commands.push(
+                    self.toasts
+                        .push(widget::toaster::Toast::new(format!(
+                            "Added account '{}'",
+                            &account.display_name
+                        )))
+                        .map(cosmic::app::Message::App),
+                );
             }
             Message::UpdateAccount(account) => {
-                block_on(async { db::SqliteDatabase::update_account(&mut self.db, account).await });
+                block_on(async {
+                    db::SqliteDatabase::update_account(&mut self.db, &account).await
+                });
                 commands.push(self.update(Message::FetchAccounts));
                 self.core.window.show_context = false;
+                commands.push(
+                    self.toasts
+                        .push(widget::toaster::Toast::new(format!(
+                            "Updated account '{}'",
+                            &account.display_name
+                        )))
+                        .map(cosmic::app::Message::App),
+                );
             }
             Message::BookmarksView(message) => commands.push(
                 self.bookmarks_view
                     .update(message)
                     .map(cosmic::app::Message::App),
             ),
-            Message::FetchBookmarks => {
+            Message::RefreshAllBookmarks => {
                 if !self.accounts_view.accounts.is_empty() {
                     // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
                     //                  bad user experience when the application hangs during
@@ -422,6 +463,15 @@ impl Application for AppModel {
                 }
                 self.bookmarks_view.bookmarks =
                     block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
+                if !self.bookmarks_view.bookmarks.is_empty() {
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(format!(
+                                "Refreshed all bookmarks",
+                            )))
+                            .map(cosmic::app::Message::App),
+                    );
+                }
             }
             Message::RefreshBookmarksForAccount(account) => {
                 let mut remote_bookmarks: Vec<Bookmark> = Vec::new();
@@ -438,13 +488,32 @@ impl Application for AppModel {
                 block_on(async {
                     db::SqliteDatabase::cache_bookmarks_for_acount(
                         &mut self.db,
-                        account,
+                        &account,
                         remote_bookmarks,
                     )
                     .await
                 });
                 self.bookmarks_view.bookmarks =
                     block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
+                if !self.bookmarks_view.bookmarks.is_empty() {
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(format!(
+                                "Refreshed bookmarks for account '{}'",
+                                &account.display_name
+                            )))
+                            .map(cosmic::app::Message::App),
+                    );
+                } else {
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(format!(
+                                "No bookmarks found for account '{}'",
+                                &account.display_name
+                            )))
+                            .map(cosmic::app::Message::App),
+                    );
+                }
             }
             Message::AddBookmarkForm => {
                 self.placeholder_bookmark = Some(Bookmark::new(
@@ -540,36 +609,65 @@ impl Application for AppModel {
                 // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
                 //                  bad user experience when the application hangs during
                 //                  requests.
-                let mut successfully_added = false;
+                let mut refresh_needed = false;
                 block_on(async {
-                    match http::new_bookmark(account.clone(), bookmark).await {
+                    match http::add_bookmark(&account, &bookmark).await {
                         Ok(()) => {
-                            successfully_added = true;
+                            refresh_needed = true;
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(format!(
+                                        "Added bookmark {} to account {}",
+                                        &bookmark.url, &account.display_name
+                                    )))
+                                    .map(cosmic::app::Message::App),
+                            );
                         }
                         Err(e) => {
                             eprintln!("Error adding bookmark: {}", e);
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(format!("{e}")))
+                                    .map(cosmic::app::Message::App),
+                            );
                         }
                     }
                 });
-                commands.push(self.update(Message::RefreshBookmarksForAccount(account.clone())));
+                if refresh_needed {
+                    commands
+                        .push(self.update(Message::RefreshBookmarksForAccount(account.clone())));
+                }
                 self.core.window.show_context = false;
             }
             Message::RemoveBookmark(account, bookmark) => {
                 // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
                 //                  bad user experience when the application hangs during
                 //                  requests.
-                let mut successfully_deleted = false;
+                let mut refresh_required = false;
                 block_on(async {
-                    match http::delete_bookmark(account.clone(), bookmark.clone()).await {
+                    match http::remove_bookmark(&account, &bookmark).await {
                         Ok(()) => {
-                            successfully_deleted = true;
+                            refresh_required = true;
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(format!(
+                                        "Removed bookmark {} from account {}",
+                                        &bookmark.url, &account.display_name
+                                    )))
+                                    .map(cosmic::app::Message::App),
+                            );
                         }
                         Err(e) => {
-                            eprintln!("Error adding bookmark: {}", e);
+                            eprintln!("Error removing bookmark: {}", e);
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(format!("{e}")))
+                                    .map(cosmic::app::Message::App),
+                            );
                         }
                     }
                 });
-                if successfully_deleted {
+                if refresh_required {
                     block_on(async {
                         db::SqliteDatabase::delete_bookmark(&mut self.db, &bookmark).await
                     });
@@ -588,18 +686,31 @@ impl Application for AppModel {
                 // TODO: (vkhitrin) in the future, refactor to avoid 'block_on', it makes for a
                 //                  bad user experience when the application hangs during
                 //                  requests.
-                let mut successfully_patched = false;
+                let mut refresh_required = false;
                 block_on(async {
-                    match http::edit_bookmark(account.clone(), bookmark).await {
+                    match http::edit_bookmark(&account, &bookmark).await {
                         Ok(()) => {
-                            successfully_patched = true;
+                            refresh_required = true;
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(format!(
+                                        "Updated bookmark {} from account {}",
+                                        &bookmark.title, &account.display_name
+                                    )))
+                                    .map(cosmic::app::Message::App),
+                            );
                         }
                         Err(e) => {
                             eprintln!("Error patching bookmark: {}", e);
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(format!("{e}")))
+                                    .map(cosmic::app::Message::App),
+                            );
                         }
                     }
                 });
-                if successfully_patched {
+                if refresh_required {
                     commands
                         .push(self.update(Message::RefreshBookmarksForAccount(account.clone())));
                 }
@@ -647,7 +758,7 @@ impl Application for AppModel {
             Message::DialogUpdate(dialog_page) => {
                 self.dialog_pages[0] = dialog_page;
             }
-            Message::CompleteRemovetDialog(_account, _bookmark) => {
+            Message::CompleteRemoveDialog(_account, _bookmark) => {
                 if let Some(dialog_page) = self.dialog_pages.pop_front() {
                     match dialog_page {
                         DialogPage::RemoveAccount(account) => {
@@ -663,6 +774,9 @@ impl Application for AppModel {
             Message::DialogCancel => {
                 self.dialog_pages.pop_front();
             }
+            Message::CloseToast(id) => {
+                self.toasts.remove(id);
+            }
         }
         Command::batch(commands)
     }
@@ -674,7 +788,7 @@ impl Application for AppModel {
     }
 }
 
-impl AppModel {
+impl Cosmicding {
     pub fn about(&self) -> Element<Message> {
         let spacing = theme::active().cosmic().spacing;
 

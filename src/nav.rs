@@ -29,7 +29,7 @@ impl NavPage {
         }
     }
 
-    pub fn view<'a>(&self, app: &'a app::AppModel) -> Element<'a, app::Message> {
+    pub fn view<'a>(&self, app: &'a app::Cosmicding) -> Element<'a, app::Message> {
         match self {
             NavPage::AccountsView => app.accounts_view.view().map(app::Message::AccountsView),
             NavPage::BookmarksView => app.bookmarks_view.view().map(app::Message::BookmarksView),

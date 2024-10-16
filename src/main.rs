@@ -35,5 +35,5 @@ fn main() -> cosmic::iced::Result {
         config_handler,
         config,
     };
-    cosmic::app::run::<app::AppModel>(settings, flags)
+    cosmic::app::run::<app::Cosmicding>(settings, flags)
 }
