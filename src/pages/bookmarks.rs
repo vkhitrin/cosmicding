@@ -27,7 +27,7 @@ pub enum BookmarksMessage {
     ClearSearch,
     DeleteBookmark(Account, Bookmark),
     EditBookmark(Account, Bookmark),
-    NewBookmark,
+    AddBookmark,
     OpenAccountsPage,
     OpenExternalURL(String),
     RefreshBookmarks,
@@ -52,7 +52,7 @@ impl BookmarksView {
         let spacing = theme::active().cosmic().spacing;
         let mut action_button = widget::button::text(fl!("add-bookmark"))
             .style(widget::button::Style::Standard)
-            .on_press(BookmarksMessage::NewBookmark);
+            .on_press(BookmarksMessage::AddBookmark);
         let mut page_title_text = widget::text::title3(fl!("no-bookmarks"));
         if self.bookmarks.is_empty() && self.query_placeholder.is_empty() {
             if self.accounts.is_empty() {
@@ -213,7 +213,7 @@ impl BookmarksView {
                     )
                     .push(
                         widget::button::text(fl!("add-bookmark"))
-                            .on_press(BookmarksMessage::NewBookmark)
+                            .on_press(BookmarksMessage::AddBookmark)
                             .style(theme::Button::Standard),
                     )
                     .width(Length::Fill)
@@ -233,7 +233,7 @@ impl BookmarksView {
             BookmarksMessage::RefreshBookmarks => {
                 commands.push(Command::perform(async {}, |_| Message::RefreshAllBookmarks));
             }
-            BookmarksMessage::NewBookmark => {
+            BookmarksMessage::AddBookmark => {
                 commands.push(Command::perform(async {}, |_| Message::AddBookmarkForm));
             }
             BookmarksMessage::DeleteBookmark(account, bookmark) => {

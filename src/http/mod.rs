@@ -1,3 +1,4 @@
+use crate::fl;
 use crate::models::account::Account;
 use crate::models::bookmarks::{Bookmark, BookmarksApiResponse};
 use anyhow::Result;
@@ -89,7 +90,7 @@ pub async fn fetch_bookmarks_for_account(
 pub async fn add_bookmark(
     account: &Account,
     bookmark: &Bookmark,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Bookmark, Box<dyn std::error::Error>> {
     let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
@@ -121,14 +122,26 @@ pub async fn add_bookmark(
         .await?;
 
     match response.status() {
-        StatusCode::CREATED => Ok(()),
-        status => {
-            // Return an error with the status code
-            Err(Box::new(std::io::Error::new(
+        StatusCode::CREATED => match response.json::<Bookmark>().await {
+            Ok(mut value) => {
+                value.linkding_internal_id = value.id;
+                value.user_account_id = account.id;
+                value.id = None;
+                Ok(value)
+            }
+            Err(_e) => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("HTTP error {}: {}", status, response.text().await?),
-            )))
-        }
+                fl!("failed-to-parse-response"),
+            ))),
+        },
+        status => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            fl!(
+                "http-error",
+                http_rc = status.to_string(),
+                http_err = response.text().await.unwrap()
+            ),
+        ))),
     }
 }
 
@@ -162,7 +175,11 @@ pub async fn remove_bookmark(
         StatusCode::NO_CONTENT => Ok(()),
         status => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!("HTTP error {}: {}", status, response.text().await?),
+            fl!(
+                "http-error",
+                http_rc = status.to_string(),
+                http_err = response.text().await.unwrap()
+            ),
         ))),
     }
 }
@@ -170,7 +187,7 @@ pub async fn remove_bookmark(
 pub async fn edit_bookmark(
     account: &Account,
     bookmark: &Bookmark,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Bookmark, Box<dyn std::error::Error>> {
     let mut rest_api_url: String = "".to_owned();
     write!(
         &mut rest_api_url,
@@ -208,11 +225,29 @@ pub async fn edit_bookmark(
         .send()
         .await?;
     match response.status() {
-        StatusCode::OK => Ok(()),
-        status => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("HTTP error {}: {}", status, response.text().await?),
-        ))),
+        StatusCode::OK => match response.json::<Bookmark>().await {
+            Ok(mut value) => {
+                value.linkding_internal_id = value.id;
+                value.user_account_id = account.id;
+                value.id = None;
+                Ok(value)
+            }
+            Err(_e) => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                fl!("failed-to-parse-response"),
+            ))),
+        },
+        status => {
+            // Return an error with the status code
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                fl!(
+                    "http-error",
+                    http_rc = status.to_string(),
+                    http_err = response.text().await.unwrap()
+                ),
+            )))
+        }
     }
 }
 
@@ -242,16 +277,19 @@ pub async fn check_instance(account: &Account) -> Result<(), Box<dyn std::error:
             Ok(_value) => Ok(()),
             Err(_e) => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("Failed to find linkding API endpoint"),
+                fl!("failed-to-find-linkding-api-endpoint"),
             ))),
         },
         StatusCode::UNAUTHORIZED => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!("Invalid API token"),
+            fl!("invalid-api-token"),
         ))),
         _ => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!("Unexpected HTTP return code {}", response.status()),
+            fl!(
+                "unexpected-http-return-code",
+                http_rc = response.status().to_string()
+            ),
         ))),
     }
 }

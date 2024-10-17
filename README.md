@@ -1,9 +1,9 @@
+> [!CAUTION]
+> This application is still under development, and is not deemed stable for general use.
+
 <p align="center">
   <img alt="cosmicding logo" src="./res/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png" alt="Logo" height="192px" width="192px">
 </p>
-
-> [!CAUTION]
-> This application is still under development, and is not deemed stable for general use.
 
 <p align="center">
     <img alt="cosmicding accounts page" src="./res/screenshots/accounts.png" width="192">
@@ -20,7 +20,7 @@ Features:
 - Support multiple linkding instances (or users on the same instance).
 - Cache/aggregate bookmarks locally.
 - Add/Edit/Remove bookmarks.
-- Search bookmarks based on title, URL, desscription and notes.
+- Search bookmarks based on title, URL, tags, desscription, and notes.
 
 ## Installation
 
@@ -60,8 +60,8 @@ In preparation for the first initial "stable" release, the following must be com
   - [x] Updating bookmark.
   - [x] Adding bookmark.
 - [ ] [Application] logging.
-- [ ] [Application] Avoid refreshing on every change/update.
-  - [ ] Update memory in-place when possible.
+- [x] [Application] Avoid refreshing on every change/update.
+  - [x] Update memory in-place when possible.
 - [ ] CI
 
 ### Future
@@ -81,6 +81,7 @@ Potential improvements:
 - [Application] Consider leveraging `/check` endpoint when adding bookmarks.
 - [UI] Indicators for `archived`, `unread`, `shared` bookmarks.
 - [Distribution] Flatpack release.
+- [UI] Sort bookmarks.
 
 ## Thanks
 

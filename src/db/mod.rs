@@ -75,8 +75,8 @@ impl SqliteDatabase {
         return data;
     }
     pub async fn delete_account(&mut self, account: &Account) {
-        let query: &str = "DELETE FROM UserAccounts WHERE id = $1;";
-        sqlx::query(query)
+        let bookmarks_query: &str = "DELETE FROM UserAccounts WHERE id = $1;";
+        sqlx::query(bookmarks_query)
             .bind(account.id)
             .execute(&mut self.conn)
             .await
@@ -115,11 +115,15 @@ impl SqliteDatabase {
             .unwrap();
         if !bookmarks.is_empty() {
             for bookmark in bookmarks {
-                self.create_bookmark(bookmark).await;
+                self.add_bookmark(&bookmark).await;
             }
         }
     }
-    pub async fn cache_bookmarks_for_acount(&mut self, account: &Account, bookmarks: Vec<Bookmark>) {
+    pub async fn cache_bookmarks_for_acount(
+        &mut self,
+        account: &Account,
+        bookmarks: Vec<Bookmark>,
+    ) {
         let truncate_query: &str = "DELETE FROM Bookmarks where user_account_id = $1;";
         sqlx::query(truncate_query)
             .bind(account.id)
@@ -128,11 +132,11 @@ impl SqliteDatabase {
             .unwrap();
         if !bookmarks.is_empty() {
             for bookmark in bookmarks {
-                self.create_bookmark(bookmark).await;
+                self.add_bookmark(&bookmark).await;
             }
         }
     }
-    pub async fn create_bookmark(&mut self, bookmark: Bookmark) {
+    pub async fn add_bookmark(&mut self, bookmark: &Bookmark) {
         let query: &str = r#"
             INSERT INTO Bookmarks (
                 user_account_id,
@@ -154,23 +158,23 @@ impl SqliteDatabase {
                 website_description)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);"#;
         sqlx::query(query)
-            .bind(bookmark.user_account_id)
-            .bind(bookmark.linkding_internal_id)
-            .bind(bookmark.url)
-            .bind(bookmark.title)
-            .bind(bookmark.description)
-            .bind(bookmark.notes)
-            .bind(bookmark.web_archive_snapshot_url)
-            .bind(bookmark.favicon_url)
-            .bind(bookmark.preview_image_url)
-            .bind(bookmark.is_archived)
-            .bind(bookmark.unread)
-            .bind(bookmark.shared)
-            .bind(bookmark.tag_names.join(" "))
-            .bind(bookmark.date_added)
-            .bind(bookmark.date_modified)
-            .bind(bookmark.website_title)
-            .bind(bookmark.website_description)
+            .bind(&bookmark.user_account_id)
+            .bind(&bookmark.linkding_internal_id)
+            .bind(&bookmark.url)
+            .bind(&bookmark.title)
+            .bind(&bookmark.description)
+            .bind(&bookmark.notes)
+            .bind(&bookmark.web_archive_snapshot_url)
+            .bind(&bookmark.favicon_url)
+            .bind(&bookmark.preview_image_url)
+            .bind(&bookmark.is_archived)
+            .bind(&bookmark.unread)
+            .bind(&bookmark.shared)
+            .bind(&bookmark.tag_names.join(" "))
+            .bind(&bookmark.date_added)
+            .bind(&bookmark.date_modified)
+            .bind(&bookmark.website_title)
+            .bind(&bookmark.website_description)
             .execute(&mut self.conn)
             .await
             .unwrap();
@@ -214,6 +218,46 @@ impl SqliteDatabase {
             .collect();
         return data;
     }
+    pub async fn update_bookmark(&mut self, old_bookmark: &Bookmark, new_bookmark: &Bookmark) {
+        let query: &str = r#"
+            UPDATE Bookmarks SET
+                url=$1,
+                title=$2,
+                description=$3,
+                notes=$4,
+                web_archive_snapshot_url=$5,
+                favicon_url=$6,
+                preview_image_url=$7,
+                is_archived=$8,
+                unread=$9,
+                shared=$10,
+                tag_names=$11,
+                date_added=$12,
+                date_modified=$13,
+                website_title=$14,
+                website_description=$15
+            WHERE linkding_internal_id=$16;"#;
+        sqlx::query(query)
+            .bind(&new_bookmark.url)
+            .bind(&new_bookmark.title)
+            .bind(&new_bookmark.description)
+            .bind(&new_bookmark.notes)
+            .bind(&new_bookmark.web_archive_snapshot_url)
+            .bind(&new_bookmark.favicon_url)
+            .bind(&new_bookmark.preview_image_url)
+            .bind(&new_bookmark.is_archived)
+            .bind(&new_bookmark.unread)
+            .bind(&new_bookmark.shared)
+            .bind(&new_bookmark.tag_names.join(" "))
+            .bind(&new_bookmark.date_added)
+            .bind(&new_bookmark.date_modified)
+            .bind(&new_bookmark.website_title)
+            .bind(&new_bookmark.website_description)
+            .bind(&old_bookmark.id)
+            .execute(&mut self.conn)
+            .await
+            .unwrap();
+    }
     pub async fn delete_all_bookmarks_of_account(&mut self, account: &Account) {
         let query: &str = "DELETE FROM Bookmarks WHERE user_account_id = $1;";
         sqlx::query(query)
@@ -232,17 +276,17 @@ impl SqliteDatabase {
     }
     pub async fn search_bookmarks(&mut self, input: String) -> Vec<Bookmark> {
         let query: &str = r#"
-SELECT * FROM Bookmarks 
-WHERE (
-    (
-        coalesce(url, '') || ' ' ||
-        coalesce(title, '') || ' ' ||
-        coalesce(description, '') || ' ' ||
-        coalesce(notes, '') || ' ' ||
-        coalesce(tag_names, '')
-    )
-    LIKE '%' || $1 || '%'
-);"#;
+            SELECT * FROM Bookmarks 
+            WHERE (
+                (
+                    coalesce(url, '') || ' ' ||
+                    coalesce(title, '') || ' ' ||
+                    coalesce(description, '') || ' ' ||
+                    coalesce(notes, '') || ' ' ||
+                    coalesce(tag_names, '')
+                )
+                LIKE '%' || $1 || '%'
+            );"#;
         let result = sqlx::query(query)
             .bind(input)
             .fetch_all(&mut self.conn)

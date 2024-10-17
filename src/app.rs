@@ -398,8 +398,7 @@ impl Application for Cosmicding {
                 block_on(async {
                     db::SqliteDatabase::delete_account(&mut self.db, &account).await
                 });
-                commands.push(self.update(Message::FetchAccounts));
-                commands.push(self.update(Message::RefreshAllBookmarks));
+                self.bookmarks_view.bookmarks.retain(|bkmrk| bkmrk.user_account_id != account.id);
                 commands.push(
                     self.toasts
                         .push(widget::toaster::Toast::new(fl!(
@@ -420,8 +419,8 @@ impl Application for Cosmicding {
                             if e.to_string().contains("builder error") {
                                 commands.push(
                                     self.toasts
-                                        .push(widget::toaster::Toast::new(format!(
-                                            "Provided URL is not valid"
+                                        .push(widget::toaster::Toast::new(fl!(
+                                            "provided-url-is-not-valid"
                                         )))
                                         .map(cosmic::app::Message::App),
                                 );
@@ -455,19 +454,51 @@ impl Application for Cosmicding {
                 self.core.window.show_context = false;
             }
             Message::UpdateAccount(account) => {
+                let mut valid_account = false;
                 block_on(async {
-                    db::SqliteDatabase::update_account(&mut self.db, &account).await
+                    match http::check_instance(&account).await {
+                        Ok(()) => {
+                            valid_account = true;
+                        }
+                        Err(e) => {
+                            if e.to_string().contains("builder error") {
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(fl!(
+                                            "provided-url-is-not-valid"
+                                        )))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            } else {
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(format!("{e}")))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                        }
+                    }
                 });
+                if valid_account {
+                    block_on(async {
+                        db::SqliteDatabase::update_account(&mut self.db, &account).await
+                    });
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(fl!(
+                                "updated-account",
+                                acc = account.display_name
+                            )))
+                            .map(cosmic::app::Message::App),
+                    );
+                    commands.push(self.update(Message::FetchAccounts));
+                    commands.push(self.update(Message::RefreshBookmarksForAccount(
+                        self.accounts_view.accounts.last().unwrap().clone(),
+                    )));
+                }
+                self.core.window.show_context = false;
                 commands.push(self.update(Message::FetchAccounts));
                 self.core.window.show_context = false;
-                commands.push(
-                    self.toasts
-                        .push(widget::toaster::Toast::new(fl!(
-                            "updated-account",
-                            acc = account.display_name
-                        )))
-                        .map(cosmic::app::Message::App),
-                );
             }
             Message::BookmarksView(message) => commands.push(
                 self.bookmarks_view
@@ -628,16 +659,16 @@ impl Application for Cosmicding {
                 }
             }
             Message::AddBookmark(account, bookmark) => {
-                let mut refresh_needed = false;
+                let mut new_bkmrk: Option<Bookmark> = None;
                 block_on(async {
                     match http::add_bookmark(&account, &bookmark).await {
-                        Ok(()) => {
-                            refresh_needed = true;
+                        Ok(value) => {
+                            new_bkmrk = Some(value);
                             commands.push(
                                 self.toasts
                                     .push(widget::toaster::Toast::new(fl!(
                                         "added-bookmark-to-account",
-                                        bkmrk = bookmark.url,
+                                        bkmrk = bookmark.url.clone(),
                                         acc = account.display_name.clone()
                                     )))
                                     .map(cosmic::app::Message::App),
@@ -653,18 +684,25 @@ impl Application for Cosmicding {
                         }
                     }
                 });
-                if refresh_needed {
-                    commands
-                        .push(self.update(Message::RefreshBookmarksForAccount(account.clone())));
+                if let Some(bkmrk) = new_bkmrk {
+                    block_on(async {
+                        db::SqliteDatabase::add_bookmark(&mut self.db, &bkmrk).await
+                    });
+                    self.bookmarks_view.bookmarks.push(bkmrk);
                 }
                 self.core.window.show_context = false;
             }
             Message::RemoveBookmark(account, bookmark) => {
-                let mut refresh_required = false;
                 block_on(async {
                     match http::remove_bookmark(&account, &bookmark).await {
                         Ok(()) => {
-                            refresh_required = true;
+                            let index = self
+                                .bookmarks_view
+                                .bookmarks
+                                .iter()
+                                .position(|x| *x == bookmark)
+                                .unwrap();
+                            self.bookmarks_view.bookmarks.remove(index);
                             commands.push(
                                 self.toasts
                                     .push(widget::toaster::Toast::new(fl!(
@@ -684,13 +722,9 @@ impl Application for Cosmicding {
                         }
                     }
                 });
-                if refresh_required {
-                    block_on(async {
-                        db::SqliteDatabase::delete_bookmark(&mut self.db, &bookmark).await
-                    });
-                    commands
-                        .push(self.update(Message::RefreshBookmarksForAccount(account.clone())));
-                }
+                block_on(async {
+                    db::SqliteDatabase::delete_bookmark(&mut self.db, &bookmark).await
+                });
                 self.core.window.show_context = false;
             }
             Message::EditBookmark(account, bookmark) => {
@@ -700,11 +734,11 @@ impl Application for Cosmicding {
                     .push(self.update(Message::ToggleContextPage(ContextPage::EditBookmarkForm)));
             }
             Message::UpdateBookmark(account, bookmark) => {
-                let mut refresh_required = false;
+                let mut updated_bkmrk: Option<Bookmark> = None;
                 block_on(async {
                     match http::edit_bookmark(&account, &bookmark).await {
-                        Ok(()) => {
-                            refresh_required = true;
+                        Ok(value) => {
+                            updated_bkmrk = Some(value);
                             commands.push(
                                 self.toasts
                                     .push(widget::toaster::Toast::new(fl!(
@@ -724,9 +758,19 @@ impl Application for Cosmicding {
                         }
                     }
                 });
-                if refresh_required {
-                    commands
-                        .push(self.update(Message::RefreshBookmarksForAccount(account.clone())));
+                println!("{:?}", bookmark);
+                if let Some(bkmrk) = updated_bkmrk {
+                    let index = self
+                        .bookmarks_view
+                        .bookmarks
+                        .iter()
+                        .position(|x| x.id == bookmark.id)
+                        .unwrap();
+                    println!("{}", index);
+                    block_on(async {
+                        db::SqliteDatabase::update_bookmark(&mut self.db, &bookmark, &bkmrk).await
+                    });
+                    self.bookmarks_view.bookmarks[index] = bkmrk;
                 }
                 self.core.window.show_context = false;
             }
