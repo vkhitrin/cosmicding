@@ -300,7 +300,7 @@ where
     let notes_widget_text_input = widget::text_input(fl!("notes"), bookmark.notes.clone())
         .on_input(Message::SetBookmarkNotes);
     let tags_widget_title = widget::text::body(fl!("tags"));
-    let tags_widget_subtext = widget::text::caption(fl!("tags-guidelines"));
+    let tags_widget_subtext = widget::text::caption(fl!("tags-helper"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
     let archived_widget_checkbox = widget::checkbox(
@@ -370,7 +370,7 @@ where
     let notes_widget_text_input =
         widget::text_input("notes", bookmark.notes.clone()).on_input(Message::SetBookmarkNotes);
     let tags_widget_title = widget::text::body(fl!("tags"));
-    let tags_widget_subtext = widget::text::caption(fl!("tags-guidelines"));
+    let tags_widget_subtext = widget::text::caption(fl!("tags-helper"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
     let archived_widget_checkbox = widget::checkbox(

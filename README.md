@@ -49,10 +49,6 @@ sudo just install
 
 In preparation for the first initial "stable" release, the following must be completed:
 
-- [ ] [Application] Ensure no empty values are passed during creation.
-  - [ ] Database schema check.
-  - [ ] Application side validation.
-- [ ] [Application] Throw exceptions when failed to execute database queries.
 - [x] [Application] Throw exceptions when failed to invoke REST API requests.
 - [x] [UI] Notifications/toasts.
   - [x] Account deletion.
@@ -65,10 +61,12 @@ In preparation for the first initial "stable" release, the following must be com
   - [x] Adding bookmark.
 - [ ] [Application] logging.
 - [ ] [Application] Avoid refreshing on every change/update.
-  - [ ] Update database in-place when possible.
+  - [ ] Update memory in-place when possible.
 - [ ] CI
 
 ### Future
+
+Potential improvements:
 
 - [UI] Add context menus (right click) for accounts/bookmarks (?).
 - [UI] Populate menu bar with more actions.
@@ -81,6 +79,8 @@ In preparation for the first initial "stable" release, the following must be com
 - [Application] use user-provided TLS certificate.
 - [UI] Visual indicator for last sync status.
 - [Application] Consider leveraging `/check` endpoint when adding bookmarks.
+- [UI] Indicators for `archived`, `unread`, `shared` bookmarks.
+- [Distribution] Flatpack release.
 
 ## Thanks
 
