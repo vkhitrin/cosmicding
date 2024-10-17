@@ -62,6 +62,7 @@ In preparation for the first initial "stable" release, the following must be com
 - [ ] [Application] logging.
 - [x] [Application] Avoid refreshing on every change/update.
   - [x] Update memory in-place when possible.
+- [ ] [Application] "Lazy" bookmark refresh (do not block).
 - [ ] CI
 
 ### Future

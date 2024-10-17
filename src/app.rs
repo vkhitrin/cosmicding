@@ -24,6 +24,7 @@ use cosmic::{theme, Application, ApplicationExt, Element};
 use futures::executor::block_on;
 use std::any::TypeId;
 use std::collections::{HashMap, VecDeque};
+use std::time::Duration;
 
 pub const QUALIFIER: &str = "com";
 pub const ORG: &str = "vkhitrin";
@@ -55,6 +56,7 @@ pub struct Cosmicding {
     placeholder_bookmark: Option<Bookmark>,
     placeholder_selected_account_index: usize,
     toasts: widget::toaster::Toasts<Message>,
+    startup_completed: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -80,7 +82,7 @@ pub enum Message {
     OpenExternalUrl(String),
     OpenRemoveAccountDialog(Account),
     OpenRemoveBookmarkDialog(Account, Bookmark),
-    RefreshAllBookmarks,
+    RefreshAllBookmarksUsingRemote(bool),
     RefreshBookmarksForAccount(Account),
     RemoveAccount(Account),
     RemoveBookmark(Account, Bookmark),
@@ -104,6 +106,7 @@ pub enum Message {
     UpdateBookmark(Account, Bookmark),
     UpdateConfig(Config),
     ViewBookmarkNotes(Bookmark),
+    StartupCompleted,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -169,12 +172,14 @@ impl Application for Cosmicding {
             placeholder_bookmark: None,
             placeholder_selected_account_index: 0,
             toasts: widget::toaster::Toasts::new(Message::CloseToast),
+            startup_completed: false,
         };
 
         let commands = vec![
             app.update_title(),
             app.update(Message::FetchAccounts),
-            app.update(Message::RefreshAllBookmarks),
+            app.update(Message::RefreshAllBookmarksUsingRemote(false)),
+            app.update(Message::StartupCompleted),
         ];
 
         (app, Command::batch(commands))
@@ -321,6 +326,11 @@ impl Application for Cosmicding {
                 }
                 Message::SystemThemeModeChange
             }),
+            //if self.startup_completed {
+            //    Subscription::none()
+            //} else {
+            //    time::every(std::time::Duration::from_secs(1)).map(|_| Message::StartupCompleted)
+            //},
         ];
 
         Subscription::batch(subscriptions)
@@ -398,7 +408,9 @@ impl Application for Cosmicding {
                 block_on(async {
                     db::SqliteDatabase::delete_account(&mut self.db, &account).await
                 });
-                self.bookmarks_view.bookmarks.retain(|bkmrk| bkmrk.user_account_id != account.id);
+                self.bookmarks_view
+                    .bookmarks
+                    .retain(|bkmrk| bkmrk.user_account_id != account.id);
                 commands.push(
                     self.toasts
                         .push(widget::toaster::Toast::new(fl!(
@@ -505,25 +517,29 @@ impl Application for Cosmicding {
                     .update(message)
                     .map(cosmic::app::Message::App),
             ),
-            Message::RefreshAllBookmarks => {
+            Message::RefreshAllBookmarksUsingRemote(remote) => {
                 if !self.accounts_view.accounts.is_empty() {
-                    let remote_bookmarks = block_on(async {
-                        http::fetch_all_bookmarks_from_accounts(self.accounts_view.accounts.clone())
-                            .await
-                    });
-                    block_on(async {
-                        db::SqliteDatabase::cache_all_bookmarks(&mut self.db, remote_bookmarks)
-                            .await
-                    });
-                }
-                self.bookmarks_view.bookmarks =
-                    block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
-                if !self.bookmarks_view.bookmarks.is_empty() {
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!("refreshed-all-bookmarks")))
-                            .map(cosmic::app::Message::App),
-                    );
+                    if remote {
+                        let remote_bookmarks = block_on(async {
+                            http::fetch_all_bookmarks_from_accounts(&self.accounts_view.accounts)
+                                .await
+                        });
+                        block_on(async {
+                            db::SqliteDatabase::cache_all_bookmarks(&mut self.db, &remote_bookmarks)
+                                .await
+                        });
+                        if !remote_bookmarks.is_empty() {
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "refreshed-all-bookmarks"
+                                    )))
+                                    .map(cosmic::app::Message::App),
+                            );
+                        }
+                    }
+                    self.bookmarks_view.bookmarks =
+                        block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
                 }
             }
             Message::RefreshBookmarksForAccount(account) => {
@@ -758,7 +774,6 @@ impl Application for Cosmicding {
                         }
                     }
                 });
-                println!("{:?}", bookmark);
                 if let Some(bkmrk) = updated_bkmrk {
                     let index = self
                         .bookmarks_view
@@ -766,7 +781,6 @@ impl Application for Cosmicding {
                         .iter()
                         .position(|x| x.id == bookmark.id)
                         .unwrap();
-                    println!("{}", index);
                     block_on(async {
                         db::SqliteDatabase::update_bookmark(&mut self.db, &bookmark, &bkmrk).await
                     });
@@ -834,6 +848,16 @@ impl Application for Cosmicding {
             }
             Message::CloseToast(id) => {
                 self.toasts.remove(id);
+            }
+            Message::StartupCompleted => {
+                self.startup_completed = true;
+                commands.push(Command::perform(
+                    async {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        crate::app::Message::RefreshAllBookmarksUsingRemote(true)
+                    },
+                    |msg| cosmic::app::Message::App(msg),
+                ))
             }
         }
         Command::batch(commands)

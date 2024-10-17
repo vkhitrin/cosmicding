@@ -107,7 +107,7 @@ impl SqliteDatabase {
     }
     //TODO: (vkhitrin) this is a dumb "cache" that wipes all previous entries.
     //                 It should be improved in the future.
-    pub async fn cache_all_bookmarks(&mut self, bookmarks: Vec<Bookmark>) {
+    pub async fn cache_all_bookmarks(&mut self, bookmarks: &Vec<Bookmark>) {
         let truncate_query: &str = "DELETE FROM Bookmarks;";
         sqlx::query(truncate_query)
             .execute(&mut self.conn)

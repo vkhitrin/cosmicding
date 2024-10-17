@@ -9,7 +9,7 @@ use reqwest::{
 use serde_json::Value;
 use std::fmt::Write;
 
-pub async fn fetch_all_bookmarks_from_accounts(accounts: Vec<Account>) -> Vec<Bookmark> {
+pub async fn fetch_all_bookmarks_from_accounts(accounts: &Vec<Account>) -> Vec<Bookmark> {
     let mut all_bookmarks: Vec<Bookmark> = Vec::new();
     for account in accounts {
         match fetch_bookmarks_for_account(&account).await {
