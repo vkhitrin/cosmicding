@@ -891,7 +891,6 @@ impl Cosmicding {
             )))
             .padding(spacing.space_none)
             .into(),
-            widget::text::caption(fl!("pre-release")).into(),
             widget::text::caption(format!("v{release}")).into(),
         ])
         .align_items(Alignment::Center)
