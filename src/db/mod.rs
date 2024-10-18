@@ -44,7 +44,7 @@ impl SqliteDatabase {
         match sqlx::migrate::Migrator::new(migration_path).await {
             Ok(migrator) => migrator,
             Err(e) => {
-                println!("migrator error {e}, fall back to relative path");
+                log::error!("migrator error {e}, fall back to relative path");
                 sqlx::migrate::Migrator::new(Path::new("./migrations")).await?
             }
         }

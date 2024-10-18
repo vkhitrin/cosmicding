@@ -101,7 +101,6 @@ pub enum Message {
     SetBookmarkTitle(String),
     SetBookmarkURL(String),
     SetBookmarkUnread(bool),
-    SubscriptionChannel,
     SystemThemeModeChange,
     ToggleContextPage(ContextPage),
     UpdateAccount(Account),
@@ -307,7 +306,7 @@ impl Application for Cosmicding {
             .map(|update: Update<ThemeMode>| {
                 if !update.errors.is_empty() {
                     log::info!(
-                        "errors loading config {:?}: {:?}",
+                        "Errors loading config {:?}: {:?}",
                         update.keys,
                         update.errors
                     );
@@ -322,7 +321,7 @@ impl Application for Cosmicding {
             .map(|update: Update<ThemeMode>| {
                 if !update.errors.is_empty() {
                     log::info!(
-                        "errors loading theme mode {:?}: {:?}",
+                        "Errors loading theme mode {:?}: {:?}",
                         update.keys,
                         update.errors
                     );
@@ -343,7 +342,7 @@ impl Application for Cosmicding {
                         if let Err(err) =
                             paste::paste! { self.config.[<set_ $name>](config_handler, $value) }
                         {
-                            log::warn!("failed to save config {:?}: {}", stringify!($name), err);
+                            log::warn!("Failed to save config {:?}: {}", stringify!($name), err);
                         }
                     }
                     None => {
@@ -364,8 +363,6 @@ impl Application for Cosmicding {
                 let account_page_entity = &self.nav.entity_at(0);
                 _ = self.nav.activate(account_page_entity.unwrap());
             }
-
-            Message::SubscriptionChannel => {}
 
             Message::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
@@ -566,7 +563,12 @@ impl Application for Cosmicding {
             }
             Message::DoneRefreshBookmarksForAccount(account, remote_bookmarks) => {
                 block_on(async {
-                    db::SqliteDatabase::cache_bookmarks_for_acount(&mut self.db, &account, remote_bookmarks).await
+                    db::SqliteDatabase::cache_bookmarks_for_acount(
+                        &mut self.db,
+                        &account,
+                        remote_bookmarks,
+                    )
+                    .await
                 });
                 commands.push(self.update(Message::LoadBookmarks));
             }
@@ -677,7 +679,7 @@ impl Application for Cosmicding {
                             );
                         }
                         Err(e) => {
-                            eprintln!("Error adding bookmark: {}", e);
+                            log::error!("Error adding bookmark: {}", e);
                             commands.push(
                                 self.toasts
                                     .push(widget::toaster::Toast::new(format!("{e}")))
@@ -715,7 +717,7 @@ impl Application for Cosmicding {
                             );
                         }
                         Err(e) => {
-                            eprintln!("Error removing bookmark: {}", e);
+                            log::error!("Error removing bookmark: {}", e);
                             commands.push(
                                 self.toasts
                                     .push(widget::toaster::Toast::new(format!("{e}")))
@@ -751,7 +753,7 @@ impl Application for Cosmicding {
                             );
                         }
                         Err(e) => {
-                            eprintln!("Error patching bookmark: {}", e);
+                            log::error!("Error patching bookmark: {}", e);
                             commands.push(
                                 self.toasts
                                     .push(widget::toaster::Toast::new(format!("{e}")))
@@ -864,6 +866,7 @@ impl Cosmicding {
     pub fn about(&self) -> Element<Message> {
         let spacing = theme::active().cosmic().spacing;
 
+        let release = env!("CARGO_PKG_VERSION");
         let hash = env!("VERGEN_GIT_SHA");
         let short_hash: String = hash.chars().take(7).collect();
         let date = env!("VERGEN_GIT_COMMIT_DATE");
@@ -885,6 +888,7 @@ impl Cosmicding {
             .padding(spacing.space_none)
             .into(),
             widget::text::caption(fl!("pre-release")).into(),
+            widget::text::caption(format!("v{release}")).into(),
         ])
         .align_items(Alignment::Center)
         .spacing(spacing.space_xxs)

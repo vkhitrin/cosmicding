@@ -17,7 +17,7 @@ pub async fn fetch_all_bookmarks_from_accounts(accounts: Vec<Account>) -> Vec<Bo
                 all_bookmarks.extend(new_bookmarks);
             }
             Err(e) => {
-                eprintln!("Error fetching bookmarks: {}", e);
+                log::error!("Error fetching bookmarks: {}", e);
             }
         }
     }
@@ -74,11 +74,11 @@ pub async fn fetch_bookmarks_for_account(
                 }
             }
             Err(e) => {
-                eprintln!("Error parsing JSON: {:?}", e);
+                log::error!("Error parsing JSON: {:?}", e);
             }
         }
     } else {
-        println!(
+        log::error!(
             "HTTP Error {:?}:\n{:?}",
             response.status(),
             response.text().await
