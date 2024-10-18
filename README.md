@@ -15,12 +15,22 @@
 cosmicding is a [linkding](https://github.com/sissbruecker/linkding) companion app for COSMIC™ Desktop Environment.  
 It provides an alternative frontend to linkding based on [libcosmic](https://github.com/pop-os/libcosmic).
 
+While cosmicding was desgined for COSMIC™ Desktop Environment, it should be able to run cross-platform.
+
 Features:
 
-- Support multiple linkding instances (or users on the same instance).
+- Support multiple linkding instances (or multiple users on the same instance).
 - Cache/aggregate bookmarks locally.
 - Add/Edit/Remove bookmarks.
 - Search bookmarks based on title, URL, tags, desscription, and notes.
+
+## Dependencies
+
+- `cargo`
+- `just`
+- `libxkbcommon-dev`
+- `libcosmic`
+- `libsqlite3`
 
 ## Installation
 
@@ -62,27 +72,31 @@ In preparation for the first initial "stable" release, the following must be com
 - [ ] [Application] logging.
 - [x] [Application] Avoid refreshing on every change/update.
   - [x] Update memory in-place when possible.
-- [ ] [Application] "Lazy" bookmark refresh (do not block).
+- [x] [Application] "Lazy" bookmark refresh (do not block).
 - [ ] CI
 
 ### Future
 
 Potential improvements:
 
-- [UI] Add context menus (right click) for accounts/bookmarks (?).
 - [UI] Populate menu bar with more actions.
 - [UI] Detailed `About` page.
-- [Application] Periodic auto refresh (sync with remote) (?).
 - [Performance] Check performance with multiple remote + local instances.
 - [Performance] Check performance with high amount of bookmarks spread across multiple instances.
 - [Application] Refactor codebase to be more organized.
-- [UI] Pagination (if possible).
-- [Application] use user-provided TLS certificate.
+- [Application] Allow user-provided TLS certificate.
 - [UI] Visual indicator for last sync status.
-- [Application] Consider leveraging `/check` endpoint when adding bookmarks.
 - [UI] Indicators for `archived`, `unread`, `shared` bookmarks.
 - [Distribution] Flatpack release.
 - [UI] Sort bookmarks.
+
+Things to consider:
+
+- [UI] Add context menus (right click) for accounts/bookmarks.
+- [Application] Periodic auto refresh (sync with remote).
+- [UI] Pagination (if possible).
+- [Application] Consider leveraging linkding's `/check` endpoint when adding bookmarks.
+- [Application] Do not block on when executing local database queries.
 
 ## Thanks
 

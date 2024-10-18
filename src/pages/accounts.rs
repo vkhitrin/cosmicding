@@ -167,7 +167,7 @@ impl AccountsView {
             }
             AccountsMessage::RefreshBookmarksForAccount(account) => {
                 commands.push(Command::perform(async {}, move |_| {
-                    Message::RefreshBookmarksForAccount(account)
+                    Message::StartRefreshBookmarksForAccount(account)
                 }));
             }
             AccountsMessage::OpenExternalURL(url) => {
