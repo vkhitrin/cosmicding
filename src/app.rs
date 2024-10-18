@@ -808,12 +808,16 @@ impl Application for Cosmicding {
                 self.config = config;
             }
             Message::OpenRemoveAccountDialog(account) => {
-                self.dialog_pages
-                    .push_back(DialogPage::RemoveAccount(account));
+                if !self.dialog_pages.pop_front().is_some() {
+                    self.dialog_pages
+                        .push_back(DialogPage::RemoveAccount(account));
+                }
             }
             Message::OpenRemoveBookmarkDialog(account, bookmark) => {
-                self.dialog_pages
-                    .push_back(DialogPage::RemoveBookmark(account, bookmark));
+                if !self.dialog_pages.pop_front().is_some() {
+                    self.dialog_pages
+                        .push_back(DialogPage::RemoveBookmark(account, bookmark));
+                }
             }
             Message::DialogUpdate(dialog_page) => {
                 self.dialog_pages[0] = dialog_page;
