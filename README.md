@@ -1,6 +1,3 @@
-> [!CAUTION]
-> This application is still under development, and is not deemed stable for general use.
-
 <p align="center">
   <img alt="cosmicding logo" src="./res/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png" alt="Logo" height="192px" width="192px">
 </p>
@@ -30,7 +27,7 @@ Features:
 - `just`
 - `libxkbcommon-dev`
 - `libcosmic`
-- `libsqlite3`
+- `libsqlite3-dev`
 
 ## Installation
 
@@ -52,29 +49,6 @@ sudo just install
 
 ## Roadmap
 
-### Initial Stable Release
-
-> [!NOTE]
-> This list is not complete and subject to change.
-
-In preparation for the first initial "stable" release, the following must be completed:
-
-- [x] [Application] Throw exceptions when failed to invoke REST API requests.
-- [x] [UI] Notifications/toasts.
-  - [x] Account deletion.
-  - [x] Updating account.
-  - [x] Adding account.
-  - [x] Refreshing bookmarks for account.
-  - [x] Refreshing bookmarks for all accounts.
-  - [x] Bookmark deletion.
-  - [x] Updating bookmark.
-  - [x] Adding bookmark.
-- [x] [Application] logging.
-- [x] [Application] Avoid refreshing on every change/update.
-  - [x] Update memory in-place when possible.
-- [x] [Application] "Lazy" bookmark refresh (do not block).
-- [ ] CI
-
 ### Future
 
 Potential improvements:
@@ -88,6 +62,7 @@ Potential improvements:
 - [UI] Visual indicator for last sync status.
 - [UI] Indicators for `archived`, `unread`, `shared` bookmarks.
 - [Distribution] Flatpack release.
+- [Distribution] compiled binary in GitHub release.
 - [UI] Sort bookmarks.
 
 Things to consider:

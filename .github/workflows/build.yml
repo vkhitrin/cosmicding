@@ -1,0 +1,25 @@
+---
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install depencencies
+        run: sudo apt-get install -y libxkbcommon-dev libsqlite3-dev
+      - name: Configure rust-toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --verbose

@@ -17,9 +17,7 @@ pub fn menu_bar<'a>(key_binds: &HashMap<KeyBind, MenuAction>) -> Element<'a, Mes
             root(fl!("file")),
             items(
                 key_binds,
-                vec![
-                    Item::Button(fl!("add-account"), MenuAction::AddAccount),
-                ],
+                vec![Item::Button(fl!("add-account"), MenuAction::AddAccount)],
             ),
         ),
         Tree::with_children(

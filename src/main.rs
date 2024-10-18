@@ -3,15 +3,15 @@ mod config;
 mod db;
 mod http;
 mod i18n;
+mod key_binds;
 mod menu;
 mod models;
 mod nav;
 mod pages;
-mod key_binds;
 
 use crate::config::{Config, CONFIG_VERSION};
-use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use app::{Flags, APPID};
+use cosmic::cosmic_config::{self, CosmicConfigEntry};
 
 fn main() -> cosmic::iced::Result {
     let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
