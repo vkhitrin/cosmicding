@@ -50,24 +50,17 @@ impl Default for BookmarksView {
 impl BookmarksView {
     pub fn view<'a>(&'a self) -> Element<'a, BookmarksMessage> {
         let spacing = theme::active().cosmic().spacing;
-        let mut action_button = widget::button::text(fl!("add-bookmark"))
-            .style(widget::button::Style::Standard)
-            .on_press(BookmarksMessage::AddBookmark);
-        let mut page_title_text = widget::text::title3(fl!("no-bookmarks"));
-        if self.bookmarks.is_empty() && self.query_placeholder.is_empty() {
-            if self.accounts.is_empty() {
-                page_title_text = widget::text::title3(fl!("no-accounts"));
-                action_button = widget::button::text(fl!("open-accounts-page"))
-                    .style(widget::button::Style::Standard)
-                    .on_press(BookmarksMessage::OpenAccountsPage);
-            }
+        if self.accounts.is_empty() {
             let container = widget::container(
                 widget::column::with_children(vec![
                     widget::icon::from_name("web-browser-symbolic")
                         .size(64)
                         .into(),
-                    page_title_text.into(),
-                    action_button.into(),
+                    widget::text::title3(fl!("no-accounts")).into(),
+                    widget::button::text(fl!("open-accounts-page"))
+                        .style(widget::button::Style::Standard)
+                        .on_press(BookmarksMessage::OpenAccountsPage)
+                        .into(),
                 ])
                 .spacing(20)
                 .align_items(Alignment::Center),
@@ -193,7 +186,10 @@ impl BookmarksView {
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(3)
                     .align_items(Alignment::Center)
-                    .push(widget::text::title3(fl!("bookmarks")))
+                    .push(widget::text::title3(fl!(
+                        "bookmarks-with-count",
+                        count = self.bookmarks.len()
+                    )))
                     .spacing(spacing.space_xxs)
                     .padding([
                         spacing.space_none,
@@ -231,7 +227,9 @@ impl BookmarksView {
                 commands.push(Command::perform(async {}, |_| Message::OpenAccountsPage));
             }
             BookmarksMessage::RefreshBookmarks => {
-                commands.push(Command::perform(async {}, |_| Message::StartRefreshBookmarksForAllAccounts));
+                commands.push(Command::perform(async {}, |_| {
+                    Message::StartRefreshBookmarksForAllAccounts
+                }));
             }
             BookmarksMessage::AddBookmark => {
                 commands.push(Command::perform(async {}, |_| Message::AddBookmarkForm));

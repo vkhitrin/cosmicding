@@ -1,6 +1,7 @@
 about = About
 account = Account
 accounts = Accounts
+accounts-with-count = Accounts ({$count})
 add-account = Add Account
 add-bookmark = Add Bookmark
 added-account = Added account {$acc}
@@ -10,6 +11,7 @@ app-title = cosmicding
 appearance = Appearance
 archived = Archived
 bookmarks = Bookmarks
+bookmarks-with-count = Bookmarks ({$count})
 cancel = Cancel
 dark = Dark
 description = Description

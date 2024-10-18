@@ -1,14 +1,14 @@
 use crate::app::Message;
-use cosmic::iced::Length;
-use cosmic::{
-    iced::{self, Alignment},
-    widget::{self},
-    Apply, Command, Element,
-    cosmic_theme,
-    theme,
-};
 use crate::fl;
 use crate::models::account::Account;
+use cosmic::iced::Length;
+use cosmic::{
+    cosmic_theme,
+    iced::{self, Alignment},
+    theme,
+    widget::{self},
+    Apply, Command, Element,
+};
 use iced::alignment::{Horizontal, Vertical};
 
 #[derive(Debug, Clone)]
@@ -75,7 +75,10 @@ impl AccountsView {
                         .spacing(spacing.space_xxs)
                         .push(widget::text(item.display_name.clone()))
                         .push(widget::horizontal_space(Length::Fill))
-                        .push(widget::button::link(item.instance.clone()).on_press(AccountsMessage::OpenExternalURL(item.instance.clone())))
+                        .push(
+                            widget::button::link(item.instance.clone())
+                                .on_press(AccountsMessage::OpenExternalURL(item.instance.clone())),
+                        )
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
@@ -126,7 +129,10 @@ impl AccountsView {
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(2)
                     .align_items(Alignment::Center)
-                    .push(widget::text::title3(fl!("accounts")))
+                    .push(widget::text::title3(fl!(
+                        "accounts-with-count",
+                        count = self.accounts.len()
+                    )))
                     .spacing(spacing.space_xxs)
                     .padding([
                         spacing.space_none,
@@ -192,11 +198,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
     let api_key_widget_text_input =
         widget::secure_input("Token", account.api_token.clone(), None, true)
             .on_input(Message::SetAccountAPIKey);
-    let tls_widget_checkbox = widget::checkbox(
-        fl!("tls"),
-        account.tls,
-        Message::SetAccountTLS,
-    );
+    let tls_widget_checkbox = widget::checkbox(fl!("tls"), account.tls, Message::SetAccountTLS);
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)
@@ -232,11 +234,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
     let api_key_widget_text_input =
         widget::secure_input("Token", account.api_token.clone(), None, true)
             .on_input(Message::SetAccountAPIKey);
-    let tls_widget_checkbox = widget::checkbox(
-        fl!("tls"),
-        account.tls,
-        Message::SetAccountTLS,
-    );
+    let tls_widget_checkbox = widget::checkbox(fl!("tls"), account.tls, Message::SetAccountTLS);
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)
