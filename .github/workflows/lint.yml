@@ -1,0 +1,35 @@
+---
+name: Lint
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Install depencencies
+        run: sudo apt-get install -y libxkbcommon-dev libsqlite3-dev
+      - name: Configure rust-toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt,clippy
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Lint using clippy
+        uses: auguwu/clippy-action@1.4.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Format
+        uses: mbrobbel/rustfmt-check@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          mode: review

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use cosmic::iced::keyboard::Key;
 use cosmic::widget::menu::key_bind::KeyBind;
 use cosmic::widget::menu::key_bind::Modifier;
-use cosmic::iced::keyboard::Key;
 
 use crate::app::MenuAction;
 
