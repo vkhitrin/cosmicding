@@ -33,6 +33,7 @@ pub enum BookmarksMessage {
     RefreshBookmarks,
     SearchBookmarks(String),
     ViewNotes(Bookmark),
+    EmptyMessage,
 }
 
 impl Default for BookmarksView {
@@ -204,8 +205,16 @@ impl BookmarksView {
                     )
                     .push(
                         widget::button::text(fl!("refresh"))
-                            .on_press(BookmarksMessage::RefreshBookmarks)
-                            .style(theme::Button::Standard),
+                            .on_press(if !self.query_placeholder.is_empty() {
+                                BookmarksMessage::EmptyMessage
+                            } else {
+                                BookmarksMessage::RefreshBookmarks
+                            })
+                            .style(if !self.query_placeholder.is_empty() {
+                                theme::Button::MenuItem
+                            } else {
+                                theme::Button::Standard
+                            }),
                     )
                     .push(
                         widget::button::text(fl!("add-bookmark"))
@@ -265,6 +274,9 @@ impl BookmarksView {
                 commands.push(Command::perform(async {}, |_| {
                     Message::ViewBookmarkNotes(bookmark)
                 }));
+            }
+            BookmarksMessage::EmptyMessage => {
+                commands.push(Command::perform(async {}, |_| Message::EmpptyMessage));
             }
         }
         Command::batch(commands)

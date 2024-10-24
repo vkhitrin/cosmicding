@@ -53,7 +53,6 @@ sudo just install
 
 Potential improvements:
 
-- [UI] Populate menu bar with more actions.
 - [UI] Detailed `About` page.
 - [Performance] Check performance with multiple remote + local instances.
 - [Performance] Check performance with high amount of bookmarks spread across multiple instances.
