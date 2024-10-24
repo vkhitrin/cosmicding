@@ -11,13 +11,23 @@ use crate::{
     fl,
 };
 
-pub fn menu_bar<'a>(key_binds: &HashMap<KeyBind, MenuAction>) -> Element<'a, Message> {
+pub fn menu_bar<'a>(
+    key_binds: &HashMap<KeyBind, MenuAction>,
+    accounts_enabled: bool,
+) -> Element<'a, Message> {
     MenuBar::new(vec![
         Tree::with_children(
             root(fl!("file")),
             items(
                 key_binds,
-                vec![Item::Button(fl!("add-account"), MenuAction::AddAccount)],
+                vec![
+                    Item::Button(fl!("add-account"), MenuAction::AddAccount),
+                    if accounts_enabled {
+                        Item::Button(fl!("add-bookmark"), MenuAction::AddBookmark)
+                    } else {
+                        Item::ButtonDisabled(fl!("add-bookmark"), MenuAction::AddBookmark)
+                    },
+                ],
             ),
         ),
         Tree::with_children(

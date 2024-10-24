@@ -73,19 +73,19 @@ pub enum Message {
     CompleteRemoveDialog(Account, Option<Bookmark>),
     DialogCancel,
     DialogUpdate(DialogPage),
+    DoneRefreshBookmarksForAccount(Account, Vec<Bookmark>),
+    DoneRefreshBookmarksForAllAccounts(Vec<Bookmark>),
     EditAccount(Account),
     EditBookmark(Account, Bookmark),
-    LoadAccounts,
+    EmpptyMessage,
     Key(Modifiers, Key),
+    LoadAccounts,
+    LoadBookmarks,
     Modifiers(Modifiers),
     OpenAccountsPage,
     OpenExternalUrl(String),
     OpenRemoveAccountDialog(Account),
     OpenRemoveBookmarkDialog(Account, Bookmark),
-    StartRefreshBookmarksForAllAccounts,
-    DoneRefreshBookmarksForAllAccounts(Vec<Bookmark>),
-    DoneRefreshBookmarksForAccount(Account, Vec<Bookmark>),
-    StartRefreshBookmarksForAccount(Account),
     RemoveAccount(Account),
     RemoveBookmark(Account, Bookmark),
     SearchBookmarks(String),
@@ -101,14 +101,15 @@ pub enum Message {
     SetBookmarkTitle(String),
     SetBookmarkURL(String),
     SetBookmarkUnread(bool),
+    StartRefreshBookmarksForAccount(Account),
+    StartRefreshBookmarksForAllAccounts,
+    StartupCompleted,
     SystemThemeModeChange,
     ToggleContextPage(ContextPage),
     UpdateAccount(Account),
     UpdateBookmark(Account, Bookmark),
     UpdateConfig(Config),
     ViewBookmarkNotes(Bookmark),
-    StartupCompleted,
-    LoadBookmarks,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -188,7 +189,10 @@ impl Application for Cosmicding {
     }
 
     fn header_start(&self) -> Vec<Element<Self::Message>> {
-        vec![crate::menu::menu_bar(&self.key_binds)]
+        vec![crate::menu::menu_bar(
+            &self.key_binds,
+            !self.accounts_view.accounts.is_empty(),
+        )]
     }
 
     fn nav_model(&self) -> Option<&nav_bar::Model> {
@@ -855,6 +859,9 @@ impl Application for Cosmicding {
                     |msg| cosmic::app::Message::App(msg),
                 ))
             }
+            Message::EmpptyMessage => {
+                commands.push(Command::none());
+            }
         }
         Command::batch(commands)
     }
@@ -969,6 +976,7 @@ impl ContextPage {
 pub enum MenuAction {
     About,
     AddAccount,
+    AddBookmark,
     Settings,
 }
 
@@ -980,6 +988,7 @@ impl _MenuAction for MenuAction {
             MenuAction::About => Message::ToggleContextPage(ContextPage::About),
             MenuAction::AddAccount => Message::AddAccount,
             MenuAction::Settings => Message::ToggleContextPage(ContextPage::Settings),
+            MenuAction::AddBookmark => Message::AddBookmarkForm,
         }
     }
 }
