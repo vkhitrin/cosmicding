@@ -1,3 +1,4 @@
+
 about = About
 account = Account
 accounts = Accounts
@@ -19,6 +20,8 @@ display-name = Display Name
 edit = Edit
 edit-account = Edit Account
 edit-bookmark = Edit Bookmark
+enabled-public-sharing = This account enabled public bookmarks sharing
+enabled-sharing = This account enabled bookmarks sharing
 failed-to-find-linkding-api-endpoint = Failed to find linkding API endpoint
 failed-to-parse-response = Failed to parse response
 file = File

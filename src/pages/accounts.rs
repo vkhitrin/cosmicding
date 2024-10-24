@@ -235,6 +235,16 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         widget::secure_input("Token", account.api_token.clone(), None, true)
             .on_input(Message::SetAccountAPIKey);
     let tls_widget_checkbox = widget::checkbox(fl!("tls"), account.tls, Message::SetAccountTLS);
+    let enable_shared_widget_text = widget::text(if account.enable_sharing {
+        fl!("enabled-sharing")
+    } else {
+        "".to_owned()
+    });
+    let enable_public_shared_widget_text = widget::text(if account.enable_sharing {
+        fl!("enabled-public-sharing")
+    } else {
+        "".to_owned()
+    });
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)
@@ -253,6 +263,9 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         .push(api_key_widget_text_input)
         .push(widget::vertical_space(Length::from(10)))
         .push(tls_widget_checkbox)
+        .push(widget::vertical_space(Length::from(10)))
+        .push(enable_shared_widget_text)
+        .push(enable_public_shared_widget_text)
         .push(widget::vertical_space(Length::from(10)))
         .push(buttons_widget_container)
         .into()

@@ -70,6 +70,8 @@ impl SqliteDatabase {
                 last_sync_status: row.get("last_sync_status"),
                 last_sync_timestamp: row.get("last_sync_timestamp"),
                 tls: row.get("tls"),
+                enable_sharing: row.get("enable_sharing"),
+                enable_public_sharing: row.get("enable_public_sharing"),
             })
             .collect();
         return data;
