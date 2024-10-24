@@ -13,7 +13,8 @@ use crate::{
 
 pub fn menu_bar<'a>(
     key_binds: &HashMap<KeyBind, MenuAction>,
-    accounts_enabled: bool,
+    accounts_present: bool,
+    bookmarks_present: bool,
 ) -> Element<'a, Message> {
     MenuBar::new(vec![
         Tree::with_children(
@@ -22,10 +23,16 @@ pub fn menu_bar<'a>(
                 key_binds,
                 vec![
                     Item::Button(fl!("add-account"), MenuAction::AddAccount),
-                    if accounts_enabled {
+                    if accounts_present {
                         Item::Button(fl!("add-bookmark"), MenuAction::AddBookmark)
                     } else {
                         Item::ButtonDisabled(fl!("add-bookmark"), MenuAction::AddBookmark)
+                    },
+                    Item::Divider,
+                    if bookmarks_present {
+                        Item::Button(fl!("refresh-bookmarks"), MenuAction::RefreshBookmarks)
+                    } else {
+                        Item::ButtonDisabled(fl!("refresh-bookmarks"), MenuAction::Empty)
                     },
                 ],
             ),

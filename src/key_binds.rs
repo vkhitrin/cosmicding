@@ -25,6 +25,7 @@ pub fn key_binds() -> HashMap<KeyBind, MenuAction> {
     bind!([Ctrl], Key::Character("i".into()), About);
     bind!([Ctrl, Shift], Key::Character("n".into()), AddAccount);
     bind!([Ctrl], Key::Character("n".into()), AddBookmark);
+    bind!([Ctrl], Key::Character("r".into()), RefreshBookmarks);
 
     key_binds
 }

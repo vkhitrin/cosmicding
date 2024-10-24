@@ -192,6 +192,7 @@ impl Application for Cosmicding {
         vec![crate::menu::menu_bar(
             &self.key_binds,
             !self.accounts_view.accounts.is_empty(),
+            !self.bookmarks_view.bookmarks.is_empty(),
         )]
     }
 
@@ -517,21 +518,23 @@ impl Application for Cosmicding {
                     .map(cosmic::app::Message::App),
             ),
             Message::StartRefreshBookmarksForAllAccounts => {
-                let message = |x: Vec<Bookmark>| {
-                    cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
-                };
-                if !self.accounts_view.accounts.is_empty() {
-                    commands.push(Command::perform(
-                        http::fetch_all_bookmarks_from_accounts(
-                            self.accounts_view.accounts.clone(),
-                        ),
-                        message,
-                    ));
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!("refreshed-all-bookmarks")))
-                            .map(cosmic::app::Message::App),
-                    );
+                if !self.bookmarks_view.bookmarks.is_empty() {
+                    let message = |x: Vec<Bookmark>| {
+                        cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
+                    };
+                    if !self.accounts_view.accounts.is_empty() {
+                        commands.push(Command::perform(
+                            http::fetch_all_bookmarks_from_accounts(
+                                self.accounts_view.accounts.clone(),
+                            ),
+                            message,
+                        ));
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!("refreshed-all-bookmarks")))
+                                .map(cosmic::app::Message::App),
+                        );
+                    }
                 }
             }
             Message::DoneRefreshBookmarksForAllAccounts(remote_bookmarks) => {
@@ -977,6 +980,8 @@ pub enum MenuAction {
     About,
     AddAccount,
     AddBookmark,
+    Empty,
+    RefreshBookmarks,
     Settings,
 }
 
@@ -986,9 +991,11 @@ impl _MenuAction for MenuAction {
     fn message(&self) -> Self::Message {
         match self {
             MenuAction::About => Message::ToggleContextPage(ContextPage::About),
+            MenuAction::Empty => Message::EmpptyMessage,
             MenuAction::AddAccount => Message::AddAccount,
             MenuAction::Settings => Message::ToggleContextPage(ContextPage::Settings),
             MenuAction::AddBookmark => Message::AddBookmarkForm,
+            MenuAction::RefreshBookmarks => Message::StartRefreshBookmarksForAllAccounts,
         }
     }
 }
