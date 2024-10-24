@@ -36,6 +36,7 @@ open-accounts-page = Open Accounts Page
 provided-url-is-not-valid = Provided URL is not valid
 quit = Quit
 refresh = Refresh
+refresh-bookmarks = Refresh Bookmarks
 refreshed-all-bookmarks = Refreshed all bookmarks
 refreshed-bookmarks-for-account = Refreshed bookmarks for account {$acc}
 remove = Remove
