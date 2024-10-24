@@ -3,7 +3,7 @@ use crate::db::{self, SqliteDatabase};
 use crate::fl;
 use crate::http::{self};
 use crate::key_binds::key_binds;
-use crate::models::account::Account;
+use crate::models::account::{Account, AccountApiResponse};
 use crate::models::bookmarks::Bookmark;
 use crate::nav::NavPage;
 use crate::pages::accounts::{add_account, edit_account, AccountsMessage, AccountsView};
@@ -73,6 +73,7 @@ pub enum Message {
     CompleteRemoveDialog(Account, Option<Bookmark>),
     DialogCancel,
     DialogUpdate(DialogPage),
+    DoneRefreshAccountProfile(Account, AccountApiResponse),
     DoneRefreshBookmarksForAccount(Account, Vec<Bookmark>),
     DoneRefreshBookmarksForAllAccounts(Vec<Bookmark>),
     EditAccount(Account),
@@ -101,6 +102,7 @@ pub enum Message {
     SetBookmarkTitle(String),
     SetBookmarkURL(String),
     SetBookmarkUnread(bool),
+    StartRefreshAccountProfile(Account),
     StartRefreshBookmarksForAccount(Account),
     StartRefreshBookmarksForAllAccounts,
     StartupCompleted,
@@ -420,11 +422,13 @@ impl Application for Cosmicding {
                         .map(cosmic::app::Message::App),
                 );
             }
-            Message::CompleteAddAccount(account) => {
+            Message::CompleteAddAccount(mut account) => {
                 let mut valid_account = false;
                 block_on(async {
-                    match http::check_instance(&account).await {
-                        Ok(()) => {
+                    match http::check_account_on_instance(&account).await {
+                        Ok(value) => {
+                            account.enable_sharing = value.enable_sharing;
+                            account.enable_public_sharing = value.enable_public_sharing;
                             valid_account = true;
                         }
                         Err(e) => {
@@ -465,11 +469,13 @@ impl Application for Cosmicding {
                 }
                 self.core.window.show_context = false;
             }
-            Message::UpdateAccount(account) => {
+            Message::UpdateAccount(mut account) => {
                 let mut valid_account = false;
                 block_on(async {
-                    match http::check_instance(&account).await {
-                        Ok(()) => {
+                    match http::check_account_on_instance(&account).await {
+                        Ok(value) => {
+                            account.enable_sharing = value.enable_sharing;
+                            account.enable_public_sharing = value.enable_public_sharing;
                             valid_account = true;
                         }
                         Err(e) => {
@@ -524,7 +530,7 @@ impl Application for Cosmicding {
                     };
                     if !self.accounts_view.accounts.is_empty() {
                         commands.push(Command::perform(
-                            http::fetch_all_bookmarks_from_accounts(
+                            http::fetch_bookmarks_from_all_accounts(
                                 self.accounts_view.accounts.clone(),
                             ),
                             message,
@@ -553,9 +559,10 @@ impl Application for Cosmicding {
                         x,
                     ))
                 };
+                commands.push(self.update(Message::StartRefreshAccountProfile(account.clone())));
                 if !self.accounts_view.accounts.is_empty() {
                     commands.push(Command::perform(
-                        http::fetch_all_bookmarks_from_accounts(acc_vec.clone()),
+                        http::fetch_bookmarks_from_all_accounts(acc_vec.clone()),
                         message,
                     ));
                     commands.push(
@@ -578,6 +585,27 @@ impl Application for Cosmicding {
                     .await
                 });
                 commands.push(self.update(Message::LoadBookmarks));
+            }
+            Message::StartRefreshAccountProfile(account) => {
+                let borrowed_acc = account.clone();
+                let message = |r: Option<AccountApiResponse>| {
+                    cosmic::app::Message::App(Message::DoneRefreshAccountProfile(
+                        borrowed_acc,
+                        r.unwrap(),
+                    ))
+                };
+                commands.push(Command::perform(
+                    http::fetch_account_details(account),
+                    message,
+                ));
+            }
+            Message::DoneRefreshAccountProfile(mut account, account_details) => {
+                account.enable_sharing = account_details.enable_sharing;
+                account.enable_public_sharing = account_details.enable_public_sharing;
+                block_on(async {
+                    db::SqliteDatabase::update_account(&mut self.db, &account).await
+                });
+                commands.push(self.update(Message::LoadAccounts));
             }
             Message::AddBookmarkForm => {
                 self.placeholder_bookmark = Some(Bookmark::new(
@@ -853,14 +881,17 @@ impl Application for Cosmicding {
                     block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
             }
             Message::StartupCompleted => {
-                self.startup_completed = true;
+                for account in self.accounts_view.accounts.clone() {
+                    commands.push(self.update(Message::StartRefreshAccountProfile(account)));
+                }
                 commands.push(Command::perform(
                     async {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         crate::app::Message::StartRefreshBookmarksForAllAccounts
                     },
                     |msg| cosmic::app::Message::App(msg),
-                ))
+                ));
+                self.startup_completed = true;
             }
             Message::EmpptyMessage => {
                 commands.push(Command::none());

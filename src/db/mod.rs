@@ -70,6 +70,8 @@ impl SqliteDatabase {
                 last_sync_status: row.get("last_sync_status"),
                 last_sync_timestamp: row.get("last_sync_timestamp"),
                 tls: row.get("tls"),
+                enable_sharing: row.get("enable_sharing"),
+                enable_public_sharing: row.get("enable_public_sharing"),
             })
             .collect();
         return data;
@@ -83,24 +85,28 @@ impl SqliteDatabase {
             .unwrap();
     }
     pub async fn update_account(&mut self, account: &Account) {
-        let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, tls=$5 WHERE id=$1;";
+        let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, tls=$5, enable_sharing=$6, enable_public_sharing=$7 WHERE id=$1;";
         sqlx::query(query)
             .bind(&account.id)
             .bind(&account.display_name)
             .bind(&account.instance)
             .bind(&account.api_token)
             .bind(&account.tls)
+            .bind(&account.enable_sharing)
+            .bind(&account.enable_public_sharing)
             .execute(&mut self.conn)
             .await
             .unwrap();
     }
     pub async fn create_account(&mut self, account: &Account) {
-        let query: &str = "INSERT INTO UserAccounts (display_name, instance, api_token, last_sync_status, last_sync_timestamp, tls) VALUES ($1, $2, $3, 0, 0, $4);";
+        let query: &str = "INSERT INTO UserAccounts (display_name, instance, api_token, last_sync_status, last_sync_timestamp, tls, enable_sharing, enable_public_sharing) VALUES ($1, $2, $3, 0, 0, $4, $5, $6);";
         sqlx::query(query)
             .bind(&account.display_name)
             .bind(&account.instance)
             .bind(&account.api_token)
             .bind(&account.tls)
+            .bind(&account.enable_sharing)
+            .bind(&account.enable_public_sharing)
             .execute(&mut self.conn)
             .await
             .unwrap();
