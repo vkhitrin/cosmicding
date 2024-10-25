@@ -1,3 +1,6 @@
+> [!CAUTION]
+> This branch is being worked. The application does not behave properly!
+
 <p align="center">
   <img alt="cosmicding logo" src="./res/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png" alt="Logo" height="192px" width="192px">
 </p>
@@ -20,6 +23,8 @@ Features:
 - Cache/aggregate bookmarks locally.
 - Add/Edit/Remove bookmarks.
 - Search bookmarks based on title, URL, tags, desscription, and notes.
+
+cosmicding was tested against linkding releases `1.31.0`, and `1.36.0`.
 
 ## Dependencies
 
@@ -60,6 +65,7 @@ Potential improvements:
 - [Application] Allow user-provided TLS certificate.
 - [UI] Visual indicator for last sync status.
 - [UI] Indicators for `archived`, `unread`, `shared` bookmarks.
+- [UI] Display account information in accounts page.
 - [Distribution] Flatpack release.
 - [Distribution] compiled binary in GitHub release.
 - [UI] Sort bookmarks.

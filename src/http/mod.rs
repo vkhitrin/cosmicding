@@ -1,5 +1,5 @@
 use crate::fl;
-use crate::models::account::Account;
+use crate::models::account::{Account, AccountApiResponse};
 use crate::models::bookmarks::{Bookmark, BookmarksApiResponse};
 use anyhow::Result;
 use reqwest::{
@@ -9,7 +9,7 @@ use reqwest::{
 use serde_json::Value;
 use std::fmt::Write;
 
-pub async fn fetch_all_bookmarks_from_accounts(accounts: Vec<Account>) -> Vec<Bookmark> {
+pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<Bookmark> {
     let mut all_bookmarks: Vec<Bookmark> = Vec::new();
     for account in accounts {
         match fetch_bookmarks_for_account(&account).await {
@@ -251,14 +251,28 @@ pub async fn edit_bookmark(
     }
 }
 
-pub async fn check_instance(account: &Account) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn fetch_account_details(account: Account) -> Option<AccountApiResponse> {
+    let mut account_details: Option<AccountApiResponse> = None;
+    match check_account_on_instance(&account).await {
+        Ok(details) => {
+            account_details = Some(details);
+        }
+        Err(e) => {
+            log::error!(
+                "Error fetching account {} details: {}",
+                account.display_name,
+                e
+            );
+        }
+    }
+    return account_details;
+}
+
+pub async fn check_account_on_instance(
+    account: &Account,
+) -> Result<AccountApiResponse, Box<dyn std::error::Error>> {
     let mut rest_api_url: String = "".to_owned();
-    write!(
-        &mut rest_api_url,
-        "{}/api/bookmarks/?limit=1",
-        account.instance,
-    )
-    .unwrap();
+    write!(&mut rest_api_url, "{}/api/user/profile/", account.instance).unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
         .danger_accept_invalid_certs(account.tls)
@@ -273,8 +287,8 @@ pub async fn check_instance(account: &Account) -> Result<(), Box<dyn std::error:
         .send()
         .await?;
     match response.status() {
-        StatusCode::OK => match response.json::<BookmarksApiResponse>().await {
-            Ok(_value) => Ok(()),
+        StatusCode::OK => match response.json::<AccountApiResponse>().await {
+            Ok(_value) => Ok(_value),
             Err(_e) => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 fl!("failed-to-find-linkding-api-endpoint"),

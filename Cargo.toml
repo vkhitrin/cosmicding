@@ -32,6 +32,8 @@ features = ["fluent-system", "desktop-requester"]
 git = "https://github.com/pop-os/libcosmic.git"
 default-features = false
 features = ["dbus-config", "tokio", "winit", "wgpu"]
+rev = "a73e91a12bbc4318b855d7ab1030820570d6ff5b"
+version = "0.1.0"
 
 [build-dependencies]
 vergen = { version = "8", features = ["git", "gitcl"] }

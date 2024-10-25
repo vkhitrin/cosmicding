@@ -3,15 +3,14 @@ use crate::fl;
 use crate::models::account::Account;
 use crate::models::bookmarks::Bookmark;
 use cosmic::iced::Length;
-use cosmic::{cosmic_theme, theme};
 use cosmic::{
+    app::command::Task,
     iced::{self, Alignment},
     widget::{self},
-    Apply, Command, Element,
+    Apply, Element,
 };
+use cosmic::{cosmic_theme, theme};
 use iced::alignment::{Horizontal, Vertical};
-
-use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct BookmarksView {
@@ -19,7 +18,7 @@ pub struct BookmarksView {
     pub bookmarks: Vec<Bookmark>,
     account_placeholder: Option<Account>,
     bookmark_placeholder: Option<Bookmark>,
-    query_placeholder: Cow<'static, str>,
+    query_placeholder: String,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +42,7 @@ impl Default for BookmarksView {
             bookmarks: Vec::new(),
             account_placeholder: None,
             bookmark_placeholder: None,
-            query_placeholder: Cow::Owned("".to_string()),
+            query_placeholder: "".to_string(),
         }
     }
 }
@@ -58,13 +57,12 @@ impl BookmarksView {
                         .size(64)
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
-                    widget::button::text(fl!("open-accounts-page"))
-                        .style(widget::button::Style::Standard)
+                    widget::button::standard(fl!("open-accounts-page"))
                         .on_press(BookmarksMessage::OpenAccountsPage)
                         .into(),
                 ])
                 .spacing(20)
-                .align_items(Alignment::Center),
+                .align_x(Alignment::Center),
             )
             .align_y(Vertical::Center)
             .align_x(Horizontal::Center)
@@ -158,10 +156,11 @@ impl BookmarksView {
                 }
                 columns.push(
                     actions_row
-                        .push(widget::horizontal_space(Length::Fill))
-                        .push(widget::text(
-                            "[".to_string() + &derived_account.display_name + "]",
-                        ))
+                        .push(widget::horizontal_space())
+                        .push(widget::text(format!(
+                            "Account: {}",
+                            derived_account.display_name
+                        )))
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
@@ -186,7 +185,7 @@ impl BookmarksView {
 
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(3)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push(widget::text::title3(fl!(
                         "bookmarks-with-count",
                         count = self.bookmarks.len()
@@ -198,28 +197,19 @@ impl BookmarksView {
                         spacing.space_s,
                         spacing.space_none,
                     ])
+                    // FIXME: (vkhitrin) re-add search input
+                    //.push(
+                    //    widget::text_input::search_input("", self.query_placeholder.clone())
+                    //)
+                    .push(if !self.query_placeholder.is_empty() {
+                        widget::button::standard(fl!("refresh"))
+                    } else {
+                        widget::button::standard(fl!("refresh"))
+                            .on_press(BookmarksMessage::RefreshBookmarks)
+                    })
                     .push(
-                        widget::search_input(fl!("search"), self.query_placeholder.as_ref())
-                            .on_input(BookmarksMessage::SearchBookmarks)
-                            .on_clear(BookmarksMessage::ClearSearch),
-                    )
-                    .push(
-                        widget::button::text(fl!("refresh"))
-                            .on_press(if !self.query_placeholder.is_empty() {
-                                BookmarksMessage::EmptyMessage
-                            } else {
-                                BookmarksMessage::RefreshBookmarks
-                            })
-                            .style(if !self.query_placeholder.is_empty() {
-                                theme::Button::MenuItem
-                            } else {
-                                theme::Button::Standard
-                            }),
-                    )
-                    .push(
-                        widget::button::text(fl!("add-bookmark"))
-                            .on_press(BookmarksMessage::AddBookmark)
-                            .style(theme::Button::Standard),
+                        widget::button::standard(fl!("add-bookmark"))
+                            .on_press(BookmarksMessage::AddBookmark),
                     )
                     .width(Length::Fill)
                     .apply(widget::container)
@@ -229,73 +219,88 @@ impl BookmarksView {
             .into()
         }
     }
-    pub fn update(&mut self, message: BookmarksMessage) -> Command<Message> {
+    pub fn update(&mut self, message: BookmarksMessage) -> Task<Message> {
         let mut commands = Vec::new();
         match message {
             BookmarksMessage::OpenAccountsPage => {
-                commands.push(Command::perform(async {}, |_| Message::OpenAccountsPage));
+                commands.push(Task::perform(async {}, |_| {
+                    cosmic::app::Message::App(Message::OpenAccountsPage)
+                }));
             }
             BookmarksMessage::RefreshBookmarks => {
-                commands.push(Command::perform(async {}, |_| {
-                    Message::StartRefreshBookmarksForAllAccounts
+                commands.push(Task::perform(async {}, |_| {
+                    cosmic::app::Message::App(Message::StartRefreshBookmarksForAllAccounts)
                 }));
             }
             BookmarksMessage::AddBookmark => {
-                commands.push(Command::perform(async {}, |_| Message::AddBookmarkForm));
+                commands.push(Task::perform(async {}, |_| {
+                    cosmic::app::Message::App(Message::AddBookmarkForm)
+                }));
             }
             BookmarksMessage::DeleteBookmark(account, bookmark) => {
-                commands.push(Command::perform(async {}, move |_| {
-                    Message::OpenRemoveBookmarkDialog(account, bookmark)
+                commands.push(Task::perform(async {}, move |_| {
+                    cosmic::app::Message::App(Message::OpenRemoveBookmarkDialog(
+                        account.to_owned(),
+                        bookmark.to_owned(),
+                    ))
                 }));
             }
             BookmarksMessage::EditBookmark(account, bookmark) => {
                 self.account_placeholder = Some(account.clone());
                 self.bookmark_placeholder = Some(bookmark.clone());
-                commands.push(Command::perform(async {}, move |_| {
-                    Message::EditBookmark(account, bookmark)
+                commands.push(Task::perform(async {}, move |_| {
+                    cosmic::app::Message::App(Message::EditBookmark(
+                        account.to_owned(),
+                        bookmark.to_owned(),
+                    ))
                 }));
             }
             BookmarksMessage::SearchBookmarks(query) => {
-                self.query_placeholder = Cow::Owned(query.to_string());
-                commands.push(Command::perform(async {}, move |_| {
-                    Message::SearchBookmarks(query)
+                self.query_placeholder = query.clone();
+                commands.push(Task::perform(async {}, move |_| {
+                    cosmic::app::Message::App(Message::SearchBookmarks(query.to_owned()))
                 }));
             }
             BookmarksMessage::ClearSearch => {
-                self.query_placeholder = Cow::Owned("".to_string());
-                commands.push(Command::perform(async {}, |_| Message::LoadBookmarks));
+                self.query_placeholder = "".to_string();
+                commands.push(Task::perform(async {}, |_| {
+                    cosmic::app::Message::App(Message::LoadBookmarks)
+                }));
             }
             BookmarksMessage::OpenExternalURL(url) => {
-                commands.push(Command::perform(async {}, |_| {
-                    Message::OpenExternalUrl(url)
+                commands.push(Task::perform(async {}, move |_| {
+                    cosmic::app::Message::App(Message::OpenExternalUrl(url.to_owned()))
                 }));
             }
             BookmarksMessage::ViewNotes(bookmark) => {
-                commands.push(Command::perform(async {}, |_| {
-                    Message::ViewBookmarkNotes(bookmark)
+                commands.push(Task::perform(async {}, move |_| {
+                    cosmic::app::Message::App(Message::ViewBookmarkNotes(bookmark.to_owned()))
                 }));
             }
             BookmarksMessage::EmptyMessage => {
-                commands.push(Command::perform(async {}, |_| Message::EmpptyMessage));
+                commands.push(Task::perform(async {}, |_| {
+                    cosmic::app::Message::App(Message::EmpptyMessage)
+                }));
             }
         }
-        Command::batch(commands)
+        Task::batch(commands)
     }
 }
 
 pub fn new_bookmark<'a, 'b>(
     bookmark: Bookmark,
     accounts: &'b Vec<Account>,
-    selected_account: usize,
+    selected_account_index: usize,
 ) -> Element<'a, Message>
 where
     'b: 'a,
 {
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let account_widget_title = widget::text::body(fl!("account"));
-    let account_widget_dropdown = widget::dropdown(&accounts, Some(selected_account), move |idx| {
-        Message::AddBookmarkFormAccountIndex(idx)
-    });
+    let account_widget_dropdown =
+        widget::dropdown(&accounts, Some(selected_account_index), move |idx| {
+            Message::AddBookmarkFormAccountIndex(idx)
+        });
     let url_widget_title = widget::text::body(fl!("url"));
     let url_widget_text_input =
         widget::text_input("URL", bookmark.url.clone()).on_input(Message::SetBookmarkURL);
@@ -313,22 +318,20 @@ where
     let tags_widget_subtext = widget::text::caption(fl!("tags-helper"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
-    let archived_widget_checkbox = widget::checkbox(
-        fl!("archived"),
-        bookmark.is_archived,
-        Message::SetBookmarkArchived,
-    );
+    let archived_widget_checkbox = widget::checkbox(fl!("archived"), bookmark.is_archived)
+        .on_toggle(Message::SetBookmarkArchived);
     let unread_widget_checkbox =
-        widget::checkbox(fl!("unread"), bookmark.unread, Message::SetBookmarkUnread);
-    let shared_widget_checkbox =
-        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared);
+        widget::checkbox(fl!("unread"), bookmark.unread).on_toggle(Message::SetBookmarkUnread);
+    let shared_widget_checkbox = if accounts[selected_account_index].clone().enable_sharing {
+        widget::checkbox(fl!("shared"), bookmark.shared).on_toggle(Message::SetBookmarkShared)
+    } else {
+        widget::checkbox(fl!("shared-disabled"), false).on_toggle(|_| Message::EmpptyMessage)
+    };
     let buttons_widget_container = widget::container(
-        widget::button::text(fl!("save"))
-            .style(widget::button::Style::Standard)
-            .on_press(Message::AddBookmark(
-                accounts[selected_account].clone(),
-                bookmark,
-            )),
+        widget::button::standard(fl!("save")).on_press(Message::AddBookmark(
+            accounts[selected_account_index].clone(),
+            bookmark,
+        )),
     )
     .width(Length::Fill)
     .align_x(iced::alignment::Horizontal::Center);
@@ -348,11 +351,9 @@ where
         .push(tags_widget_title)
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
-        .push(widget::vertical_space(Length::from(10)))
         .push(archived_widget_checkbox)
         .push(unread_widget_checkbox)
         .push(shared_widget_checkbox)
-        .push(widget::vertical_space(Length::from(10)))
         .push(buttons_widget_container)
         .into()
 }
@@ -383,18 +384,17 @@ where
     let tags_widget_subtext = widget::text::caption(fl!("tags-helper"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
-    let archived_widget_checkbox = widget::checkbox(
-        fl!("archived"),
-        bookmark.is_archived,
-        Message::SetBookmarkArchived,
-    );
+    let archived_widget_checkbox = widget::checkbox(fl!("archived"), bookmark.is_archived)
+        .on_toggle(Message::SetBookmarkArchived);
     let unread_widget_checkbox =
-        widget::checkbox(fl!("unread"), bookmark.unread, Message::SetBookmarkUnread);
-    let shared_widget_checkbox =
-        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared);
+        widget::checkbox(fl!("unread"), bookmark.unread).on_toggle(Message::SetBookmarkUnread);
+    let shared_widget_checkbox = if account.clone().unwrap().enable_sharing {
+        widget::checkbox(fl!("shared"), bookmark.shared).on_toggle(Message::SetBookmarkShared)
+    } else {
+        widget::checkbox(fl!("shared-disabled"), false).on_toggle(|_| Message::EmpptyMessage)
+    };
     let buttons_widget_container = widget::container(
-        widget::button::text(fl!("save"))
-            .style(widget::button::Style::Standard)
+        widget::button::standard(fl!("save"))
             .on_press(Message::UpdateBookmark(account.unwrap(), bookmark)),
     )
     .width(Length::Fill)
@@ -413,11 +413,9 @@ where
         .push(tags_widget_title)
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
-        .push(widget::vertical_space(Length::from(10)))
         .push(archived_widget_checkbox)
         .push(unread_widget_checkbox)
         .push(shared_widget_checkbox)
-        .push(widget::vertical_space(Length::from(10)))
         .push(buttons_widget_container)
         .into()
 }

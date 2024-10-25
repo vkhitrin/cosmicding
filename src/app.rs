@@ -3,14 +3,14 @@ use crate::db::{self, SqliteDatabase};
 use crate::fl;
 use crate::http::{self};
 use crate::key_binds::key_binds;
-use crate::models::account::Account;
+use crate::models::account::{Account, AccountApiResponse};
 use crate::models::bookmarks::Bookmark;
 use crate::nav::NavPage;
 use crate::pages::accounts::{add_account, edit_account, AccountsMessage, AccountsView};
 use crate::pages::bookmarks::{
     edit_bookmark, new_bookmark, view_notes, BookmarksMessage, BookmarksView,
 };
-use cosmic::app::{Command, Core};
+use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
 use cosmic::iced::{
@@ -73,6 +73,7 @@ pub enum Message {
     CompleteRemoveDialog(Account, Option<Bookmark>),
     DialogCancel,
     DialogUpdate(DialogPage),
+    DoneRefreshAccountProfile(Account, AccountApiResponse),
     DoneRefreshBookmarksForAccount(Account, Vec<Bookmark>),
     DoneRefreshBookmarksForAllAccounts(Vec<Bookmark>),
     EditAccount(Account),
@@ -101,6 +102,7 @@ pub enum Message {
     SetBookmarkTitle(String),
     SetBookmarkURL(String),
     SetBookmarkUnread(bool),
+    StartRefreshAccountProfile(Account),
     StartRefreshBookmarksForAccount(Account),
     StartRefreshBookmarksForAllAccounts,
     StartupCompleted,
@@ -125,7 +127,7 @@ impl Application for Cosmicding {
 
     type Message = Message;
 
-    const APP_ID: &'static str = "com.vkhitrin.cosmicding";
+    const APP_ID: &'static str = APPID;
 
     fn core(&self) -> &Core {
         &self.core
@@ -135,7 +137,7 @@ impl Application for Cosmicding {
         &mut self.core
     }
 
-    fn init(core: Core, flags: Self::Flags) -> (Self, Command<Self::Message>) {
+    fn init(core: Core, flags: Self::Flags) -> (Self, Task<Self::Message>) {
         let db = block_on(async { db::SqliteDatabase::create().await.unwrap() });
         let mut nav = nav_bar::Model::default();
         let app_themes = vec![fl!("match-desktop"), fl!("dark"), fl!("light")];
@@ -179,13 +181,14 @@ impl Application for Cosmicding {
         };
 
         let commands = vec![
+            // FIXME: (vkhitrin) title is not updated on startup
             app.update_title(),
             app.update(Message::LoadAccounts),
             app.update(Message::LoadBookmarks),
             app.update(Message::StartupCompleted),
         ];
 
-        (app, Command::batch(commands))
+        (app, Task::batch(commands))
     }
 
     fn header_start(&self) -> Vec<Element<Self::Message>> {
@@ -200,14 +203,14 @@ impl Application for Cosmicding {
         Some(&self.nav)
     }
 
-    fn on_escape(&mut self) -> Command<Message> {
+    fn on_escape(&mut self) -> Task<Message> {
         if self.dialog_pages.pop_front().is_some() {
-            return Command::none();
+            return Task::none();
         }
 
         self.core.window.show_context = false;
 
-        Command::none()
+        Task::none()
     }
 
     fn context_drawer(&self) -> Option<Element<Self::Message>> {
@@ -274,7 +277,7 @@ impl Application for Cosmicding {
         let nav_page = self.nav.data::<NavPage>(entity).unwrap_or_default();
 
         widget::column::with_children(vec![
-            (widget::toaster(&self.toasts, widget::horizontal_space(Length::Fill)).into()),
+            (widget::toaster(&self.toasts, widget::horizontal_space()).into()),
             nav_page.view(self),
         ])
         .padding([
@@ -285,15 +288,15 @@ impl Application for Cosmicding {
         ])
         .width(Length::Fill)
         .height(Length::Fill)
-        .align_items(Alignment::Center)
         .into()
     }
     fn subscription(&self) -> Subscription<Self::Message> {
         struct ConfigSubscription;
         struct ThemeSubscription;
 
+        // FIXME: (vkhitrin) key bindings are not working properly
         let subscriptions = vec![
-            event::listen_with(|event, status| match event {
+            event::listen_with(|event, status, _| match event {
                 Event::Keyboard(KeyEvent::KeyPressed { key, modifiers, .. }) => match status {
                     event::Status::Ignored => Some(Message::Key(modifiers, key)),
                     event::Status::Captured => None,
@@ -338,7 +341,7 @@ impl Application for Cosmicding {
         Subscription::batch(subscriptions)
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         let mut commands = vec![];
         macro_rules! config_set {
             ($name: ident, $value: expr) => {
@@ -357,6 +360,7 @@ impl Application for Cosmicding {
             };
         }
         match message {
+            #![allow(non_snake_case)]
             Message::AppTheme(app_theme) => {
                 config_set!(app_theme, app_theme);
                 return self.update_config();
@@ -379,11 +383,7 @@ impl Application for Cosmicding {
 
                 self.set_context_title(context_page.title());
             }
-            Message::AccountsView(message) => commands.push(
-                self.accounts_view
-                    .update(message)
-                    .map(cosmic::app::Message::App),
-            ),
+            Message::AccountsView(message) => commands.push(self.accounts_view.update(message)),
             Message::LoadAccounts => {
                 self.accounts_view.accounts =
                     block_on(async { db::SqliteDatabase::fetch_accounts(&mut self.db).await });
@@ -420,11 +420,13 @@ impl Application for Cosmicding {
                         .map(cosmic::app::Message::App),
                 );
             }
-            Message::CompleteAddAccount(account) => {
+            Message::CompleteAddAccount(mut account) => {
                 let mut valid_account = false;
                 block_on(async {
-                    match http::check_instance(&account).await {
-                        Ok(()) => {
+                    match http::check_account_on_instance(&account).await {
+                        Ok(value) => {
+                            account.enable_sharing = value.enable_sharing;
+                            account.enable_public_sharing = value.enable_public_sharing;
                             valid_account = true;
                         }
                         Err(e) => {
@@ -465,11 +467,13 @@ impl Application for Cosmicding {
                 }
                 self.core.window.show_context = false;
             }
-            Message::UpdateAccount(account) => {
+            Message::UpdateAccount(mut account) => {
                 let mut valid_account = false;
                 block_on(async {
-                    match http::check_instance(&account).await {
-                        Ok(()) => {
+                    match http::check_account_on_instance(&account).await {
+                        Ok(value) => {
+                            account.enable_sharing = value.enable_sharing;
+                            account.enable_public_sharing = value.enable_public_sharing;
                             valid_account = true;
                         }
                         Err(e) => {
@@ -512,19 +516,15 @@ impl Application for Cosmicding {
                 commands.push(self.update(Message::LoadAccounts));
                 self.core.window.show_context = false;
             }
-            Message::BookmarksView(message) => commands.push(
-                self.bookmarks_view
-                    .update(message)
-                    .map(cosmic::app::Message::App),
-            ),
+            Message::BookmarksView(message) => commands.push(self.bookmarks_view.update(message)),
             Message::StartRefreshBookmarksForAllAccounts => {
                 if !self.bookmarks_view.bookmarks.is_empty() {
                     let message = |x: Vec<Bookmark>| {
                         cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
                     };
                     if !self.accounts_view.accounts.is_empty() {
-                        commands.push(Command::perform(
-                            http::fetch_all_bookmarks_from_accounts(
+                        commands.push(Task::perform(
+                            http::fetch_bookmarks_from_all_accounts(
                                 self.accounts_view.accounts.clone(),
                             ),
                             message,
@@ -547,15 +547,16 @@ impl Application for Cosmicding {
                 let mut acc_vec = self.accounts_view.accounts.clone();
                 acc_vec.retain(|acc| acc.id == account.id);
                 let borrowed_acc = acc_vec[0].clone();
-                let message = |x: Vec<Bookmark>| {
+                let message = move |x: Vec<Bookmark>| {
                     cosmic::app::Message::App(Message::DoneRefreshBookmarksForAccount(
-                        borrowed_acc,
+                        borrowed_acc.clone(),
                         x,
                     ))
                 };
+                commands.push(self.update(Message::StartRefreshAccountProfile(account.clone())));
                 if !self.accounts_view.accounts.is_empty() {
-                    commands.push(Command::perform(
-                        http::fetch_all_bookmarks_from_accounts(acc_vec.clone()),
+                    commands.push(Task::perform(
+                        http::fetch_bookmarks_from_all_accounts(acc_vec.clone()),
                         message,
                     ));
                     commands.push(
@@ -579,28 +580,49 @@ impl Application for Cosmicding {
                 });
                 commands.push(self.update(Message::LoadBookmarks));
             }
+            Message::StartRefreshAccountProfile(account) => {
+                let borrowed_acc = account.clone();
+                let message = move |r: Option<AccountApiResponse>| {
+                    cosmic::app::Message::App(Message::DoneRefreshAccountProfile(
+                        borrowed_acc.clone(),
+                        r.unwrap(),
+                    ))
+                };
+                commands.push(Task::perform(http::fetch_account_details(account), message));
+            }
+            Message::DoneRefreshAccountProfile(mut account, account_details) => {
+                account.enable_sharing = account_details.enable_sharing;
+                account.enable_public_sharing = account_details.enable_public_sharing;
+                block_on(async {
+                    db::SqliteDatabase::update_account(&mut self.db, &account).await
+                });
+                commands.push(self.update(Message::LoadAccounts));
+            }
             Message::AddBookmarkForm => {
-                self.placeholder_bookmark = Some(Bookmark::new(
-                    None,
-                    None,
-                    "".to_owned(),
-                    "".to_owned(),
-                    "".to_owned(),
-                    "".to_owned(),
-                    "".to_owned(),
-                    "".to_owned(),
-                    "".to_owned(),
-                    "".to_owned(),
-                    "".to_owned(),
-                    false,
-                    false,
-                    false,
-                    Vec::new(),
-                    None,
-                    None,
-                ));
-                commands
-                    .push(self.update(Message::ToggleContextPage(ContextPage::NewBookmarkForm)));
+                if !self.accounts_view.accounts.is_empty() {
+                    self.placeholder_bookmark = Some(Bookmark::new(
+                        None,
+                        None,
+                        "".to_owned(),
+                        "".to_owned(),
+                        "".to_owned(),
+                        "".to_owned(),
+                        "".to_owned(),
+                        "".to_owned(),
+                        "".to_owned(),
+                        "".to_owned(),
+                        "".to_owned(),
+                        false,
+                        false,
+                        false,
+                        Vec::new(),
+                        None,
+                        None,
+                    ));
+                    commands.push(
+                        self.update(Message::ToggleContextPage(ContextPage::NewBookmarkForm)),
+                    );
+                }
             }
             Message::SetAccountDisplayName(name) => {
                 if let Some(ref mut account_placeholder) = &mut self.placeholder_account {
@@ -853,25 +875,27 @@ impl Application for Cosmicding {
                     block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
             }
             Message::StartupCompleted => {
-                self.startup_completed = true;
-                commands.push(Command::perform(
+                for account in self.accounts_view.accounts.clone() {
+                    commands.push(self.update(Message::StartRefreshAccountProfile(account)));
+                }
+                commands.push(Task::perform(
                     async {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         crate::app::Message::StartRefreshBookmarksForAllAccounts
                     },
                     |msg| cosmic::app::Message::App(msg),
-                ))
+                ));
+                self.startup_completed = true;
             }
             Message::EmpptyMessage => {
-                commands.push(Command::none());
+                commands.push(Task::none());
             }
         }
-        Command::batch(commands)
+        Task::batch(commands)
     }
 
-    fn on_nav_select(&mut self, id: nav_bar::Id) -> Command<Self::Message> {
+    fn on_nav_select(&mut self, id: nav_bar::Id) -> Task<Self::Message> {
         self.nav.activate(id);
-
         self.update_title()
     }
 }
@@ -886,7 +910,7 @@ impl Cosmicding {
         let date = env!("VERGEN_GIT_COMMIT_DATE");
 
         widget::column::with_children(vec![
-            widget::text::title3(fl!("app-title")).into(),
+            widget::text::title3(fl!("cosmicding")).into(),
             widget::button::link(REPOSITORY)
                 .on_press(Message::OpenExternalUrl(REPOSITORY.to_string()))
                 .padding(spacing.space_none)
@@ -903,42 +927,44 @@ impl Cosmicding {
             .into(),
             widget::text::caption(format!("v{release}")).into(),
         ])
-        .align_items(Alignment::Center)
+        .align_x(Alignment::Center)
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
         .into()
     }
 
     fn settings(&self) -> Element<Message> {
-        let app_theme_selected = match self.config.app_theme {
-            AppTheme::Dark => 1,
-            AppTheme::Light => 2,
-            AppTheme::System => 0,
-        };
-        let appearance_section = widget::settings::section().title(fl!("appearance")).add(
-            widget::settings::item::builder(fl!("theme")).control(widget::dropdown(
-                &self.app_themes,
-                Some(app_theme_selected),
-                move |index| {
-                    Message::AppTheme(match index {
-                        1 => AppTheme::Dark,
-                        2 => AppTheme::Light,
-                        _ => AppTheme::System,
-                    })
-                },
-            )),
-        );
-
-        widget::settings::view_column(vec![appearance_section.into()]).into()
+        widget::settings::view_column(vec![widget::settings::section()
+            .title(fl!("appearance"))
+            .add({
+                let app_theme_selected = match self.config.app_theme {
+                    AppTheme::Dark => 1,
+                    AppTheme::Light => 2,
+                    AppTheme::System => 0,
+                };
+                widget::settings::item::builder(fl!("theme")).control(widget::dropdown(
+                    &self.app_themes,
+                    Some(app_theme_selected),
+                    move |index| {
+                        Message::AppTheme(match index {
+                            1 => AppTheme::Dark,
+                            2 => AppTheme::Light,
+                            _ => AppTheme::System,
+                        })
+                    },
+                ))
+            })
+            .into()])
+        .into()
     }
 
-    fn update_config(&mut self) -> Command<Message> {
+    fn update_config(&mut self) -> Task<Message> {
         let theme = self.config.app_theme.theme();
         cosmic::app::command::set_theme(theme)
     }
 
-    pub fn update_title(&mut self) -> Command<Message> {
-        let mut window_title = fl!("app-title");
+    pub fn update_title(&mut self) -> Task<Message> {
+        let mut window_title = fl!("cosmicding");
 
         if let Some(page) = self.nav.text(self.nav.active()) {
             window_title.insert_str(0, " — ");
@@ -961,6 +987,8 @@ pub enum ContextPage {
     ViewBookmarkNotes,
 }
 
+
+// FIXME: (vkhitrin) inputs are visually crowded.
 impl ContextPage {
     fn title(&self) -> String {
         match self {
