@@ -286,16 +286,17 @@ impl BookmarksView {
 pub fn new_bookmark<'a, 'b>(
     bookmark: Bookmark,
     accounts: &'b Vec<Account>,
-    selected_account: usize,
+    selected_account_index: usize,
 ) -> Element<'a, Message>
 where
     'b: 'a,
 {
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let account_widget_title = widget::text::body(fl!("account"));
-    let account_widget_dropdown = widget::dropdown(&accounts, Some(selected_account), move |idx| {
-        Message::AddBookmarkFormAccountIndex(idx)
-    });
+    let account_widget_dropdown =
+        widget::dropdown(&accounts, Some(selected_account_index), move |idx| {
+            Message::AddBookmarkFormAccountIndex(idx)
+        });
     let url_widget_title = widget::text::body(fl!("url"));
     let url_widget_text_input =
         widget::text_input("URL", bookmark.url.clone()).on_input(Message::SetBookmarkURL);
@@ -320,13 +321,16 @@ where
     );
     let unread_widget_checkbox =
         widget::checkbox(fl!("unread"), bookmark.unread, Message::SetBookmarkUnread);
-    let shared_widget_checkbox =
-        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared);
+    let shared_widget_checkbox = if accounts[selected_account_index].clone().enable_sharing {
+        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared)
+    } else {
+        widget::checkbox(fl!("shared-disabled"), false, |_| Message::EmpptyMessage)
+    };
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)
             .on_press(Message::AddBookmark(
-                accounts[selected_account].clone(),
+                accounts[selected_account_index].clone(),
                 bookmark,
             )),
     )
@@ -390,8 +394,11 @@ where
     );
     let unread_widget_checkbox =
         widget::checkbox(fl!("unread"), bookmark.unread, Message::SetBookmarkUnread);
-    let shared_widget_checkbox =
-        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared);
+    let shared_widget_checkbox = if account.clone().unwrap().enable_sharing {
+        widget::checkbox(fl!("shared"), bookmark.shared, Message::SetBookmarkShared)
+    } else {
+        widget::checkbox(fl!("shared-disabled"), false, |_| Message::EmpptyMessage)
+    };
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)

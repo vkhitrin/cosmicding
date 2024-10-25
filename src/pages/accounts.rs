@@ -2,6 +2,7 @@ use crate::app::Message;
 use crate::fl;
 use crate::models::account::Account;
 use cosmic::iced::Length;
+use cosmic::iced_widget::tooltip;
 use cosmic::{
     cosmic_theme,
     iced::{self, Alignment},
@@ -223,6 +224,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
 }
 
 pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
+    let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let display_name_widget_title = widget::text::body(fl!("display-name"));
     let display_name_widget_text_input = widget::text_input("Name", account.display_name.clone())
@@ -235,6 +237,44 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         widget::secure_input("Token", account.api_token.clone(), None, true)
             .on_input(Message::SetAccountAPIKey);
     let tls_widget_checkbox = widget::checkbox(fl!("tls"), account.tls, Message::SetAccountTLS);
+    let enable_shared_widget_text = if account.enable_sharing {
+        widget::tooltip(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::text::body(fl!("enabled-sharing")))
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
+            fl!("setting-managed-externally"),
+            tooltip::Position::Top,
+        )
+    } else {
+        widget::tooltip(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::text::body(fl!("disabled-sharing")))
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
+            fl!("setting-managed-externally"),
+            tooltip::Position::Top,
+        )
+    };
+    let enable_public_shared_widget_text = if account.enable_sharing {
+        widget::tooltip(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::text::body(fl!("enabled-public-sharing")))
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
+            fl!("setting-managed-externally"),
+            tooltip::Position::Top,
+        )
+    } else {
+        widget::tooltip(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::text::body(fl!("disabled-public-sharing")))
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
+            fl!("setting-managed-externally"),
+            tooltip::Position::Top,
+        )
+    };
     let buttons_widget_container = widget::container(
         widget::button::text(fl!("save"))
             .style(widget::button::Style::Standard)
@@ -253,6 +293,9 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         .push(api_key_widget_text_input)
         .push(widget::vertical_space(Length::from(10)))
         .push(tls_widget_checkbox)
+        .push(widget::vertical_space(Length::from(10)))
+        .push(enable_shared_widget_text)
+        .push(enable_public_shared_widget_text)
         .push(widget::vertical_space(Length::from(10)))
         .push(buttons_widget_container)
         .into()
