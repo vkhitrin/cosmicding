@@ -275,7 +275,6 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
                 .push(widget::text::body(fl!("disabled-public-sharing")))
                 .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
-            //fl!("setting-managed-externally"),
             tooltip::Position::FollowCursor,
         ).padding(10)
     };
