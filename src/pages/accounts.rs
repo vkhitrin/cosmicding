@@ -248,7 +248,8 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
                 .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
-        ).padding(10)
+        )
+        .padding(10)
     } else {
         widget::tooltip(
             widget::row::with_capacity(2)
@@ -257,7 +258,8 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
                 .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
-        ).padding(10)
+        )
+        .padding(10)
     };
     let enable_public_shared_widget_text = if account.enable_sharing {
         widget::tooltip(
@@ -267,7 +269,8 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
                 .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
-        ).padding(10)
+        )
+        .padding(10)
     } else {
         widget::tooltip(
             widget::row::with_capacity(2)
@@ -276,7 +279,8 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
                 .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
-        ).padding(10)
+        )
+        .padding(10)
     };
     let buttons_widget_container = widget::container(
         widget::button::standard(fl!("save")).on_press(Message::UpdateAccount(account)),

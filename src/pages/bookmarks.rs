@@ -202,12 +202,14 @@ impl BookmarksView {
                             .on_input(BookmarksMessage::SearchBookmarks)
                             .on_clear(BookmarksMessage::ClearSearch),
                     )
-                    .push(if !self.query_placeholder.is_empty() || self.bookmarks.is_empty() {
-                        widget::button::standard(fl!("refresh"))
-                    } else {
-                        widget::button::standard(fl!("refresh"))
-                            .on_press(BookmarksMessage::RefreshBookmarks)
-                    })
+                    .push(
+                        if !self.query_placeholder.is_empty() || self.bookmarks.is_empty() {
+                            widget::button::standard(fl!("refresh"))
+                        } else {
+                            widget::button::standard(fl!("refresh"))
+                                .on_press(BookmarksMessage::RefreshBookmarks)
+                        },
+                    )
                     .push(
                         widget::button::standard(fl!("add-bookmark"))
                             .on_press(BookmarksMessage::AddBookmark),
