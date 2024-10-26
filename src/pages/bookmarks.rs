@@ -197,11 +197,12 @@ impl BookmarksView {
                         spacing.space_s,
                         spacing.space_none,
                     ])
-                    // FIXME: (vkhitrin) re-add search input
-                    //.push(
-                    //    widget::text_input::search_input("", self.query_placeholder.clone())
-                    //)
-                    .push(if !self.query_placeholder.is_empty() {
+                    .push(
+                        widget::search_input(fl!("search"), self.query_placeholder.clone())
+                            .on_input(BookmarksMessage::SearchBookmarks)
+                            .on_clear(BookmarksMessage::ClearSearch),
+                    )
+                    .push(if !self.query_placeholder.is_empty() || self.bookmarks.is_empty() {
                         widget::button::standard(fl!("refresh"))
                     } else {
                         widget::button::standard(fl!("refresh"))

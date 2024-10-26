@@ -29,10 +29,10 @@ version = "0.15"
 features = ["fluent-system", "desktop-requester"]
 
 [dependencies.libcosmic]
-git = "https://github.com/pop-os/libcosmic.git"
+git = "https://github.com/pop-os/libcosmic"
 default-features = false
 features = ["dbus-config", "tokio", "winit", "wgpu"]
-rev = "a73e91a12bbc4318b855d7ab1030820570d6ff5b"
+rev = "953685a88267894ea3fa40f2b99139c3c4e784d6"
 version = "0.1.0"
 
 [build-dependencies]

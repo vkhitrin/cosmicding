@@ -181,7 +181,6 @@ impl Application for Cosmicding {
         };
 
         let commands = vec![
-            // FIXME: (vkhitrin) title is not updated on startup
             app.update_title(),
             app.update(Message::LoadAccounts),
             app.update(Message::LoadBookmarks),
@@ -963,14 +962,13 @@ impl Cosmicding {
         cosmic::app::command::set_theme(theme)
     }
 
+    // FIXME: (vkhitrin) title is not set on application startup
+    //                   it is updated when navigating between pages.
     pub fn update_title(&mut self) -> Task<Message> {
-        let mut window_title = fl!("cosmicding");
-
-        if let Some(page) = self.nav.text(self.nav.active()) {
-            window_title.insert_str(0, " — ");
-            window_title.insert_str(0, page);
-        }
-
+        let window_title = match self.nav.text(self.nav.active()) {
+            Some(page) => format!("{page} — {}", fl!("cosmicding")),
+            _ => fl!("cosmicding"),
+        };
         self.set_window_title(window_title)
     }
 }
@@ -987,8 +985,6 @@ pub enum ContextPage {
     ViewBookmarkNotes,
 }
 
-
-// FIXME: (vkhitrin) inputs are visually crowded.
 impl ContextPage {
     fn title(&self) -> String {
         match self {
