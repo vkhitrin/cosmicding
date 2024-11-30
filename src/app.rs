@@ -4,7 +4,7 @@ use crate::fl;
 use crate::http::{self};
 use crate::key_binds::key_binds;
 use crate::models::account::{Account, AccountApiResponse};
-use crate::models::bookmarks::Bookmark;
+use crate::models::bookmarks::{Bookmark, DetailedResponse};
 use crate::nav::NavPage;
 use crate::pages::accounts::{add_account, edit_account, AccountsMessage, AccountsView};
 use crate::pages::bookmarks::{
@@ -73,9 +73,9 @@ pub enum Message {
     CompleteRemoveDialog(Account, Option<Bookmark>),
     DialogCancel,
     DialogUpdate(DialogPage),
-    DoneRefreshAccountProfile(Account, AccountApiResponse),
-    DoneRefreshBookmarksForAccount(Account, Vec<Bookmark>),
-    DoneRefreshBookmarksForAllAccounts(Vec<Bookmark>),
+    DoneRefreshAccountProfile(Account, Option<AccountApiResponse>),
+    DoneRefreshBookmarksForAccount(Account, Vec<DetailedResponse>),
+    DoneRefreshBookmarksForAllAccounts(Vec<DetailedResponse>),
     EditAccount(Account),
     EditBookmark(Account, Bookmark),
     EmpptyMessage,
@@ -293,7 +293,6 @@ impl Application for Cosmicding {
         struct ConfigSubscription;
         struct ThemeSubscription;
 
-        // FIXME: (vkhitrin) key bindings are not working properly
         let subscriptions = vec![
             event::listen_with(|event, status, _| match event {
                 Event::Keyboard(KeyEvent::KeyPressed { key, modifiers, .. }) => match status {
@@ -518,7 +517,7 @@ impl Application for Cosmicding {
             Message::BookmarksView(message) => commands.push(self.bookmarks_view.update(message)),
             Message::StartRefreshBookmarksForAllAccounts => {
                 if !self.bookmarks_view.bookmarks.is_empty() {
-                    let message = |x: Vec<Bookmark>| {
+                    let message = |x: Vec<DetailedResponse>| {
                         cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
                     };
                     if !self.accounts_view.accounts.is_empty() {
@@ -536,24 +535,34 @@ impl Application for Cosmicding {
                     }
                 }
             }
-            Message::DoneRefreshBookmarksForAllAccounts(remote_bookmarks) => {
-                block_on(async {
-                    db::SqliteDatabase::cache_all_bookmarks(&mut self.db, &remote_bookmarks).await
-                });
+            Message::DoneRefreshBookmarksForAllAccounts(remote_responses) => {
+                for response in remote_responses {
+                    block_on(async {
+                        db::SqliteDatabase::cache_bookmarks_for_acount(
+                            &mut self.db,
+                            &response.account,
+                            response.bookmarks.unwrap_or_else(|| Vec::new()),
+                            response.timestamp,
+                            response.successful,
+                        )
+                        .await
+                    });
+                }
+                commands.push(self.update(Message::LoadAccounts));
                 commands.push(self.update(Message::LoadBookmarks));
             }
             Message::StartRefreshBookmarksForAccount(account) => {
                 let mut acc_vec = self.accounts_view.accounts.clone();
                 acc_vec.retain(|acc| acc.id == account.id);
                 let borrowed_acc = acc_vec[0].clone();
-                let message = move |x: Vec<Bookmark>| {
+                let message = move |bookmarks: Vec<DetailedResponse>| {
                     cosmic::app::Message::App(Message::DoneRefreshBookmarksForAccount(
                         borrowed_acc.clone(),
-                        x,
+                        bookmarks,
                     ))
                 };
                 commands.push(self.update(Message::StartRefreshAccountProfile(account.clone())));
-                if !self.accounts_view.accounts.is_empty() {
+                if !acc_vec.is_empty() {
                     commands.push(Task::perform(
                         http::fetch_bookmarks_from_all_accounts(acc_vec.clone()),
                         message,
@@ -568,34 +577,46 @@ impl Application for Cosmicding {
                     );
                 }
             }
-            Message::DoneRefreshBookmarksForAccount(account, remote_bookmarks) => {
-                block_on(async {
-                    db::SqliteDatabase::cache_bookmarks_for_acount(
-                        &mut self.db,
-                        &account,
-                        remote_bookmarks,
-                    )
-                    .await
-                });
+            Message::DoneRefreshBookmarksForAccount(account, remote_responses) => {
+                for response in remote_responses {
+                    block_on(async {
+                        db::SqliteDatabase::cache_bookmarks_for_acount(
+                            &mut self.db,
+                            &account,
+                            response.bookmarks.unwrap_or_else(|| Vec::new()),
+                            response.timestamp,
+                            response.successful,
+                        )
+                        .await
+                    });
+                }
+                commands.push(self.update(Message::LoadAccounts));
                 commands.push(self.update(Message::LoadBookmarks));
             }
             Message::StartRefreshAccountProfile(account) => {
                 let borrowed_acc = account.clone();
-                let message = move |r: Option<AccountApiResponse>| {
+                let message = move |api_response: Option<AccountApiResponse>| {
                     cosmic::app::Message::App(Message::DoneRefreshAccountProfile(
                         borrowed_acc.clone(),
-                        r.unwrap(),
+                        api_response,
                     ))
                 };
                 commands.push(Task::perform(http::fetch_account_details(account), message));
             }
             Message::DoneRefreshAccountProfile(mut account, account_details) => {
-                account.enable_sharing = account_details.enable_sharing;
-                account.enable_public_sharing = account_details.enable_public_sharing;
-                block_on(async {
-                    db::SqliteDatabase::update_account(&mut self.db, &account).await
-                });
-                commands.push(self.update(Message::LoadAccounts));
+                if !account_details.is_none() {
+                    let details = account_details.unwrap();
+                    account.enable_sharing = details.enable_sharing;
+                    account.enable_public_sharing = details.enable_public_sharing;
+                    block_on(async {
+                        db::SqliteDatabase::update_account(&mut self.db, &account).await
+                    });
+                    commands.push(self.update(Message::LoadAccounts));
+                } else {
+                    block_on(async {
+                        db::SqliteDatabase::update_account(&mut self.db, &account).await
+                    });
+                }
             }
             Message::AddBookmarkForm => {
                 if !self.accounts_view.accounts.is_empty() {

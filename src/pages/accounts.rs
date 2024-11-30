@@ -1,6 +1,7 @@
 use crate::app::Message;
 use crate::fl;
 use crate::models::account::Account;
+use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::iced_widget::tooltip;
 use cosmic::{
@@ -67,8 +68,11 @@ impl AccountsView {
                 .spacing(spacing.space_xxxs)
                 .padding([spacing.space_none, spacing.space_xxs]);
 
-            // TODO: (vkhitrin) Implement visual indicator for last sync status.
             for item in self.accounts.iter() {
+                let local_time: DateTime<Local> = DateTime::from(
+                    DateTime::from_timestamp(item.last_sync_timestamp.clone(), 0).expect(""),
+                );
+
                 // Mandatory first row - details
                 let mut columns = Vec::new();
                 columns.push(
@@ -89,8 +93,46 @@ impl AccountsView {
                         .align_y(Alignment::Center)
                         .into(),
                 );
-                // Mandatory third row - actions
-                let actions_row = widget::row::with_capacity(1)
+                // Mandatory second row - sync status
+                columns.push(
+                    widget::row::with_capacity(1)
+                        .spacing(spacing.space_xxs)
+                        .padding([
+                            spacing.space_xxxs,
+                            spacing.space_xxs,
+                            spacing.space_xxs,
+                            spacing.space_xxxs,
+                        ])
+                        .push(widget::text::body(format!(
+                            "{}: {}",
+                            fl!("last-sync-status"),
+                            if item.last_sync_status.clone() {
+                                fl!("successful")
+                            } else {
+                                fl!("failed")
+                            }
+                        )))
+                        .into(),
+                );
+                // Mandatory third row - sync timestamp
+                columns.push(
+                    widget::row::with_capacity(1)
+                        .spacing(spacing.space_xxs)
+                        .padding([
+                            spacing.space_xxxs,
+                            spacing.space_xxs,
+                            spacing.space_xxs,
+                            spacing.space_xxxs,
+                        ])
+                        .push(widget::text::body(format!(
+                            "{}: {}",
+                            fl!("last-sync-time"),
+                            local_time.to_rfc2822()
+                        )))
+                        .into(),
+                );
+                // Mandatory fourth row - actions
+                let actions_row = widget::row::with_capacity(3)
                     .spacing(spacing.space_xxs)
                     .push(
                         widget::button::link(fl!("refresh"))

@@ -1,3 +1,4 @@
+use crate::models::account::Account;
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Bookmark {
@@ -70,4 +71,28 @@ pub struct BookmarksApiResponse {
     pub next: Option<String>,
     pub previous: Option<String>,
     pub results: Vec<Bookmark>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetailedResponse {
+    pub account: Account,
+    pub timestamp: i64,
+    pub successful: bool,
+    pub bookmarks: Option<Vec<Bookmark>>,
+}
+
+impl DetailedResponse {
+    pub fn new(
+        response_account: Account,
+        response_timestamp: i64,
+        response_successful: bool,
+        response_bookmarks: Option<Vec<Bookmark>>,
+    ) -> Self {
+        Self {
+            account: response_account,
+            timestamp: response_timestamp,
+            successful: response_successful,
+            bookmarks: response_bookmarks,
+        }
+    }
 }
