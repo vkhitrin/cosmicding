@@ -111,27 +111,41 @@ impl SqliteDatabase {
             .await
             .unwrap();
     }
+    //NOTE: (vkhitrin) at the moment, this function is no longer required.
+    //                 Perhaps it should be removed/refactored.
     //TODO: (vkhitrin) this is a dumb "cache" that wipes all previous entries.
     //                 It should be improved in the future.
-    pub async fn cache_all_bookmarks(&mut self, bookmarks: &Vec<Bookmark>) {
-        let truncate_query: &str = "DELETE FROM Bookmarks;";
-        sqlx::query(truncate_query)
-            .execute(&mut self.conn)
-            .await
-            .unwrap();
-        if !bookmarks.is_empty() {
-            for bookmark in bookmarks {
-                self.add_bookmark(&bookmark).await;
-            }
-        }
-    }
+    //pub async fn cache_all_bookmarks(&mut self, bookmarks: &Vec<Bookmark>, epoch_timestamp: i64) {
+    //    let truncate_query: &str = "DELETE FROM Bookmarks;";
+    //    let update_timestamp_query =
+    //        "UPDATE UserAccounts SET last_sync_status=$1, last_sync_timestamp=$2";
+    //    sqlx::query(truncate_query)
+    //        .execute(&mut self.conn)
+    //        .await
+    //        .unwrap();
+    //    if !bookmarks.is_empty() {
+    //        for bookmark in bookmarks {
+    //            self.add_bookmark(&bookmark).await;
+    //        }
+    //    }
+    //    sqlx::query(update_timestamp_query)
+    //        .bind(1)
+    //        .bind(epoch_timestamp)
+    //        .execute(&mut self.conn)
+    //        .await
+    //        .unwrap();
+    //}
     pub async fn cache_bookmarks_for_acount(
         &mut self,
         account: &Account,
         bookmarks: Vec<Bookmark>,
+        epoch_timestamp: i64,
+        response_successful: bool,
     ) {
-        let truncate_query: &str = "DELETE FROM Bookmarks where user_account_id = $1;";
-        sqlx::query(truncate_query)
+        let delete_query: &str = "DELETE FROM Bookmarks where user_account_id = $1;";
+        let update_timestamp_query =
+            "UPDATE UserAccounts SET last_sync_status=$2, last_sync_timestamp=$3 WHERE id=$1";
+        sqlx::query(delete_query)
             .bind(account.id)
             .execute(&mut self.conn)
             .await
@@ -141,6 +155,13 @@ impl SqliteDatabase {
                 self.add_bookmark(&bookmark).await;
             }
         }
+        sqlx::query(update_timestamp_query)
+            .bind(account.id)
+            .bind(response_successful)
+            .bind(epoch_timestamp)
+            .execute(&mut self.conn)
+            .await
+            .unwrap();
     }
     pub async fn add_bookmark(&mut self, bookmark: &Bookmark) {
         let query: &str = r#"

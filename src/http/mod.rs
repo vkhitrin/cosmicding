@@ -1,32 +1,42 @@
 use crate::fl;
 use crate::models::account::{Account, AccountApiResponse};
-use crate::models::bookmarks::{Bookmark, BookmarksApiResponse};
+use crate::models::bookmarks::{Bookmark, BookmarksApiResponse, DetailedResponse};
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     ClientBuilder, StatusCode,
 };
 use serde_json::Value;
 use std::fmt::Write;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<Bookmark> {
-    let mut all_bookmarks: Vec<Bookmark> = Vec::new();
+pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<DetailedResponse> {
+    let mut all_responses: Vec<DetailedResponse> = Vec::new();
     for account in accounts {
         match fetch_bookmarks_for_account(&account).await {
-            Ok(new_bookmarks) => {
-                all_bookmarks.extend(new_bookmarks);
+            Ok(new_response) => {
+                all_responses.push(new_response);
             }
             Err(e) => {
+                let epoch_timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("")
+                    .as_secs();
+                let error_response =
+                    DetailedResponse::new(account, epoch_timestamp as i64, false, None);
+                all_responses.push(error_response);
                 log::error!("Error fetching bookmarks: {}", e);
             }
         }
     }
-    return all_bookmarks;
+    return all_responses;
 }
 
 pub async fn fetch_bookmarks_for_account(
     account: &Account,
-) -> Result<Vec<Bookmark>, Box<dyn std::error::Error>> {
+) -> Result<DetailedResponse, Box<dyn std::error::Error>> {
+    let mut detailed_response = DetailedResponse::new(account.clone(), 0, false, None);
     let mut bookmarks: Vec<Bookmark> = Vec::new();
     let mut headers = HeaderMap::new();
     let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
@@ -43,7 +53,12 @@ pub async fn fetch_bookmarks_for_account(
         .headers(headers)
         .send()
         .await?;
+    let parsed_date = response.headers().get("Date").unwrap().to_str().unwrap();
     if response.status().is_success() {
+        detailed_response.successful = true;
+        let date: DateTime<Utc> = DateTime::parse_from_rfc2822(parsed_date)?.with_timezone(&Utc);
+        let unix_timestamp = SystemTime::from(date).duration_since(UNIX_EPOCH)?.as_secs();
+        detailed_response.timestamp = unix_timestamp as i64;
         let response_json = response.json::<BookmarksApiResponse>().await;
         // Handle the Result
         match response_json {
@@ -72,6 +87,7 @@ pub async fn fetch_bookmarks_for_account(
                     );
                     bookmarks.push(transformed_bookmark);
                 }
+                detailed_response.bookmarks = Some(bookmarks);
             }
             Err(e) => {
                 log::error!("Error parsing JSON: {:?}", e);
@@ -84,7 +100,7 @@ pub async fn fetch_bookmarks_for_account(
             response.text().await
         );
     }
-    Ok(bookmarks)
+    Ok(detailed_response)
 }
 
 pub async fn add_bookmark(
@@ -237,17 +253,14 @@ pub async fn edit_bookmark(
                 fl!("failed-to-parse-response"),
             ))),
         },
-        status => {
-            // Return an error with the status code
-            Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                fl!(
-                    "http-error",
-                    http_rc = status.to_string(),
-                    http_err = response.text().await.unwrap()
-                ),
-            )))
-        }
+        status => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            fl!(
+                "http-error",
+                http_rc = status.to_string(),
+                http_err = response.text().await.unwrap()
+            ),
+        ))),
     }
 }
 
