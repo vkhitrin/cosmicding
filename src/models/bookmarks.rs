@@ -23,6 +23,7 @@ pub struct Bookmark {
 }
 
 impl Bookmark {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         account_id: Option<i64>,
         linkding_id: Option<i64>,
@@ -66,7 +67,7 @@ impl Bookmark {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BookmarksApiResponse {
+pub struct LinkdingBookmarksApiResponse {
     pub count: u64,
     pub next: Option<String>,
     pub previous: Option<String>,

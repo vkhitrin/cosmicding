@@ -11,6 +11,7 @@ use crate::{
     fl,
 };
 
+#[allow(clippy::module_name_repetitions)]
 pub fn menu_bar<'a>(
     key_binds: &HashMap<KeyBind, MenuAction>,
     accounts_present: bool,

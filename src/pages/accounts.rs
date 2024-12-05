@@ -15,7 +15,7 @@ use cosmic::{
 use iced::alignment::{Horizontal, Vertical};
 
 #[derive(Debug, Clone)]
-pub enum AccountsMessage {
+pub enum AppAccountsMessage {
     AddAccount,
     EditAccount(Account),
     DeleteAccount(Account),
@@ -24,13 +24,14 @@ pub enum AccountsMessage {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AccountsView {
+pub struct PageAccountsView {
     pub accounts: Vec<Account>,
     account_placeholder: Option<Account>,
 }
 
-impl AccountsView {
-    pub fn view(&self) -> Element<'_, AccountsMessage> {
+impl PageAccountsView {
+    #[allow(clippy::too_many_lines)]
+    pub fn view(&self) -> Element<'_, AppAccountsMessage> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
             let container = widget::container(
@@ -40,7 +41,7 @@ impl AccountsView {
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
                     widget::button::standard(fl!("add-account"))
-                        .on_press(AccountsMessage::AddAccount)
+                        .on_press(AppAccountsMessage::AddAccount)
                         .into(),
                 ])
                 .spacing(20)
@@ -59,7 +60,7 @@ impl AccountsView {
                 .spacing(spacing.space_xxxs)
                 .padding([spacing.space_none, spacing.space_xxs]);
 
-            for item in self.accounts.iter() {
+            for item in &self.accounts {
                 let local_time: DateTime<Local> = DateTime::from(
                     DateTime::from_timestamp(item.last_sync_timestamp, 0).expect(""),
                 );
@@ -153,22 +154,21 @@ impl AccountsView {
                 // Mandatory fifth row - actions
                 let actions_row = widget::row::with_capacity(3)
                     .spacing(spacing.space_xxs)
-                    .push(
-                        widget::button::link(fl!("refresh"))
-                            .on_press(AccountsMessage::RefreshBookmarksForAccount(item.to_owned())),
-                    )
+                    .push(widget::button::link(fl!("refresh")).on_press(
+                        AppAccountsMessage::RefreshBookmarksForAccount(item.to_owned()),
+                    ))
                     .push(
                         widget::button::link(fl!("edit"))
-                            .on_press(AccountsMessage::EditAccount(item.to_owned())),
+                            .on_press(AppAccountsMessage::EditAccount(item.to_owned())),
                     )
                     .push(
                         widget::button::link(fl!("remove"))
-                            .on_press(AccountsMessage::DeleteAccount(item.to_owned())),
+                            .on_press(AppAccountsMessage::DeleteAccount(item.to_owned())),
                     )
                     .push(
                         widget::button::link(fl!("open-instance"))
                             .trailing_icon(true)
-                            .on_press(AccountsMessage::OpenExternalURL(item.instance.clone()))
+                            .on_press(AppAccountsMessage::OpenExternalURL(item.instance.clone()))
                             .tooltip(item.instance.clone()),
                     );
                 columns.push(
@@ -211,7 +211,7 @@ impl AccountsView {
                     .push(widget::horizontal_space())
                     .push(
                         widget::button::standard(fl!("add-account"))
-                            .on_press(AccountsMessage::AddAccount),
+                            .on_press(AppAccountsMessage::AddAccount),
                     )
                     .width(Length::Fill)
                     .apply(widget::container)
@@ -221,35 +221,35 @@ impl AccountsView {
             .into()
         }
     }
-    pub fn update(&mut self, message: AccountsMessage) -> Task<Message> {
+    pub fn update(&mut self, message: AppAccountsMessage) -> Task<Message> {
         let mut commands = Vec::new();
         match message {
-            AccountsMessage::AddAccount => {
-                commands.push(Task::perform(async {}, |_| {
+            AppAccountsMessage::AddAccount => {
+                commands.push(Task::perform(async {}, |()| {
                     cosmic::app::Message::App(Message::AddAccount)
                 }));
             }
-            AccountsMessage::EditAccount(account) => {
+            AppAccountsMessage::EditAccount(account) => {
                 self.account_placeholder = Some(account.clone());
-                commands.push(Task::perform(async {}, move |_| {
-                    cosmic::app::Message::App(Message::EditAccount(account.to_owned()))
+                commands.push(Task::perform(async {}, move |()| {
+                    cosmic::app::Message::App(Message::EditAccount(account.clone()))
                 }));
             }
-            AccountsMessage::DeleteAccount(account) => {
-                commands.push(Task::perform(async {}, move |_| {
-                    cosmic::app::Message::App(Message::OpenRemoveAccountDialog(account.to_owned()))
+            AppAccountsMessage::DeleteAccount(account) => {
+                commands.push(Task::perform(async {}, move |()| {
+                    cosmic::app::Message::App(Message::OpenRemoveAccountDialog(account.clone()))
                 }));
             }
-            AccountsMessage::RefreshBookmarksForAccount(account) => {
-                commands.push(Task::perform(async {}, move |_| {
+            AppAccountsMessage::RefreshBookmarksForAccount(account) => {
+                commands.push(Task::perform(async {}, move |()| {
                     cosmic::app::Message::App(Message::StartRefreshBookmarksForAccount(
-                        account.to_owned(),
+                        account.clone(),
                     ))
                 }));
             }
-            AccountsMessage::OpenExternalURL(url) => {
-                commands.push(Task::perform(async {}, move |_| {
-                    cosmic::app::Message::App(Message::OpenExternalUrl(url.to_owned()))
+            AppAccountsMessage::OpenExternalURL(url) => {
+                commands.push(Task::perform(async {}, move |()| {
+                    cosmic::app::Message::App(Message::OpenExternalUrl(url.clone()))
                 }));
             }
         }

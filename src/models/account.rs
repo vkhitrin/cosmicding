@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 #[derive(Serialize, Deserialize, Debug, Clone, FromRow, Eq, PartialEq)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Account {
     pub id: Option<i64>,
     pub api_token: String,
@@ -44,7 +45,8 @@ pub struct SearchPreferences {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccountApiResponse {
+#[allow(clippy::struct_excessive_bools)]
+pub struct LinkdingAccountApiResponse {
     pub theme: String,
     pub bookmark_date_display: String,
     pub web_archive_integration: String,
