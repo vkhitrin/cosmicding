@@ -30,16 +30,20 @@ pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<De
             }
         }
     }
-    return all_responses;
+    all_responses
 }
 
+//  NOTE: (vkhitrin) perhaps this method should be split into two:
+//        (1) fetch bookmarks (2) fetch archived bookmarks
 pub async fn fetch_bookmarks_for_account(
     account: &Account,
 ) -> Result<DetailedResponse, Box<dyn std::error::Error>> {
     let mut detailed_response = DetailedResponse::new(account.clone(), 0, false, None);
     let mut bookmarks: Vec<Bookmark> = Vec::new();
     let mut headers = HeaderMap::new();
-    let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
+    let rest_api_bookmarks_url: String = account.instance.clone() + "/api/bookmarks/";
+    let rest_api_archived_bookmarks_url: String =
+        account.instance.clone() + "/api/bookmarks/archived/";
     let http_client = ClientBuilder::new()
         .danger_accept_invalid_certs(account.tls)
         .build()
@@ -48,20 +52,27 @@ pub async fn fetch_bookmarks_for_account(
         AUTHORIZATION,
         HeaderValue::from_str(&format!("Token {}", account.api_token)).unwrap(),
     );
-    let response: reqwest::Response = http_client
-        .get(rest_api_url)
-        .headers(headers)
+    let bookmarks_response: reqwest::Response = http_client
+        .get(rest_api_bookmarks_url)
+        .headers(headers.clone())
         .send()
         .await?;
-    let parsed_date = response.headers().get("Date").unwrap().to_str().unwrap();
-    if response.status().is_success() {
+    // NOTE: (vkhitrin) if no Date header was returned, we will use current time.
+    let bookmarks_parsed_date = bookmarks_response
+        .headers()
+        .get("Date")
+        .cloned()
+        .unwrap_or_else(|| HeaderValue::from_str(&Utc::now().to_rfc2822()).expect(""));
+    if bookmarks_response.status().is_success() {
         detailed_response.successful = true;
-        let date: DateTime<Utc> = DateTime::parse_from_rfc2822(parsed_date)?.with_timezone(&Utc);
+        let date: DateTime<Utc> =
+            DateTime::parse_from_rfc2822(bookmarks_parsed_date.to_str().unwrap())?
+                .with_timezone(&Utc);
         let unix_timestamp = SystemTime::from(date).duration_since(UNIX_EPOCH)?.as_secs();
         detailed_response.timestamp = unix_timestamp as i64;
-        let response_json = response.json::<BookmarksApiResponse>().await;
+        let bookmarks_response_json = bookmarks_response.json::<BookmarksApiResponse>().await;
         // Handle the Result
-        match response_json {
+        match bookmarks_response_json {
             Ok(bookmarks_response) => {
                 for bookmark in bookmarks_response.results {
                     let transformed_bookmark = Bookmark::new(
@@ -87,7 +98,6 @@ pub async fn fetch_bookmarks_for_account(
                     );
                     bookmarks.push(transformed_bookmark);
                 }
-                detailed_response.bookmarks = Some(bookmarks);
             }
             Err(e) => {
                 log::error!("Error parsing JSON: {:?}", e);
@@ -95,11 +105,73 @@ pub async fn fetch_bookmarks_for_account(
         }
     } else {
         log::error!(
-            "HTTP Error {:?}:\n{:?}",
-            response.status(),
-            response.text().await
+            "HTTP Error while fetching bookmarks {:?}:\n{:?}",
+            bookmarks_response.status(),
+            bookmarks_response.text().await
         );
     }
+    let archived_bookmarks_response: reqwest::Response = http_client
+        .get(rest_api_archived_bookmarks_url)
+        .headers(headers)
+        .send()
+        .await?;
+    // NOTE: (vkhitrin) if no Date header was returned, we will use current time.
+    let archived_bookmarks_parsed_date = archived_bookmarks_response
+        .headers()
+        .get("Date")
+        .cloned()
+        .unwrap_or_else(|| HeaderValue::from_str(&Utc::now().to_rfc2822()).expect(""));
+    if archived_bookmarks_response.status().is_success() {
+        detailed_response.successful = true;
+        let date: DateTime<Utc> =
+            DateTime::parse_from_rfc2822(archived_bookmarks_parsed_date.to_str().unwrap())?
+                .with_timezone(&Utc);
+        let unix_timestamp = SystemTime::from(date).duration_since(UNIX_EPOCH)?.as_secs();
+        detailed_response.timestamp = unix_timestamp as i64;
+        let archived_bookmarks_response_json = archived_bookmarks_response
+            .json::<BookmarksApiResponse>()
+            .await;
+        // Handle the Result
+        match archived_bookmarks_response_json {
+            Ok(archived_bookmarks_response) => {
+                for bookmark in archived_bookmarks_response.results {
+                    let transformed_bookmark = Bookmark::new(
+                        account.id,
+                        bookmark.id,
+                        bookmark.url,
+                        bookmark.title,
+                        bookmark.description,
+                        bookmark.website_title.unwrap_or_else(|| "".to_string()),
+                        bookmark
+                            .website_description
+                            .unwrap_or_else(|| "".to_string()),
+                        bookmark.notes,
+                        bookmark.web_archive_snapshot_url,
+                        bookmark.favicon_url.unwrap_or_else(|| "".to_string()),
+                        bookmark.preview_image_url.unwrap_or_else(|| "".to_string()),
+                        bookmark.is_archived,
+                        bookmark.unread,
+                        bookmark.shared,
+                        bookmark.tag_names,
+                        bookmark.date_added,
+                        bookmark.date_modified,
+                    );
+                    bookmarks.push(transformed_bookmark);
+                }
+            }
+            Err(e) => {
+                log::error!("Error parsing JSON: {:?}", e);
+            }
+        }
+    } else {
+        detailed_response.successful = false;
+        log::error!(
+            "HTTP Error while fetching archived bookmarks {:?}:\n{:?}",
+            archived_bookmarks_response.status(),
+            archived_bookmarks_response.text().await
+        );
+    }
+    detailed_response.bookmarks = Some(bookmarks);
     Ok(detailed_response)
 }
 
@@ -117,7 +189,7 @@ pub async fn add_bookmark(
         AUTHORIZATION,
         HeaderValue::from_str(&format!("Token {}", account.api_token)).unwrap(),
     );
-    let mut transformed_json_value: Value = serde_json::to_value(&bookmark)?;
+    let mut transformed_json_value: Value = serde_json::to_value(bookmark)?;
     if let Some(obj) = transformed_json_value.as_object_mut() {
         obj.remove("id");
         obj.remove("user_account_id");
@@ -170,7 +242,7 @@ pub async fn remove_bookmark(
         &mut rest_api_url,
         "{}/api/bookmarks/{:?}/",
         account.instance.clone(),
-        bookmark.linkding_internal_id.clone().unwrap()
+        bookmark.linkding_internal_id.unwrap()
     )
     .unwrap();
     let mut headers = HeaderMap::new();
@@ -209,7 +281,7 @@ pub async fn edit_bookmark(
         &mut rest_api_url,
         "{}/api/bookmarks/{:?}/",
         account.instance.clone(),
-        bookmark.linkding_internal_id.clone().unwrap()
+        bookmark.linkding_internal_id.unwrap()
     )
     .unwrap();
     let mut headers = HeaderMap::new();
@@ -221,7 +293,7 @@ pub async fn edit_bookmark(
         AUTHORIZATION,
         HeaderValue::from_str(&format!("Token {}", account.api_token)).unwrap(),
     );
-    let mut transformed_json_value: Value = serde_json::to_value(&bookmark)?;
+    let mut transformed_json_value: Value = serde_json::to_value(bookmark)?;
     if let Some(obj) = transformed_json_value.as_object_mut() {
         obj.remove("id");
         obj.remove("user_account_id");
@@ -278,7 +350,7 @@ pub async fn fetch_account_details(account: Account) -> Option<AccountApiRespons
             );
         }
     }
-    return account_details;
+    account_details
 }
 
 pub async fn check_account_on_instance(

@@ -65,12 +65,9 @@ Potential improvements:
 - [Performance] Check performance with high amount of bookmarks spread across multiple instances.
 - [Application] Refactor codebase to be more organized.
 - [Application] Allow user-provided TLS certificate.
-- [UI] Indicators for `archived`, `unread`, `shared` bookmarks.
-- [UI] Display account information in accounts page.
 - [Distribution] Flatpack release.
 - [Distribution] compiled binary in GitHub release.
 - [UI] Sort bookmarks.
-- [UI] Improve `Accounts` page view.
 
 Things to consider:
 
