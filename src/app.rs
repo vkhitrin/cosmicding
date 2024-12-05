@@ -276,7 +276,7 @@ impl Application for Cosmicding {
         let nav_page = self.nav.data::<NavPage>(entity).unwrap_or_default();
 
         widget::column::with_children(vec![
-            (widget::toaster(&self.toasts, widget::horizontal_space()).into()),
+            widget::toaster(&self.toasts, widget::horizontal_space()),
             nav_page.view(self),
         ])
         .padding([
@@ -368,7 +368,7 @@ impl Application for Cosmicding {
             }
             Message::OpenAccountsPage => {
                 let account_page_entity = &self.nav.entity_at(0);
-                _ = self.nav.activate(account_page_entity.unwrap());
+                self.nav.activate(account_page_entity.unwrap());
             }
 
             Message::ToggleContextPage(context_page) => {
@@ -541,7 +541,7 @@ impl Application for Cosmicding {
                         db::SqliteDatabase::cache_bookmarks_for_acount(
                             &mut self.db,
                             &response.account,
-                            response.bookmarks.unwrap_or_else(|| Vec::new()),
+                            response.bookmarks.unwrap_or_else(Vec::new),
                             response.timestamp,
                             response.successful,
                         )
@@ -583,7 +583,7 @@ impl Application for Cosmicding {
                         db::SqliteDatabase::cache_bookmarks_for_acount(
                             &mut self.db,
                             &account,
-                            response.bookmarks.unwrap_or_else(|| Vec::new()),
+                            response.bookmarks.unwrap_or_else(Vec::new),
                             response.timestamp,
                             response.successful,
                         )
@@ -604,7 +604,7 @@ impl Application for Cosmicding {
                 commands.push(Task::perform(http::fetch_account_details(account), message));
             }
             Message::DoneRefreshAccountProfile(mut account, account_details) => {
-                if !account_details.is_none() {
+                if account_details.is_some() {
                     let details = account_details.unwrap();
                     account.enable_sharing = details.enable_sharing;
                     account.enable_public_sharing = details.enable_public_sharing;
@@ -857,13 +857,13 @@ impl Application for Cosmicding {
                 self.config = config;
             }
             Message::OpenRemoveAccountDialog(account) => {
-                if !self.dialog_pages.pop_front().is_some() {
+                if self.dialog_pages.pop_front().is_none() {
                     self.dialog_pages
                         .push_back(DialogPage::RemoveAccount(account));
                 }
             }
             Message::OpenRemoveBookmarkDialog(account, bookmark) => {
-                if !self.dialog_pages.pop_front().is_some() {
+                if self.dialog_pages.pop_front().is_none() {
                     self.dialog_pages
                         .push_back(DialogPage::RemoveBookmark(account, bookmark));
                 }
@@ -903,7 +903,7 @@ impl Application for Cosmicding {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         crate::app::Message::StartRefreshBookmarksForAllAccounts
                     },
-                    |msg| cosmic::app::Message::App(msg),
+                    cosmic::app::Message::App,
                 ));
                 self.startup_completed = true;
             }

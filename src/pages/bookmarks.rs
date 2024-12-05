@@ -48,7 +48,7 @@ impl Default for BookmarksView {
 }
 
 impl BookmarksView {
-    pub fn view<'a>(&'a self) -> Element<'a, BookmarksMessage> {
+    pub fn view(&self) -> Element<'_, BookmarksMessage> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
             let container = widget::container(
@@ -91,11 +91,13 @@ impl BookmarksView {
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
-                            spacing.space_xxs,
+                            spacing.space_xxxs,
                             spacing.space_none,
                         ])
                         .push(
                             widget::button::link(item.title.clone())
+                                .trailing_icon(true)
+                                .tooltip(item.url.clone())
                                 .on_press(BookmarksMessage::OpenExternalURL(item.url.clone())),
                         )
                         .into(),
@@ -116,23 +118,26 @@ impl BookmarksView {
                     );
                 }
                 // Optional third row - tags
-                if item.tag_names.len() > 0 {
+                if !item.tag_names.is_empty() {
                     columns.push(
-                        widget::row::with_capacity(1)
-                            .spacing(spacing.space_xxs)
+                        widget::row::with_capacity(2)
+                            .spacing(spacing.space_none)
                             .padding([
+                                spacing.space_none,
+                                spacing.space_xxs,
                                 spacing.space_xxxs,
-                                spacing.space_xxs,
-                                spacing.space_xxs,
                                 spacing.space_xxxs,
                             ])
-                            .push(widget::text::body(
-                                item.tag_names
-                                    .iter()
-                                    .map(|s| format!("#{}", s))
-                                    .collect::<Vec<String>>()
-                                    .join(" "),
-                            ))
+                            .push(
+                                widget::text::body(
+                                    item.tag_names
+                                        .iter()
+                                        .map(|s| format!("#{}", s))
+                                        .collect::<Vec<String>>()
+                                        .join(" "),
+                                )
+                                .size(12),
+                            )
                             .into(),
                     );
                 }
@@ -156,16 +161,43 @@ impl BookmarksView {
                 }
                 columns.push(
                     actions_row
+                        .padding([
+                            spacing.space_none,
+                            spacing.space_xxs,
+                            spacing.space_xxxs,
+                            spacing.space_none,
+                        ])
+                        .into(),
+                );
+                // Mandatory fifth row - details
+                let mut details_row = widget::row::with_capacity(1).spacing(spacing.space_xxs);
+                if item.is_archived {
+                    details_row = details_row
+                        .push(widget::icon::from_name("mail-archive-symbolic").size(12))
+                        .push(widget::text(fl!("archived")).size(12));
+                }
+                if item.unread {
+                    details_row = details_row
+                        .push(widget::icon::from_name("x-office-spreadsheet-symbolic").size(12))
+                        .push(widget::text(fl!("unread")).size(12));
+                }
+                if item.shared {
+                    details_row = details_row
+                        .push(widget::icon::from_name("emblem-shared-symbolic").size(12))
+                        .push(widget::text(fl!("shared")).size(12));
+                }
+                columns.push(
+                    details_row
                         .push(widget::horizontal_space())
-                        .push(widget::text(format!(
-                            "Account: {}",
-                            derived_account.display_name
-                        )))
+                        .push(widget::icon::from_name("user-available-symbolic").size(12))
+                        .push(widget::text(derived_account.display_name.clone()).size(12))
+                        .align_y(iced::alignment::Vertical::Center)
+                        .spacing(spacing.space_xxs)
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
                             spacing.space_xxs,
-                            spacing.space_none,
+                            spacing.space_xxxs,
                         ])
                         .into(),
                 );
@@ -301,7 +333,7 @@ where
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let account_widget_title = widget::text::body(fl!("account"));
     let account_widget_dropdown =
-        widget::dropdown(&accounts, Some(selected_account_index), move |idx| {
+        widget::dropdown(accounts, Some(selected_account_index), move |idx| {
             Message::AddBookmarkFormAccountIndex(idx)
         });
     let url_widget_title = widget::text::body(fl!("url"));
@@ -318,7 +350,7 @@ where
     let notes_widget_text_input = widget::text_input(fl!("notes"), bookmark.notes.clone())
         .on_input(Message::SetBookmarkNotes);
     let tags_widget_title = widget::text::body(fl!("tags"));
-    let tags_widget_subtext = widget::text::caption(fl!("tags-helper"));
+    let tags_widget_subtext = widget::text::caption(fl!("tags-subtext"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
     let archived_widget_checkbox = widget::checkbox(fl!("archived"), bookmark.is_archived)
@@ -354,9 +386,11 @@ where
         .push(tags_widget_title)
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
+        .push(widget::Space::new(0, 10))
         .push(archived_widget_checkbox)
         .push(unread_widget_checkbox)
         .push(shared_widget_checkbox)
+        .push(widget::Space::new(0, 10))
         .push(buttons_widget_container)
         .into()
 }
@@ -384,7 +418,7 @@ where
     let notes_widget_text_input =
         widget::text_input("notes", bookmark.notes.clone()).on_input(Message::SetBookmarkNotes);
     let tags_widget_title = widget::text::body(fl!("tags"));
-    let tags_widget_subtext = widget::text::caption(fl!("tags-helper"));
+    let tags_widget_subtext = widget::text::caption(fl!("tags-subtext"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
     let archived_widget_checkbox = widget::checkbox(fl!("archived"), bookmark.is_archived)
@@ -416,9 +450,11 @@ where
         .push(tags_widget_title)
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
+        .push(widget::Space::new(0, 10))
         .push(archived_widget_checkbox)
         .push(unread_widget_checkbox)
         .push(shared_widget_checkbox)
+        .push(widget::Space::new(0, 10))
         .push(buttons_widget_container)
         .into()
 }

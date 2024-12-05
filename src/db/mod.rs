@@ -74,7 +74,7 @@ impl SqliteDatabase {
                 enable_public_sharing: row.get("enable_public_sharing"),
             })
             .collect();
-        return data;
+        data
     }
     pub async fn delete_account(&mut self, account: &Account) {
         let bookmarks_query: &str = "DELETE FROM UserAccounts WHERE id = $1;";
@@ -87,13 +87,13 @@ impl SqliteDatabase {
     pub async fn update_account(&mut self, account: &Account) {
         let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, tls=$5, enable_sharing=$6, enable_public_sharing=$7 WHERE id=$1;";
         sqlx::query(query)
-            .bind(&account.id)
+            .bind(account.id)
             .bind(&account.display_name)
             .bind(&account.instance)
             .bind(&account.api_token)
-            .bind(&account.tls)
-            .bind(&account.enable_sharing)
-            .bind(&account.enable_public_sharing)
+            .bind(account.tls)
+            .bind(account.enable_sharing)
+            .bind(account.enable_public_sharing)
             .execute(&mut self.conn)
             .await
             .unwrap();
@@ -104,9 +104,9 @@ impl SqliteDatabase {
             .bind(&account.display_name)
             .bind(&account.instance)
             .bind(&account.api_token)
-            .bind(&account.tls)
-            .bind(&account.enable_sharing)
-            .bind(&account.enable_public_sharing)
+            .bind(account.tls)
+            .bind(account.enable_sharing)
+            .bind(account.enable_public_sharing)
             .execute(&mut self.conn)
             .await
             .unwrap();
@@ -185,8 +185,8 @@ impl SqliteDatabase {
                 website_description)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);"#;
         sqlx::query(query)
-            .bind(&bookmark.user_account_id)
-            .bind(&bookmark.linkding_internal_id)
+            .bind(bookmark.user_account_id)
+            .bind(bookmark.linkding_internal_id)
             .bind(&bookmark.url)
             .bind(&bookmark.title)
             .bind(&bookmark.description)
@@ -194,10 +194,10 @@ impl SqliteDatabase {
             .bind(&bookmark.web_archive_snapshot_url)
             .bind(&bookmark.favicon_url)
             .bind(&bookmark.preview_image_url)
-            .bind(&bookmark.is_archived)
-            .bind(&bookmark.unread)
-            .bind(&bookmark.shared)
-            .bind(&bookmark.tag_names.join(" "))
+            .bind(bookmark.is_archived)
+            .bind(bookmark.unread)
+            .bind(bookmark.shared)
+            .bind(bookmark.tag_names.join(" "))
             .bind(&bookmark.date_added)
             .bind(&bookmark.date_modified)
             .bind(&bookmark.website_title)
@@ -243,7 +243,7 @@ impl SqliteDatabase {
                 }
             })
             .collect();
-        return data;
+        data
     }
     pub async fn update_bookmark(&mut self, old_bookmark: &Bookmark, new_bookmark: &Bookmark) {
         let query: &str = r#"
@@ -272,15 +272,15 @@ impl SqliteDatabase {
             .bind(&new_bookmark.web_archive_snapshot_url)
             .bind(&new_bookmark.favicon_url)
             .bind(&new_bookmark.preview_image_url)
-            .bind(&new_bookmark.is_archived)
-            .bind(&new_bookmark.unread)
-            .bind(&new_bookmark.shared)
-            .bind(&new_bookmark.tag_names.join(" "))
+            .bind(new_bookmark.is_archived)
+            .bind(new_bookmark.unread)
+            .bind(new_bookmark.shared)
+            .bind(new_bookmark.tag_names.join(" "))
             .bind(&new_bookmark.date_added)
             .bind(&new_bookmark.date_modified)
             .bind(&new_bookmark.website_title)
             .bind(&new_bookmark.website_description)
-            .bind(&old_bookmark.id)
+            .bind(old_bookmark.id)
             .execute(&mut self.conn)
             .await
             .unwrap();
@@ -288,7 +288,7 @@ impl SqliteDatabase {
     pub async fn delete_all_bookmarks_of_account(&mut self, account: &Account) {
         let query: &str = "DELETE FROM Bookmarks WHERE user_account_id = $1;";
         sqlx::query(query)
-            .bind(&account.id)
+            .bind(account.id)
             .execute(&mut self.conn)
             .await
             .unwrap();
@@ -296,7 +296,7 @@ impl SqliteDatabase {
     pub async fn delete_bookmark(&mut self, bookmark: &Bookmark) {
         let query: &str = "DELETE FROM Bookmarks WHERE id = $1;";
         sqlx::query(query)
-            .bind(&bookmark.id)
+            .bind(bookmark.id)
             .execute(&mut self.conn)
             .await
             .unwrap();
@@ -353,6 +353,6 @@ impl SqliteDatabase {
                 }
             })
             .collect();
-        return data;
+        data
     }
 }

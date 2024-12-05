@@ -23,23 +23,14 @@ pub enum AccountsMessage {
     OpenExternalURL(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AccountsView {
     pub accounts: Vec<Account>,
     account_placeholder: Option<Account>,
 }
 
-impl Default for AccountsView {
-    fn default() -> Self {
-        Self {
-            accounts: Vec::new(),
-            account_placeholder: None,
-        }
-    }
-}
-
 impl AccountsView {
-    pub fn view<'a>(&'a self) -> Element<'a, AccountsMessage> {
+    pub fn view(&self) -> Element<'_, AccountsMessage> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
             let container = widget::container(
@@ -70,24 +61,20 @@ impl AccountsView {
 
             for item in self.accounts.iter() {
                 let local_time: DateTime<Local> = DateTime::from(
-                    DateTime::from_timestamp(item.last_sync_timestamp.clone(), 0).expect(""),
+                    DateTime::from_timestamp(item.last_sync_timestamp, 0).expect(""),
                 );
 
                 // Mandatory first row - details
                 let mut columns = Vec::new();
                 columns.push(
-                    widget::row::with_capacity(1)
+                    widget::row::with_capacity(2)
                         .spacing(spacing.space_xxs)
+                        .push(widget::icon::from_name("user-available-symbolic"))
                         .push(widget::text(item.display_name.clone()))
-                        .push(widget::horizontal_space())
-                        .push(
-                            widget::button::link(item.instance.clone())
-                                .on_press(AccountsMessage::OpenExternalURL(item.instance.clone())),
-                        )
                         .padding([
+                            spacing.space_xs,
+                            spacing.space_xxs,
                             spacing.space_xxxs,
-                            spacing.space_xxs,
-                            spacing.space_xxs,
                             spacing.space_xxxs,
                         ])
                         .align_y(Alignment::Center)
@@ -95,18 +82,19 @@ impl AccountsView {
                 );
                 // Mandatory second row - sync status
                 columns.push(
-                    widget::row::with_capacity(1)
+                    widget::row::with_capacity(2)
                         .spacing(spacing.space_xxs)
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
-                            spacing.space_xxs,
+                            spacing.space_xxxs,
                             spacing.space_xxxs,
                         ])
+                        .push(widget::icon::from_name("emblem-synchronizing-symbolic"))
                         .push(widget::text::body(format!(
                             "{}: {}",
                             fl!("last-sync-status"),
-                            if item.last_sync_status.clone() {
+                            if item.last_sync_status {
                                 fl!("successful")
                             } else {
                                 fl!("failed")
@@ -116,14 +104,15 @@ impl AccountsView {
                 );
                 // Mandatory third row - sync timestamp
                 columns.push(
-                    widget::row::with_capacity(1)
+                    widget::row::with_capacity(2)
                         .spacing(spacing.space_xxs)
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
-                            spacing.space_xxs,
+                            spacing.space_xxxs,
                             spacing.space_xxxs,
                         ])
+                        .push(widget::icon::from_name("accessories-clock-symbolic"))
                         .push(widget::text::body(format!(
                             "{}: {}",
                             fl!("last-sync-time"),
@@ -131,7 +120,37 @@ impl AccountsView {
                         )))
                         .into(),
                 );
-                // Mandatory fourth row - actions
+                // Mandatory fourth row - details
+                columns.push(
+                    widget::row::with_capacity(2)
+                        .spacing(spacing.space_xxs)
+                        .padding([
+                            spacing.space_xxxs,
+                            spacing.space_xxs,
+                            spacing.space_xxxs,
+                            spacing.space_xxxs,
+                        ])
+                        .push(widget::icon::from_name("dialog-information-symbolic"))
+                        .push(widget::container(widget::column::with_children(vec![
+                            if item.tls {
+                                widget::text::body(fl!("tls-enabled")).into()
+                            } else {
+                                widget::text::body(fl!("tls-disabled")).into()
+                            },
+                            if item.enable_sharing {
+                                widget::text::body(fl!("enabled-sharing")).into()
+                            } else {
+                                widget::text::body(fl!("disabled-sharing")).into()
+                            },
+                            if item.enable_public_sharing {
+                                widget::text::body(fl!("enabled-public-sharing")).into()
+                            } else {
+                                widget::text::body(fl!("disabled-public-sharing")).into()
+                            },
+                        ])))
+                        .into(),
+                );
+                // Mandatory fifth row - actions
                 let actions_row = widget::row::with_capacity(3)
                     .spacing(spacing.space_xxs)
                     .push(
@@ -145,6 +164,12 @@ impl AccountsView {
                     .push(
                         widget::button::link(fl!("remove"))
                             .on_press(AccountsMessage::DeleteAccount(item.to_owned())),
+                    )
+                    .push(
+                        widget::button::link(fl!("open-instance"))
+                            .trailing_icon(true)
+                            .on_press(AccountsMessage::OpenExternalURL(item.instance.clone()))
+                            .tooltip(item.instance.clone()),
                     );
                 columns.push(
                     actions_row
@@ -303,7 +328,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         )
         .padding(10)
     };
-    let enable_public_shared_widget_text = if account.enable_sharing {
+    let enable_public_shared_widget_text = if account.enable_public_sharing {
         widget::tooltip(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
