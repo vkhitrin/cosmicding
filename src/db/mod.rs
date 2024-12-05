@@ -164,7 +164,7 @@ impl SqliteDatabase {
             .unwrap();
     }
     pub async fn add_bookmark(&mut self, bookmark: &Bookmark) {
-        let query: &str = r#"
+        let query: &str = r"
             INSERT INTO Bookmarks (
                 user_account_id,
                 linkding_internal_id,
@@ -183,7 +183,7 @@ impl SqliteDatabase {
                 date_modified,
                 website_title,
                 website_description)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);"#;
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);";
         sqlx::query(query)
             .bind(bookmark.user_account_id)
             .bind(bookmark.linkding_internal_id)
@@ -246,7 +246,7 @@ impl SqliteDatabase {
         data
     }
     pub async fn update_bookmark(&mut self, old_bookmark: &Bookmark, new_bookmark: &Bookmark) {
-        let query: &str = r#"
+        let query: &str = r"
             UPDATE Bookmarks SET
                 url=$1,
                 title=$2,
@@ -263,7 +263,7 @@ impl SqliteDatabase {
                 date_modified=$13,
                 website_title=$14,
                 website_description=$15
-            WHERE linkding_internal_id=$16;"#;
+            WHERE linkding_internal_id=$16;";
         sqlx::query(query)
             .bind(&new_bookmark.url)
             .bind(&new_bookmark.title)
@@ -302,7 +302,7 @@ impl SqliteDatabase {
             .unwrap();
     }
     pub async fn search_bookmarks(&mut self, input: String) -> Vec<Bookmark> {
-        let query: &str = r#"
+        let query: &str = r"
             SELECT * FROM Bookmarks 
             WHERE (
                 (
@@ -313,7 +313,7 @@ impl SqliteDatabase {
                     coalesce(tag_names, '')
                 )
                 LIKE '%' || $1 || '%'
-            );"#;
+            );";
         let result = sqlx::query(query)
             .bind(input)
             .fetch_all(&mut self.conn)

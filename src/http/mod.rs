@@ -1,6 +1,6 @@
 use crate::fl;
-use crate::models::account::{Account, AccountApiResponse};
-use crate::models::bookmarks::{Bookmark, BookmarksApiResponse, DetailedResponse};
+use crate::models::account::{Account, LinkdingAccountApiResponse};
+use crate::models::bookmarks::{Bookmark, DetailedResponse, LinkdingBookmarksApiResponse};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use reqwest::{
@@ -23,6 +23,7 @@ pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<De
                     .duration_since(UNIX_EPOCH)
                     .expect("")
                     .as_secs();
+                #[allow(clippy::cast_possible_wrap)]
                 let error_response =
                     DetailedResponse::new(account, epoch_timestamp as i64, false, None);
                 all_responses.push(error_response);
@@ -35,6 +36,7 @@ pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<De
 
 //  NOTE: (vkhitrin) perhaps this method should be split into two:
 //        (1) fetch bookmarks (2) fetch archived bookmarks
+#[allow(clippy::too_many_lines)]
 pub async fn fetch_bookmarks_for_account(
     account: &Account,
 ) -> Result<DetailedResponse, Box<dyn std::error::Error>> {
@@ -70,7 +72,9 @@ pub async fn fetch_bookmarks_for_account(
                 .with_timezone(&Utc);
         let unix_timestamp = SystemTime::from(date).duration_since(UNIX_EPOCH)?.as_secs();
         detailed_response.timestamp = unix_timestamp as i64;
-        let bookmarks_response_json = bookmarks_response.json::<BookmarksApiResponse>().await;
+        let bookmarks_response_json = bookmarks_response
+            .json::<LinkdingBookmarksApiResponse>()
+            .await;
         // Handle the Result
         match bookmarks_response_json {
             Ok(bookmarks_response) => {
@@ -81,14 +85,12 @@ pub async fn fetch_bookmarks_for_account(
                         bookmark.url,
                         bookmark.title,
                         bookmark.description,
-                        bookmark.website_title.unwrap_or_else(|| "".to_string()),
-                        bookmark
-                            .website_description
-                            .unwrap_or_else(|| "".to_string()),
+                        bookmark.website_title.unwrap_or_else(String::new),
+                        bookmark.website_description.unwrap_or_else(String::new),
                         bookmark.notes,
                         bookmark.web_archive_snapshot_url,
-                        bookmark.favicon_url.unwrap_or_else(|| "".to_string()),
-                        bookmark.preview_image_url.unwrap_or_else(|| "".to_string()),
+                        bookmark.favicon_url.unwrap_or_else(String::new),
+                        bookmark.preview_image_url.unwrap_or_else(String::new),
                         bookmark.is_archived,
                         bookmark.unread,
                         bookmark.shared,
@@ -129,7 +131,7 @@ pub async fn fetch_bookmarks_for_account(
         let unix_timestamp = SystemTime::from(date).duration_since(UNIX_EPOCH)?.as_secs();
         detailed_response.timestamp = unix_timestamp as i64;
         let archived_bookmarks_response_json = archived_bookmarks_response
-            .json::<BookmarksApiResponse>()
+            .json::<LinkdingBookmarksApiResponse>()
             .await;
         // Handle the Result
         match archived_bookmarks_response_json {
@@ -141,14 +143,12 @@ pub async fn fetch_bookmarks_for_account(
                         bookmark.url,
                         bookmark.title,
                         bookmark.description,
-                        bookmark.website_title.unwrap_or_else(|| "".to_string()),
-                        bookmark
-                            .website_description
-                            .unwrap_or_else(|| "".to_string()),
+                        bookmark.website_title.unwrap_or_else(String::new),
+                        bookmark.website_description.unwrap_or_else(String::new),
                         bookmark.notes,
                         bookmark.web_archive_snapshot_url,
-                        bookmark.favicon_url.unwrap_or_else(|| "".to_string()),
-                        bookmark.preview_image_url.unwrap_or_else(|| "".to_string()),
+                        bookmark.favicon_url.unwrap_or_else(String::new),
+                        bookmark.preview_image_url.unwrap_or_else(String::new),
                         bookmark.is_archived,
                         bookmark.unread,
                         bookmark.shared,
@@ -237,7 +237,7 @@ pub async fn remove_bookmark(
     account: &Account,
     bookmark: &Bookmark,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut rest_api_url: String = "".to_owned();
+    let mut rest_api_url: String = String::new();
     write!(
         &mut rest_api_url,
         "{}/api/bookmarks/{:?}/",
@@ -276,7 +276,7 @@ pub async fn edit_bookmark(
     account: &Account,
     bookmark: &Bookmark,
 ) -> Result<Bookmark, Box<dyn std::error::Error>> {
-    let mut rest_api_url: String = "".to_owned();
+    let mut rest_api_url: String = String::new();
     write!(
         &mut rest_api_url,
         "{}/api/bookmarks/{:?}/",
@@ -336,8 +336,8 @@ pub async fn edit_bookmark(
     }
 }
 
-pub async fn fetch_account_details(account: Account) -> Option<AccountApiResponse> {
-    let mut account_details: Option<AccountApiResponse> = None;
+pub async fn fetch_account_details(account: Account) -> Option<LinkdingAccountApiResponse> {
+    let mut account_details: Option<LinkdingAccountApiResponse> = None;
     match check_account_on_instance(&account).await {
         Ok(details) => {
             account_details = Some(details);
@@ -355,8 +355,8 @@ pub async fn fetch_account_details(account: Account) -> Option<AccountApiRespons
 
 pub async fn check_account_on_instance(
     account: &Account,
-) -> Result<AccountApiResponse, Box<dyn std::error::Error>> {
-    let mut rest_api_url: String = "".to_owned();
+) -> Result<LinkdingAccountApiResponse, Box<dyn std::error::Error>> {
+    let mut rest_api_url: String = String::new();
     write!(&mut rest_api_url, "{}/api/user/profile/", account.instance).unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
@@ -372,8 +372,8 @@ pub async fn check_account_on_instance(
         .send()
         .await?;
     match response.status() {
-        StatusCode::OK => match response.json::<AccountApiResponse>().await {
-            Ok(_value) => Ok(_value),
+        StatusCode::OK => match response.json::<LinkdingAccountApiResponse>().await {
+            Ok(value) => Ok(value),
             Err(_e) => Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 fl!("failed-to-find-linkding-api-endpoint"),

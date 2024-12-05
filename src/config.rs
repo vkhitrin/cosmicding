@@ -14,7 +14,7 @@ pub enum AppTheme {
 }
 
 impl AppTheme {
-    pub fn theme(&self) -> theme::Theme {
+    pub fn theme(self) -> theme::Theme {
         match self {
             Self::Dark => {
                 let mut t = theme::system_dark();
