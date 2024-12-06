@@ -17,7 +17,7 @@ While cosmicding was desgined for COSMIC™ Desktop Environment, it should be ab
 Features:
 
 - Support multiple linkding instances (or multiple users on the same instance).
-- Cache/aggregate bookmarks locally.
+- Aggregate bookmarks locally.
 - Add/Edit/Remove bookmarks.
 - Search bookmarks based on title, URL, tags, desscription, and notes.
 

@@ -532,7 +532,7 @@ impl Application for Cosmicding {
                         ));
                         commands.push(
                             self.toasts
-                                .push(widget::toaster::Toast::new(fl!("refreshed-all-bookmarks")))
+                                .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
                                 .map(cosmic::app::Message::App),
                         );
                     }

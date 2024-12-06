@@ -69,7 +69,7 @@ impl PageAccountsView {
                 let mut columns = Vec::new();
                 columns.push(
                     widget::row::with_capacity(2)
-                        .spacing(spacing.space_xxs)
+                        .spacing(spacing.space_xs)
                         .push(widget::icon::from_name("user-available-symbolic"))
                         .push(widget::text(item.display_name.clone()))
                         .padding([
@@ -84,7 +84,7 @@ impl PageAccountsView {
                 // Mandatory second row - sync status
                 columns.push(
                     widget::row::with_capacity(2)
-                        .spacing(spacing.space_xxs)
+                        .spacing(spacing.space_xs)
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
@@ -101,12 +101,13 @@ impl PageAccountsView {
                                 fl!("failed")
                             }
                         )))
+                        .align_y(Alignment::Center)
                         .into(),
                 );
                 // Mandatory third row - sync timestamp
                 columns.push(
                     widget::row::with_capacity(2)
-                        .spacing(spacing.space_xxs)
+                        .spacing(spacing.space_xs)
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
@@ -119,12 +120,13 @@ impl PageAccountsView {
                             fl!("last-sync-time"),
                             local_time.to_rfc2822()
                         )))
+                        .align_y(Alignment::Center)
                         .into(),
                 );
                 // Mandatory fourth row - details
                 columns.push(
                     widget::row::with_capacity(2)
-                        .spacing(spacing.space_xxs)
+                        .spacing(spacing.space_xs)
                         .padding([
                             spacing.space_xxxs,
                             spacing.space_xxs,
@@ -149,25 +151,31 @@ impl PageAccountsView {
                                 widget::text::body(fl!("disabled-public-sharing")).into()
                             },
                         ])))
+                        .align_y(Alignment::Center)
                         .into(),
                 );
                 // Mandatory fifth row - actions
                 let actions_row = widget::row::with_capacity(3)
-                    .spacing(spacing.space_xxs)
-                    .push(widget::button::link(fl!("refresh")).on_press(
+                    .spacing(spacing.space_xs)
+                    .push(widget::button::link(fl!("refresh")).font_size(12).on_press(
                         AppAccountsMessage::RefreshBookmarksForAccount(item.to_owned()),
                     ))
                     .push(
                         widget::button::link(fl!("edit"))
+                            .font_size(12)
                             .on_press(AppAccountsMessage::EditAccount(item.to_owned())),
                     )
                     .push(
                         widget::button::link(fl!("remove"))
+                            .font_size(12)
                             .on_press(AppAccountsMessage::DeleteAccount(item.to_owned())),
                     )
                     .push(
                         widget::button::link(fl!("open-instance"))
+                            .spacing(spacing.space_xxxs)
                             .trailing_icon(true)
+                            .icon_size(10)
+                            .font_size(12)
                             .on_press(AppAccountsMessage::OpenExternalURL(item.instance.clone()))
                             .tooltip(item.instance.clone()),
                     );

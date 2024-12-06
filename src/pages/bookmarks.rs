@@ -75,34 +75,44 @@ impl PageBookmarksView {
                 let mut columns = Vec::new();
                 // Mandatory first row - title
                 columns.push(
-                    widget::row::with_capacity(1)
+                    widget::row::with_capacity(2)
                         .spacing(spacing.space_xxs)
                         .padding([
-                            spacing.space_xxxs,
                             spacing.space_xxs,
-                            spacing.space_xxxs,
+                            spacing.space_xxs,
                             spacing.space_none,
+                            spacing.space_xxxs,
                         ])
+                        .push(widget::icon::from_name("web-browser-symbolic"))
                         .push(
                             widget::button::link(item.title.clone())
+                                .spacing(spacing.space_xxxs)
                                 .trailing_icon(true)
+                                .icon_size(11)
                                 .tooltip(item.url.clone())
                                 .on_press(AppBookmarksMessage::OpenExternalURL(item.url.clone())),
                         )
+                        .align_y(Alignment::Center)
                         .into(),
                 );
                 // Optional second row - description
                 if !item.description.is_empty() {
                     columns.push(
-                        widget::row::with_capacity(1)
-                            .spacing(spacing.space_xxs)
+                        widget::row::with_capacity(2)
+                            .spacing(spacing.space_xs)
                             .padding([
                                 spacing.space_xxxs,
                                 spacing.space_xxs,
-                                spacing.space_xxs,
+                                if item.tag_names.is_empty() {
+                                    spacing.space_xxxs
+                                } else {
+                                    spacing.space_none
+                                },
                                 spacing.space_xxxs,
                             ])
+                            .push(widget::icon::from_name("emblem-documents-symbolic"))
                             .push(widget::text(item.description.clone()))
+                            .align_y(Alignment::Start)
                             .into(),
                     );
                 }
@@ -110,13 +120,18 @@ impl PageBookmarksView {
                 if !item.tag_names.is_empty() {
                     columns.push(
                         widget::row::with_capacity(2)
-                            .spacing(spacing.space_none)
+                            .spacing(spacing.space_xs)
                             .padding([
-                                spacing.space_none,
+                                if item.description.is_empty() {
+                                    spacing.space_xxxs
+                                } else {
+                                    spacing.space_xxs
+                                },
                                 spacing.space_xxs,
                                 spacing.space_xxxs,
                                 spacing.space_xxxs,
                             ])
+                            .push(widget::icon::from_name("mail-mark-important-symbolic"))
                             .push(
                                 widget::text::body(
                                     item.tag_names
@@ -127,19 +142,20 @@ impl PageBookmarksView {
                                 )
                                 .size(12),
                             )
+                            .align_y(Alignment::Center)
                             .into(),
                     );
                 }
                 // Mandatory fourth row - actions
                 let mut actions_row = widget::row::with_capacity(1)
                     .spacing(spacing.space_xxs)
-                    .push(widget::button::link(fl!("edit")).on_press(
+                    .push(widget::button::link(fl!("edit")).font_size(12).on_press(
                         AppBookmarksMessage::EditBookmark(
                             derived_account.to_owned(),
                             item.to_owned(),
                         ),
                     ))
-                    .push(widget::button::link(fl!("remove")).on_press(
+                    .push(widget::button::link(fl!("remove")).font_size(12).on_press(
                         AppBookmarksMessage::DeleteBookmark(
                             derived_account.to_owned(),
                             item.to_owned(),
@@ -148,6 +164,7 @@ impl PageBookmarksView {
                 if !item.notes.is_empty() {
                     actions_row = actions_row.push(
                         widget::button::link(fl!("notes"))
+                            .font_size(12)
                             .on_press(AppBookmarksMessage::ViewNotes(item.clone())),
                     );
                 }
@@ -156,7 +173,7 @@ impl PageBookmarksView {
                         .padding([
                             spacing.space_none,
                             spacing.space_xxs,
-                            spacing.space_xxxs,
+                            spacing.space_none,
                             spacing.space_none,
                         ])
                         .into(),
@@ -208,7 +225,7 @@ impl PageBookmarksView {
                 .height(Length::Fill);
 
             widget::container(
-                widget::column::with_children(vec![widget::row::with_capacity(3)
+                widget::column::with_children(vec![widget::row::with_capacity(2)
                     .align_y(Alignment::Center)
                     .push(widget::text::title3(fl!(
                         "bookmarks-with-count",
