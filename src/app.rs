@@ -519,29 +519,27 @@ impl Application for Cosmicding {
             }
             Message::BookmarksView(message) => commands.push(self.bookmarks_view.update(message)),
             Message::StartRefreshBookmarksForAllAccounts => {
-                if !self.bookmarks_view.bookmarks.is_empty() {
-                    let message = |x: Vec<DetailedResponse>| {
-                        cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
-                    };
-                    if !self.accounts_view.accounts.is_empty() {
-                        commands.push(Task::perform(
-                            http::fetch_bookmarks_from_all_accounts(
-                                self.accounts_view.accounts.clone(),
-                            ),
-                            message,
-                        ));
-                        commands.push(
-                            self.toasts
-                                .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
-                                .map(cosmic::app::Message::App),
-                        );
-                    }
+                let message = |x: Vec<DetailedResponse>| {
+                    cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
+                };
+                if !self.accounts_view.accounts.is_empty() {
+                    commands.push(Task::perform(
+                        http::fetch_bookmarks_from_all_accounts(
+                            self.accounts_view.accounts.clone(),
+                        ),
+                        message,
+                    ));
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
+                            .map(cosmic::app::Message::App),
+                    );
                 }
             }
             Message::DoneRefreshBookmarksForAllAccounts(remote_responses) => {
                 for response in remote_responses {
                     block_on(async {
-                        db::SqliteDatabase::cache_bookmarks_for_acount(
+                        db::SqliteDatabase::aggregate_bookmarks_for_acount(
                             &mut self.db,
                             &response.account,
                             response.bookmarks.unwrap_or_else(Vec::new),
@@ -583,7 +581,7 @@ impl Application for Cosmicding {
             Message::DoneRefreshBookmarksForAccount(account, remote_responses) => {
                 for response in remote_responses {
                     block_on(async {
-                        db::SqliteDatabase::cache_bookmarks_for_acount(
+                        db::SqliteDatabase::aggregate_bookmarks_for_acount(
                             &mut self.db,
                             &account,
                             response.bookmarks.unwrap_or_else(Vec::new),

@@ -135,7 +135,7 @@ impl SqliteDatabase {
     //        .await
     //        .unwrap();
     //}
-    pub async fn cache_bookmarks_for_acount(
+    pub async fn aggregate_bookmarks_for_acount(
         &mut self,
         account: &Account,
         bookmarks: Vec<Bookmark>,
@@ -145,12 +145,12 @@ impl SqliteDatabase {
         let delete_query: &str = "DELETE FROM Bookmarks where user_account_id = $1;";
         let update_timestamp_query =
             "UPDATE UserAccounts SET last_sync_status=$2, last_sync_timestamp=$3 WHERE id=$1";
-        sqlx::query(delete_query)
-            .bind(account.id)
-            .execute(&mut self.conn)
-            .await
-            .unwrap();
-        if !bookmarks.is_empty() {
+        if response_successful {
+            sqlx::query(delete_query)
+                .bind(account.id)
+                .execute(&mut self.conn)
+                .await
+                .unwrap();
             for bookmark in bookmarks {
                 self.add_bookmark(&bookmark).await;
             }
