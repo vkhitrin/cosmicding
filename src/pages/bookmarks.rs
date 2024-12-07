@@ -2,6 +2,7 @@ use crate::app::Message;
 use crate::fl;
 use crate::models::account::Account;
 use crate::models::bookmarks::Bookmark;
+use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::{
     app::command::Task,
@@ -72,6 +73,8 @@ impl PageBookmarksView {
                     .iter()
                     .find(|&account| account.id == item.user_account_id)
                     .unwrap();
+                let date_added: DateTime<Local> =
+                    item.date_added.clone().unwrap().parse().expect("");
                 let mut columns = Vec::new();
                 // Mandatory first row - title
                 columns.push(
@@ -168,6 +171,19 @@ impl PageBookmarksView {
                             .on_press(AppBookmarksMessage::ViewNotes(item.clone())),
                     );
                 }
+                if !item.web_archive_snapshot_url.is_empty() {
+                    actions_row = actions_row.push(
+                        widget::button::link(fl!("snapshot"))
+                            .spacing(spacing.space_xxxs)
+                            .trailing_icon(true)
+                            .font_size(12)
+                            .icon_size(11)
+                            .tooltip(item.web_archive_snapshot_url.clone())
+                            .on_press(AppBookmarksMessage::OpenExternalURL(
+                                item.web_archive_snapshot_url.clone(),
+                            )),
+                    );
+                }
                 columns.push(
                     actions_row
                         .padding([
@@ -180,6 +196,9 @@ impl PageBookmarksView {
                 );
                 // Mandatory fifth row - details
                 let mut details_row = widget::row::with_capacity(1).spacing(spacing.space_xxs);
+                details_row = details_row
+                    .push(widget::icon::from_name("accessories-clock-symbolic").size(12))
+                    .push(widget::text(date_added.to_rfc2822()).size(12));
                 if item.is_archived {
                     details_row = details_row
                         .push(widget::icon::from_name("mail-archive-symbolic").size(12))
