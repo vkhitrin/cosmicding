@@ -31,16 +31,26 @@ impl AppTheme {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub enum SortOption {
+    BookmarksDateNewest,
+    BookmarksDateOldest,
+    BookmarkAlphabeticalAscending,
+    BookmarkAlphabeticalDescending,
+}
+
 #[derive(Debug, Clone, CosmicConfigEntry, Eq, PartialEq)]
 #[version = 1]
 pub struct Config {
     pub app_theme: AppTheme,
+    pub sort_option: SortOption,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             app_theme: AppTheme::System,
+            sort_option: SortOption::BookmarksDateNewest,
         }
     }
 }

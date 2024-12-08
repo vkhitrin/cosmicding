@@ -1,4 +1,4 @@
-use crate::config::{AppTheme, Config, CONFIG_VERSION};
+use crate::config::{AppTheme, Config, SortOption, CONFIG_VERSION};
 use crate::db::{self, SqliteDatabase};
 use crate::fl;
 use crate::http::{self};
@@ -102,6 +102,7 @@ pub enum Message {
     SetBookmarkTitle(String),
     SetBookmarkURL(String),
     SetBookmarkUnread(bool),
+    SortOption(SortOption),
     StartRefreshAccountProfile(Account),
     StartRefreshBookmarksForAccount(Account),
     StartRefreshBookmarksForAllAccounts,
@@ -197,6 +198,7 @@ impl Application for Cosmicding {
             &self.key_binds,
             !self.accounts_view.accounts.is_empty(),
             !self.bookmarks_view.bookmarks.is_empty(),
+            self.config.sort_option,
         )]
     }
 
@@ -365,6 +367,12 @@ impl Application for Cosmicding {
             Message::AppTheme(app_theme) => {
                 config_set!(app_theme, app_theme);
                 return self.update_config();
+            }
+            Message::SortOption(sort_option) => {
+                config_set!(sort_option, sort_option);
+                if !self.bookmarks_view.bookmarks.is_empty() {
+                    return self.update(Message::LoadBookmarks);
+                }
             }
             Message::SystemThemeModeChange => {
                 return self.update_config();
@@ -894,6 +902,40 @@ impl Application for Cosmicding {
             Message::LoadBookmarks => {
                 self.bookmarks_view.bookmarks =
                     block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
+                match self.config.sort_option {
+                    SortOption::BookmarksDateNewest => {
+                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
+                            b.clone()
+                                .date_added
+                                .unwrap()
+                                .cmp(&a.clone().date_added.unwrap())
+                        });
+                    }
+                    SortOption::BookmarksDateOldest => {
+                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
+                            a.clone()
+                                .date_added
+                                .unwrap()
+                                .cmp(&b.clone().date_added.unwrap())
+                        });
+                    }
+                    SortOption::BookmarkAlphabeticalAscending => {
+                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
+                            a.clone()
+                                .title
+                                .to_lowercase()
+                                .cmp(&b.clone().title.to_lowercase())
+                        });
+                    }
+                    SortOption::BookmarkAlphabeticalDescending => {
+                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
+                            b.clone()
+                                .title
+                                .to_lowercase()
+                                .cmp(&a.clone().title.to_lowercase())
+                        });
+                    }
+                }
             }
             Message::StartupCompleted => {
                 for account in self.accounts_view.accounts.clone() {
@@ -901,6 +943,7 @@ impl Application for Cosmicding {
                 }
                 commands.push(Task::perform(
                     async {
+                        // Initial delay for refresh
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         crate::app::Message::StartRefreshBookmarksForAllAccounts
                     },
@@ -1030,6 +1073,7 @@ pub enum MenuAction {
     Empty,
     RefreshBookmarks,
     Settings,
+    SetSortBookmarks(SortOption),
 }
 
 impl _MenuAction for MenuAction {
@@ -1043,6 +1087,7 @@ impl _MenuAction for MenuAction {
             MenuAction::Settings => Message::ToggleContextPage(ContextPage::Settings),
             MenuAction::AddBookmark => Message::AddBookmarkForm,
             MenuAction::RefreshBookmarks => Message::StartRefreshBookmarksForAllAccounts,
+            MenuAction::SetSortBookmarks(option) => Message::SortOption(*option),
         }
     }
 }

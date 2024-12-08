@@ -67,7 +67,6 @@ Potential improvements:
 - [Application] Allow user-provided TLS certificate.
 - [Distribution] Flatpack release.
 - [Distribution] compiled binary in GitHub release.
-- [UI] Sort bookmarks.
 
 Things to consider:
 
@@ -77,6 +76,7 @@ Things to consider:
 - [Application] Consider leveraging linkding's `/check` endpoint when adding bookmarks.
 - [Application] Do not block on when executing local database queries.
 - [UI] Loading indicator when performing long HTTP calls.
+- [UI] Dynamically generate tags that affect filter.
 
 ## Thanks
 
