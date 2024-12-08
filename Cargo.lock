@@ -2656,6 +2656,7 @@ dependencies = [
  "bytes",
  "dnd",
  "glam",
+ "iced_accessibility",
  "log",
  "mime 0.1.0",
  "num-traits",
@@ -2737,6 +2738,7 @@ source = "git+https://github.com/pop-os/libcosmic?rev=953685a88267894ea3fa40f2b9
 dependencies = [
  "bytes",
  "dnd",
+ "iced_accessibility",
  "iced_core",
  "iced_futures",
  "raw-window-handle",
@@ -2797,6 +2799,7 @@ version = "0.14.0-dev"
 source = "git+https://github.com/pop-os/libcosmic?rev=953685a88267894ea3fa40f2b99139c3c4e784d6#953685a88267894ea3fa40f2b99139c3c4e784d6"
 dependencies = [
  "dnd",
+ "iced_accessibility",
  "iced_renderer",
  "iced_runtime",
  "num-traits",
@@ -2814,6 +2817,7 @@ version = "0.14.0-dev"
 source = "git+https://github.com/pop-os/libcosmic?rev=953685a88267894ea3fa40f2b99139c3c4e784d6#953685a88267894ea3fa40f2b99139c3c4e784d6"
 dependencies = [
  "dnd",
+ "iced_accessibility",
  "iced_futures",
  "iced_graphics",
  "iced_runtime",
@@ -3302,6 +3306,7 @@ dependencies = [
  "fraction",
  "freedesktop-icons",
  "iced",
+ "iced_accessibility",
  "iced_core",
  "iced_futures",
  "iced_renderer",
@@ -3313,6 +3318,7 @@ dependencies = [
  "lazy_static",
  "palette",
  "rfd",
+ "ron",
  "serde",
  "slotmap",
  "taffy",

@@ -51,11 +51,6 @@ sudo just install
 
 ## Roadmap
 
-### Known isuses
-
-- [Application] After updating to [libcosmic#953685a88267894ea3fa40f2b99139c3c4e784d6](https://github.com/pop-os/libcosmic/tree/953685a88267894ea3fa40f2b99139c3c4e784d6),
-  application title is not updated until navigrating manually to a page.
-
 ### Future
 
 Potential improvements:

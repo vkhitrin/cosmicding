@@ -1028,14 +1028,16 @@ impl Cosmicding {
         cosmic::app::command::set_theme(theme)
     }
 
-    // FIXME: (vkhitrin) title is not set on application startup
-    //                   it is updated when navigating between pages.
     pub fn update_title(&mut self) -> Task<Message> {
         let window_title = match self.nav.text(self.nav.active()) {
             Some(page) => format!("{page} — {}", fl!("cosmicding")),
             _ => fl!("cosmicding"),
         };
-        self.set_window_title(window_title)
+        if let Some(id) = self.core.main_window_id() {
+            self.set_window_title(window_title, id)
+        } else {
+            Task::none()
+        }
     }
 }
 
