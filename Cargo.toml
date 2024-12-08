@@ -31,7 +31,18 @@ features = ["fluent-system", "desktop-requester"]
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
 default-features = false
-features = ["dbus-config", "tokio", "winit", "wgpu"]
+# features = ["dbus-config", "tokio", "winit", "wgpu"]
+features = [
+    "a11y",
+    "dbus-config",
+    # NOTE: (vkhitrin) this is a temporary workaround to set initial
+    #       application title.
+    "multi-window",
+    "single-instance",
+    "tokio",
+    "winit",
+    "wgpu",
+]
 rev = "953685a88267894ea3fa40f2b99139c3c4e784d6"
 version = "0.1.0"
 
