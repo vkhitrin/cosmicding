@@ -113,7 +113,7 @@ impl PageBookmarksView {
                                 },
                                 spacing.space_xxxs,
                             ])
-                            .push(widget::icon::from_name("emblem-documents-symbolic"))
+                            .push(widget::icon::from_name("text-x-generic-symbolic"))
                             .push(widget::text(item.description.clone()))
                             .align_y(Alignment::Start)
                             .into(),
@@ -198,7 +198,10 @@ impl PageBookmarksView {
                 let mut details_row = widget::row::with_capacity(1).spacing(spacing.space_xxs);
                 details_row = details_row
                     .push(widget::icon::from_name("accessories-clock-symbolic").size(12))
-                    .push(widget::text(date_added.to_rfc2822()).size(12));
+                    .push(
+                        widget::text(date_added.format("%a, %d %b %Y %H:%M:%S").to_string())
+                            .size(12),
+                    );
                 if item.is_archived {
                     details_row = details_row
                         .push(widget::icon::from_name("mail-archive-symbolic").size(12))
@@ -350,6 +353,7 @@ impl PageBookmarksView {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn new_bookmark<'a, 'b>(
     bookmark: Bookmark,
     accounts: &'b [Account],
@@ -358,6 +362,7 @@ pub fn new_bookmark<'a, 'b>(
 where
     'b: 'a,
 {
+    let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let account_widget_title = widget::text::body(fl!("account"));
     let account_widget_dropdown =
@@ -388,7 +393,7 @@ where
     let shared_widget_checkbox = if accounts[selected_account_index].clone().enable_sharing {
         widget::checkbox(fl!("shared"), bookmark.shared).on_toggle(Message::SetBookmarkShared)
     } else {
-        widget::checkbox(fl!("shared-disabled"), false).on_toggle(|_| Message::Empty)
+        widget::checkbox(fl!("shared-disabled"), false)
     };
     let buttons_widget_container = widget::container(
         widget::button::standard(fl!("save")).on_press(Message::AddBookmark(
@@ -401,37 +406,118 @@ where
 
     widget::column()
         .spacing(space_xxs)
-        .push(account_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("user-available-symbolic"))
+                .push(account_widget_title)
+                .padding([
+                    spacing.space_none,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(account_widget_dropdown)
-        .push(url_widget_title)
+        //.push(url_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("web-browser-symbolic"))
+                .push(url_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(url_widget_text_input)
-        .push(title_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("insert-text-symbolic"))
+                .push(title_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(title_widget_text_input)
-        .push(description_widget_title)
+        //.push(description_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("text-x-generic-symbolic"))
+                .push(description_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Start),
+        )
         .push(description_widget_text_input)
-        .push(notes_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("x-office-document-symbolic"))
+                .push(notes_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(notes_widget_text_input)
-        .push(tags_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("mail-mark-important-symbolic"))
+                .push(tags_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
-        .push(widget::Space::new(0, 10))
+        .push(widget::Space::new(0, 5))
         .push(archived_widget_checkbox)
         .push(unread_widget_checkbox)
         .push(shared_widget_checkbox)
-        .push(widget::Space::new(0, 10))
+        .push(widget::Space::new(0, 5))
         .push(buttons_widget_container)
         .into()
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn edit_bookmark<'a, 'b>(bookmark: Bookmark, accounts: &'b [Account]) -> Element<'a, Message>
 where
     'b: 'a,
 {
+    let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let account = accounts
         .iter()
         .find(|account| account.id == bookmark.user_account_id)
         .cloned();
+    let account_widget_title = widget::text::body(fl!("account"));
+    let account_widget_text_input = widget::text_input(
+        account.clone().unwrap().display_name,
+        account.clone().unwrap().display_name,
+    );
     let url_widget_title = widget::text::body(fl!("url"));
     let url_widget_text_input =
         widget::text_input("URL", bookmark.url.clone()).on_input(Message::SetBookmarkURL);
@@ -443,8 +529,8 @@ where
         widget::text_input("Description", bookmark.description.clone())
             .on_input(Message::SetBookmarkDescription);
     let notes_widget_title = widget::text::body(fl!("notes"));
-    let notes_widget_text_input =
-        widget::text_input("notes", bookmark.notes.clone()).on_input(Message::SetBookmarkNotes);
+    let notes_widget_text_input = widget::text_input(fl!("notes"), bookmark.notes.clone())
+        .on_input(Message::SetBookmarkNotes);
     let tags_widget_title = widget::text::body(fl!("tags"));
     let tags_widget_subtext = widget::text::caption(fl!("tags-subtext"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
@@ -456,7 +542,7 @@ where
     let shared_widget_checkbox = if account.clone().unwrap().enable_sharing {
         widget::checkbox(fl!("shared"), bookmark.shared).on_toggle(Message::SetBookmarkShared)
     } else {
-        widget::checkbox(fl!("shared-disabled"), false).on_toggle(|_| Message::Empty)
+        widget::checkbox(fl!("shared-disabled"), false)
     };
     let buttons_widget_container = widget::container(
         widget::button::standard(fl!("save"))
@@ -467,22 +553,98 @@ where
 
     widget::column()
         .spacing(space_xxs)
-        .push(url_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("user-available-symbolic"))
+                .push(account_widget_title)
+                .padding([
+                    spacing.space_none,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
+        .push(account_widget_text_input)
+        //.push(url_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("web-browser-symbolic"))
+                .push(url_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(url_widget_text_input)
-        .push(title_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("insert-text-symbolic"))
+                .push(title_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(title_widget_text_input)
-        .push(description_widget_title)
+        //.push(description_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("text-x-generic-symbolic"))
+                .push(description_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Start),
+        )
         .push(description_widget_text_input)
-        .push(notes_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("x-office-document-symbolic"))
+                .push(notes_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(notes_widget_text_input)
-        .push(tags_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("mail-mark-important-symbolic"))
+                .push(tags_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
-        .push(widget::Space::new(0, 10))
+        .push(widget::Space::new(0, 5))
         .push(archived_widget_checkbox)
         .push(unread_widget_checkbox)
         .push(shared_widget_checkbox)
-        .push(widget::Space::new(0, 10))
+        .push(widget::Space::new(0, 5))
         .push(buttons_widget_container)
         .into()
 }

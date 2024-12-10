@@ -118,7 +118,8 @@ impl PageAccountsView {
                         .push(widget::text::body(format!(
                             "{}: {}",
                             fl!("last-sync-time"),
-                            local_time.to_rfc2822()
+                            //local_time.to_rfc2822()
+                            local_time.format("%a, %d %b %Y %H:%M:%S")
                         )))
                         .align_y(Alignment::Center)
                         .into(),
@@ -266,6 +267,7 @@ impl PageAccountsView {
 }
 
 pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
+    let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let display_name_widget_title = widget::text::body(fl!("display-name"));
     let display_name_widget_text_input = widget::text_input("Name", account.display_name.clone())
@@ -287,19 +289,63 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
 
     widget::column()
         .spacing(space_xxs)
-        .push(display_name_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("user-available-symbolic"))
+                .push(display_name_widget_title)
+                .padding([
+                    spacing.space_none,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(display_name_widget_text_input)
-        .push(instance_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("network-server-symbolic"))
+                .push(instance_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(instance_widget_text_input)
-        .push(api_key_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("system-lock-screen-symbolic"))
+                .push(api_key_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Start),
+        )
         .push(api_key_widget_text_input)
-        .push(widget::Space::new(0, 10))
-        .push(tls_widget_checkbox)
-        .push(widget::Space::new(0, 10))
+        .push(
+            widget::row::with_capacity(1)
+                .push(tls_widget_checkbox)
+                .padding([
+                    spacing.space_s,
+                    spacing.space_none,
+                    spacing.space_xs,
+                    spacing.space_none,
+                ]),
+        )
         .push(buttons_widget_container)
         .into()
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
     let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
@@ -365,18 +411,61 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
 
     widget::column()
         .spacing(space_xxs)
-        .push(display_name_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("user-available-symbolic"))
+                .push(display_name_widget_title)
+                .padding([
+                    spacing.space_none,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(display_name_widget_text_input)
-        .push(instance_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("network-server-symbolic"))
+                .push(instance_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Center),
+        )
         .push(instance_widget_text_input)
-        .push(api_key_widget_title)
+        .push(
+            widget::row::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(widget::icon::from_name("system-lock-screen-symbolic"))
+                .push(api_key_widget_title)
+                .padding([
+                    spacing.space_xxxs,
+                    spacing.space_xxs,
+                    spacing.space_none,
+                    spacing.space_none,
+                ])
+                .align_y(Alignment::Start),
+        )
         .push(api_key_widget_text_input)
-        .push(widget::Space::new(0, 10))
-        .push(tls_widget_checkbox)
-        .push(widget::Space::new(0, 10))
+        .push(
+            widget::row::with_capacity(1)
+                .push(tls_widget_checkbox)
+                .padding([
+                    spacing.space_s,
+                    spacing.space_none,
+                    spacing.space_xs,
+                    spacing.space_none,
+                ]),
+        )
         .push(enable_shared_widget_text)
         .push(enable_public_shared_widget_text)
-        .push(widget::Space::new(0, 10))
+        .push(widget::Space::new(0, 5))
         .push(buttons_widget_container)
         .into()
 }
