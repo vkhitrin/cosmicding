@@ -31,8 +31,14 @@ impl AppNavPage {
 
     pub fn view(self, app: &app::Cosmicding) -> Element<'_, app::Message> {
         match self {
-            AppNavPage::AccountsView => app.accounts_view.view().map(app::Message::AccountsView),
-            AppNavPage::BookmarksView => app.bookmarks_view.view().map(app::Message::BookmarksView),
+            AppNavPage::AccountsView => app
+                .accounts_view
+                .view(app.state)
+                .map(app::Message::AccountsView),
+            AppNavPage::BookmarksView => app
+                .bookmarks_view
+                .view(app.state)
+                .map(app::Message::BookmarksView),
         }
     }
 

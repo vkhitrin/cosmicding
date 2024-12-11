@@ -1,7 +1,8 @@
-use crate::app::Message;
+use crate::app::{ApplicationState, Message};
 use crate::fl;
 use crate::models::account::Account;
 use crate::models::bookmarks::Bookmark;
+use crate::style::disabled_link_button;
 use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::{
@@ -38,7 +39,7 @@ pub enum AppBookmarksMessage {
 
 impl PageBookmarksView {
     #[allow(clippy::too_many_lines)]
-    pub fn view(&self) -> Element<'_, AppBookmarksMessage> {
+    pub fn view(&self, app_state: ApplicationState) -> Element<'_, AppBookmarksMessage> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
             let container = widget::container(
@@ -150,39 +151,63 @@ impl PageBookmarksView {
                     );
                 }
                 // Mandatory fourth row - actions
-                let mut actions_row = widget::row::with_capacity(1)
-                    .spacing(spacing.space_xxs)
-                    .push(widget::button::link(fl!("edit")).font_size(12).on_press(
+                let edit_bookmark_button = match app_state {
+                    ApplicationState::Refreshing => widget::button::link(fl!("edit"))
+                        .font_size(12)
+                        .class(disabled_link_button()),
+                    _ => widget::button::link(fl!("edit")).font_size(12).on_press(
                         AppBookmarksMessage::EditBookmark(
                             derived_account.to_owned(),
                             item.to_owned(),
                         ),
-                    ))
-                    .push(widget::button::link(fl!("remove")).font_size(12).on_press(
+                    ),
+                };
+                let remove_bookmark_button = match app_state {
+                    ApplicationState::Refreshing => widget::button::link(fl!("remove"))
+                        .font_size(12)
+                        .class(disabled_link_button()),
+                    _ => widget::button::link(fl!("remove")).font_size(12).on_press(
                         AppBookmarksMessage::DeleteBookmark(
                             derived_account.to_owned(),
                             item.to_owned(),
                         ),
-                    ));
+                    ),
+                };
+                let notes_button = match app_state {
+                    ApplicationState::Refreshing => widget::button::link(fl!("notes"))
+                        .font_size(12)
+                        .class(disabled_link_button()),
+                    _ => widget::button::link(fl!("notes"))
+                        .font_size(12)
+                        .on_press(AppBookmarksMessage::ViewNotes(item.clone())),
+                };
+                let snapshot_button = match app_state {
+                    ApplicationState::Refreshing => widget::button::link(fl!("snapshot"))
+                        .spacing(spacing.space_xxxs)
+                        .trailing_icon(true)
+                        .font_size(12)
+                        .icon_size(11)
+                        .tooltip(item.web_archive_snapshot_url.clone())
+                        .class(disabled_link_button()),
+                    _ => widget::button::link(fl!("snapshot"))
+                        .spacing(spacing.space_xxxs)
+                        .trailing_icon(true)
+                        .font_size(12)
+                        .icon_size(11)
+                        .tooltip(item.web_archive_snapshot_url.clone())
+                        .on_press(AppBookmarksMessage::OpenExternalURL(
+                            item.web_archive_snapshot_url.clone(),
+                        )),
+                };
+                let mut actions_row = widget::row::with_capacity(1)
+                    .spacing(spacing.space_xxs)
+                    .push(edit_bookmark_button)
+                    .push(remove_bookmark_button);
                 if !item.notes.is_empty() {
-                    actions_row = actions_row.push(
-                        widget::button::link(fl!("notes"))
-                            .font_size(12)
-                            .on_press(AppBookmarksMessage::ViewNotes(item.clone())),
-                    );
+                    actions_row = actions_row.push(notes_button);
                 }
                 if !item.web_archive_snapshot_url.is_empty() {
-                    actions_row = actions_row.push(
-                        widget::button::link(fl!("snapshot"))
-                            .spacing(spacing.space_xxxs)
-                            .trailing_icon(true)
-                            .font_size(12)
-                            .icon_size(11)
-                            .tooltip(item.web_archive_snapshot_url.clone())
-                            .on_press(AppBookmarksMessage::OpenExternalURL(
-                                item.web_archive_snapshot_url.clone(),
-                            )),
-                    );
+                    actions_row = actions_row.push(snapshot_button);
                 }
                 columns.push(
                     actions_row
@@ -238,6 +263,21 @@ impl PageBookmarksView {
                 items = items.add(bookmark_container);
             }
 
+            let refresh_button = if !self.query_placeholder.is_empty()
+                || self.bookmarks.is_empty()
+                || matches!(app_state, ApplicationState::Refreshing)
+            {
+                widget::button::standard(fl!("refresh"))
+            } else {
+                widget::button::standard(fl!("refresh"))
+                    .on_press(AppBookmarksMessage::RefreshBookmarks)
+            };
+            let new_bookmark_button = match app_state {
+                ApplicationState::Normal => widget::button::standard(fl!("add-bookmark"))
+                    .on_press(AppBookmarksMessage::AddBookmark),
+                _ => widget::button::standard(fl!("add-bookmark")),
+            };
+
             let bookmarks_widget = widget::column::with_capacity(1)
                 .spacing(spacing.space_xxs)
                 .push(items)
@@ -265,18 +305,8 @@ impl PageBookmarksView {
                             .on_input(AppBookmarksMessage::SearchBookmarks)
                             .on_clear(AppBookmarksMessage::ClearSearch),
                     )
-                    .push(
-                        if !self.query_placeholder.is_empty() || self.bookmarks.is_empty() {
-                            widget::button::standard(fl!("refresh"))
-                        } else {
-                            widget::button::standard(fl!("refresh"))
-                                .on_press(AppBookmarksMessage::RefreshBookmarks)
-                        },
-                    )
-                    .push(
-                        widget::button::standard(fl!("add-bookmark"))
-                            .on_press(AppBookmarksMessage::AddBookmark),
-                    )
+                    .push(refresh_button)
+                    .push(new_bookmark_button)
                     .width(Length::Fill)
                     .apply(widget::container)
                     .into()])

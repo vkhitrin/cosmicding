@@ -1,6 +1,7 @@
-use crate::app::Message;
+use crate::app::{ApplicationState, Message};
 use crate::fl;
 use crate::models::account::Account;
+use crate::style::disabled_link_button;
 use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::iced_widget::tooltip;
@@ -31,7 +32,7 @@ pub struct PageAccountsView {
 
 impl PageAccountsView {
     #[allow(clippy::too_many_lines)]
-    pub fn view(&self) -> Element<'_, AppAccountsMessage> {
+    pub fn view(&self, app_state: ApplicationState) -> Element<'_, AppAccountsMessage> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
             let container = widget::container(
@@ -64,6 +65,31 @@ impl PageAccountsView {
                 let local_time: DateTime<Local> = DateTime::from(
                     DateTime::from_timestamp(item.last_sync_timestamp, 0).expect(""),
                 );
+
+                let refresh_button = match app_state {
+                    ApplicationState::Refreshing => widget::button::link(fl!("refresh"))
+                        .font_size(12)
+                        .class(disabled_link_button()),
+                    _ => widget::button::link(fl!("refresh")).font_size(12).on_press(
+                        AppAccountsMessage::RefreshBookmarksForAccount(item.to_owned()),
+                    ),
+                };
+                let edit_button = match app_state {
+                    ApplicationState::Refreshing => widget::button::link(fl!("edit"))
+                        .font_size(12)
+                        .class(disabled_link_button()),
+                    _ => widget::button::link(fl!("edit"))
+                        .font_size(12)
+                        .on_press(AppAccountsMessage::EditAccount(item.to_owned())),
+                };
+                let remove_button = match app_state {
+                    ApplicationState::Refreshing => widget::button::link(fl!("remove"))
+                        .font_size(12)
+                        .class(disabled_link_button()),
+                    _ => widget::button::link(fl!("remove"))
+                        .font_size(12)
+                        .on_press(AppAccountsMessage::DeleteAccount(item.to_owned())),
+                };
 
                 // Mandatory first row - details
                 let mut columns = Vec::new();
@@ -158,19 +184,9 @@ impl PageAccountsView {
                 // Mandatory fifth row - actions
                 let actions_row = widget::row::with_capacity(3)
                     .spacing(spacing.space_xs)
-                    .push(widget::button::link(fl!("refresh")).font_size(12).on_press(
-                        AppAccountsMessage::RefreshBookmarksForAccount(item.to_owned()),
-                    ))
-                    .push(
-                        widget::button::link(fl!("edit"))
-                            .font_size(12)
-                            .on_press(AppAccountsMessage::EditAccount(item.to_owned())),
-                    )
-                    .push(
-                        widget::button::link(fl!("remove"))
-                            .font_size(12)
-                            .on_press(AppAccountsMessage::DeleteAccount(item.to_owned())),
-                    )
+                    .push(refresh_button)
+                    .push(edit_button)
+                    .push(remove_button)
                     .push(
                         widget::button::link(fl!("open-instance"))
                             .spacing(spacing.space_xxxs)
