@@ -8,6 +8,7 @@ mod menu;
 mod models;
 mod nav;
 mod pages;
+mod style;
 
 use crate::config::{Config, CONFIG_VERSION};
 use app::{Flags, APPID};

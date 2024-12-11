@@ -56,7 +56,7 @@ pub struct Cosmicding {
     placeholder_bookmark: Option<Bookmark>,
     placeholder_selected_account_index: usize,
     toasts: widget::toaster::Toasts<Message>,
-    startup_completed: bool,
+    pub state: ApplicationState,
 }
 
 #[derive(Debug, Clone)]
@@ -123,6 +123,13 @@ pub enum DialogPage {
     RemoveBookmark(Account, Bookmark),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ApplicationState {
+    Normal,
+    Refreshing,
+    Startup,
+}
+
 impl Application for Cosmicding {
     type Executor = cosmic::executor::Default;
 
@@ -180,7 +187,7 @@ impl Application for Cosmicding {
             placeholder_bookmark: None,
             placeholder_selected_account_index: 0,
             toasts: widget::toaster::Toasts::new(Message::CloseToast),
-            startup_completed: false,
+            state: ApplicationState::Startup,
         };
 
         let commands = vec![
@@ -199,6 +206,7 @@ impl Application for Cosmicding {
             !self.accounts_view.accounts.is_empty(),
             !self.bookmarks_view.bookmarks.is_empty(),
             self.config.sort_option,
+            self.state,
         )]
     }
 
@@ -397,7 +405,18 @@ impl Application for Cosmicding {
                 self.accounts_view.accounts =
                     block_on(async { db::SqliteDatabase::fetch_accounts(&mut self.db).await });
                 self.bookmarks_view.accounts = self.accounts_view.accounts.clone();
-                self.placeholder_account = None;
+                // FIXME: (vkhitrin) If an account is deleted during refresh (should not be
+                //        possible without interacting with the database manually, a crash will
+                //        occur if an account context window is open.
+                if self.placeholder_account.is_some() && !self.accounts_view.accounts.is_empty() {
+                    self.placeholder_account = self
+                        .accounts_view
+                        .accounts
+                        .clone()
+                        .iter()
+                        .find(|account| account.id == self.placeholder_account.as_ref().unwrap().id)
+                        .cloned();
+                }
             }
             Message::AddAccount => {
                 self.placeholder_account =
@@ -527,21 +546,20 @@ impl Application for Cosmicding {
             }
             Message::BookmarksView(message) => commands.push(self.bookmarks_view.update(message)),
             Message::StartRefreshBookmarksForAllAccounts => {
-                let message = |x: Vec<DetailedResponse>| {
-                    cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
-                };
-                if !self.accounts_view.accounts.is_empty() {
-                    commands.push(Task::perform(
-                        http::fetch_bookmarks_from_all_accounts(
-                            self.accounts_view.accounts.clone(),
-                        ),
-                        message,
-                    ));
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
-                            .map(cosmic::app::Message::App),
-                    );
+                if let ApplicationState::Refreshing = self.state {
+                } else {
+                    self.state = ApplicationState::Refreshing;
+                    let message = |x: Vec<DetailedResponse>| {
+                        cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
+                    };
+                    if !self.accounts_view.accounts.is_empty() {
+                        commands.push(Task::perform(
+                            http::fetch_bookmarks_from_all_accounts(
+                                self.accounts_view.accounts.clone(),
+                            ),
+                            message,
+                        ));
+                    }
                 }
             }
             Message::DoneRefreshBookmarksForAllAccounts(remote_responses) => {
@@ -559,31 +577,34 @@ impl Application for Cosmicding {
                 }
                 commands.push(self.update(Message::LoadAccounts));
                 commands.push(self.update(Message::LoadBookmarks));
+                self.state = ApplicationState::Normal;
+                commands.push(
+                    self.toasts
+                        .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
+                        .map(cosmic::app::Message::App),
+                );
             }
             Message::StartRefreshBookmarksForAccount(account) => {
-                let mut acc_vec = self.accounts_view.accounts.clone();
-                acc_vec.retain(|acc| acc.id == account.id);
-                let borrowed_acc = acc_vec[0].clone();
-                let message = move |bookmarks: Vec<DetailedResponse>| {
-                    cosmic::app::Message::App(Message::DoneRefreshBookmarksForAccount(
-                        borrowed_acc.clone(),
-                        bookmarks,
-                    ))
-                };
-                commands.push(self.update(Message::StartRefreshAccountProfile(account.clone())));
-                if !acc_vec.is_empty() {
-                    commands.push(Task::perform(
-                        http::fetch_bookmarks_from_all_accounts(acc_vec.clone()),
-                        message,
-                    ));
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!(
-                                "refreshed-bookmarks-for-account",
-                                acc = account.display_name
-                            )))
-                            .map(cosmic::app::Message::App),
-                    );
+                if let ApplicationState::Refreshing = self.state {
+                } else {
+                    self.state = ApplicationState::Refreshing;
+                    let mut acc_vec = self.accounts_view.accounts.clone();
+                    acc_vec.retain(|acc| acc.id == account.id);
+                    let borrowed_acc = acc_vec[0].clone();
+                    let message = move |bookmarks: Vec<DetailedResponse>| {
+                        cosmic::app::Message::App(Message::DoneRefreshBookmarksForAccount(
+                            borrowed_acc.clone(),
+                            bookmarks,
+                        ))
+                    };
+                    commands
+                        .push(self.update(Message::StartRefreshAccountProfile(account.clone())));
+                    if !acc_vec.is_empty() {
+                        commands.push(Task::perform(
+                            http::fetch_bookmarks_from_all_accounts(acc_vec.clone()),
+                            message,
+                        ));
+                    }
                 }
             }
             Message::DoneRefreshBookmarksForAccount(account, remote_responses) => {
@@ -601,16 +622,29 @@ impl Application for Cosmicding {
                 }
                 commands.push(self.update(Message::LoadAccounts));
                 commands.push(self.update(Message::LoadBookmarks));
+                self.state = ApplicationState::Normal;
+                commands.push(
+                    self.toasts
+                        .push(widget::toaster::Toast::new(fl!(
+                            "refreshed-bookmarks-for-account",
+                            acc = account.display_name
+                        )))
+                        .map(cosmic::app::Message::App),
+                );
             }
             Message::StartRefreshAccountProfile(account) => {
-                let borrowed_acc = account.clone();
-                let message = move |api_response: Option<LinkdingAccountApiResponse>| {
-                    cosmic::app::Message::App(Message::DoneRefreshAccountProfile(
-                        borrowed_acc.clone(),
-                        api_response,
-                    ))
-                };
-                commands.push(Task::perform(http::fetch_account_details(account), message));
+                if let ApplicationState::Refreshing = self.state {
+                } else {
+                    self.state = ApplicationState::Refreshing;
+                    let borrowed_acc = account.clone();
+                    let message = move |api_response: Option<LinkdingAccountApiResponse>| {
+                        cosmic::app::Message::App(Message::DoneRefreshAccountProfile(
+                            borrowed_acc.clone(),
+                            api_response,
+                        ))
+                    };
+                    commands.push(Task::perform(http::fetch_account_details(account), message));
+                }
             }
             Message::DoneRefreshAccountProfile(mut account, account_details) => {
                 if account_details.is_some() {
@@ -626,6 +660,7 @@ impl Application for Cosmicding {
                         db::SqliteDatabase::update_account(&mut self.db, &account).await;
                     });
                 }
+                self.state = ApplicationState::Normal;
             }
             Message::AddBookmarkForm => {
                 if !self.accounts_view.accounts.is_empty() {
@@ -949,7 +984,7 @@ impl Application for Cosmicding {
                     },
                     cosmic::app::Message::App,
                 ));
-                self.startup_completed = true;
+                self.state = ApplicationState::Normal;
             }
             Message::Empty => {
                 commands.push(Task::none());

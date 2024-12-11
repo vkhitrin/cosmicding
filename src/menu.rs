@@ -8,7 +8,7 @@ use cosmic::{
 };
 
 use crate::{
-    app::{MenuAction, Message},
+    app::{ApplicationState, MenuAction, Message},
     fl,
 };
 
@@ -18,6 +18,7 @@ pub fn menu_bar<'a>(
     accounts_present: bool,
     bookmarks_present: bool,
     sort_option: SortOption,
+    app_state: ApplicationState,
 ) -> Element<'a, Message> {
     MenuBar::new(vec![
         Tree::with_children(
@@ -26,13 +27,13 @@ pub fn menu_bar<'a>(
                 key_binds,
                 vec![
                     Item::Button(fl!("add-account"), MenuAction::AddAccount),
-                    if accounts_present {
+                    if accounts_present && matches!(app_state, ApplicationState::Normal) {
                         Item::Button(fl!("add-bookmark"), MenuAction::AddBookmark)
                     } else {
                         Item::ButtonDisabled(fl!("add-bookmark"), MenuAction::AddBookmark)
                     },
                     Item::Divider,
-                    if bookmarks_present {
+                    if bookmarks_present && matches!(app_state, ApplicationState::Normal) {
                         Item::Button(fl!("refresh-bookmarks"), MenuAction::RefreshBookmarks)
                     } else {
                         Item::ButtonDisabled(fl!("refresh-bookmarks"), MenuAction::Empty)
