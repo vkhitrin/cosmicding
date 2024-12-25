@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="cosmicding logo" src="./res/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png" alt="Logo" height="192px" width="192px">
+  <img alt="cosmicding logo" src="./res/linux/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png" alt="Logo" height="192px" width="192px">
 </p>
 
 <p align="center">
@@ -33,7 +33,9 @@ cosmicding was tested against linkding releases `1.31.0`, and `1.36.0`.
 
 ## Installation
 
-### Local
+cosmicding is not distributed at the moment, and has to be built manually.
+
+### Local (Linux)
 
 ```shell
 # Clone the repository
@@ -47,6 +49,22 @@ just build-release
 
 # Install
 sudo just install
+```
+
+### Local (macOS)
+
+```shell
+# Clone the repository
+git clone https://github.com/vkhitrin/cosmicding
+
+# Change directory to the project folder
+cd cosmicding
+
+# Build Release version
+just build-macos
+
+# Install globally (for all users)
+cp -r target/release/macos/cosmicding.app /Applications
 ```
 
 ## Roadmap
