@@ -23,19 +23,19 @@ Features:
 
 cosmicding was tested against linkding releases `1.31.0`, and `1.36.0`.
 
-## Dependencies
+## Installation
+
+cosmicding is not distributed at the moment, and has to be built manually.
+
+### Local (Linux)
+
+Dependencies:
 
 - `cargo`
 - `just`
 - `libxkbcommon-dev`
 - `libcosmic`
 - `libsqlite3-dev`
-
-## Installation
-
-cosmicding is not distributed at the moment, and has to be built manually.
-
-### Local (Linux)
 
 ```shell
 # Clone the repository
@@ -53,6 +53,13 @@ sudo just install
 
 ### Local (macOS)
 
+Dependencies:
+
+- `cargo`
+- `just`
+- `libxkbcommon`
+- `sqlite3`
+
 ```shell
 # Clone the repository
 git clone https://github.com/vkhitrin/cosmicding
@@ -69,29 +76,14 @@ cp -r target/release/macos/cosmicding.app /Applications
 
 ## Roadmap
 
+cosmicding is currently under heavy development, and is not distributed outside of source code.
+
+The initial release is expected to support macOS and Linux platforms.
+
 ### Future
-
-Potential improvements:
-
-- [UI] Detailed `About` page.
-- [Performance] Check performance with multiple remote + local instances.
-- [Performance] Check performance with high amount of bookmarks spread across multiple instances.
-- [Application] Refactor codebase to be more organized.
-- [Application] Allow user-provided TLS certificate.
-- [Distribution] Flatpack release.
-- [Distribution] compiled binary in GitHub release.
-- [UI] Fix toasts to indicate when failures occured during refresh.
 
 Things to consider:
 
-- [UI] Add context menus (right click) for accounts/bookmarks.
-- [Application] Periodic auto refresh (sync with remote).
-- [UI] Pagination (if possible).
-- [Application] Consider leveraging linkding's `/check` endpoint when adding bookmarks.
-- [Application] Do not block on when executing local database queries.
-- [UI] Loading indicator when performing long HTTP calls.
-- [UI] Dynamically generate tags that affect filter.
-- [UI] Display favicons (if supported by instance).
 - [Application] "Move" (Delete from origin, and re-create on destination) bookmarks between accounts.
 
 ## Thanks
