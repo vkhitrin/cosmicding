@@ -12,14 +12,14 @@
 cosmicding is a [linkding](https://github.com/sissbruecker/linkding) companion app for COSMIC™ Desktop Environment.  
 It provides an alternative frontend to linkding based on [libcosmic](https://github.com/pop-os/libcosmic).
 
-While cosmicding was desgined for COSMIC™ Desktop Environment, it should be able to run cross-platform.
+While cosmicding was designed for COSMIC™ Desktop Environment, it should be able to run cross-platform.
 
 Features:
 
 - Support multiple linkding instances (or multiple users on the same instance).
 - Aggregate bookmarks locally.
 - Add/Edit/Remove bookmarks.
-- Search bookmarks based on title, URL, tags, desscription, and notes.
+- Search bookmarks based on title, URL, tags, description, and notes.
 
 cosmicding was tested against linkding releases `1.31.0`, and `1.36.0`.
 
@@ -79,12 +79,6 @@ cp -r target/release/macos/cosmicding.app /Applications
 cosmicding is currently under heavy development, and is not distributed outside of source code.
 
 The initial release is expected to support macOS and Linux platforms.
-
-### Future
-
-Things to consider:
-
-- [Application] "Move" (Delete from origin, and re-create on destination) bookmarks between accounts.
 
 ## Thanks
 
