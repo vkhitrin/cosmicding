@@ -45,12 +45,22 @@ clean-dist: clean clean-vendor
 build-debug *args:
     cargo build {{args}}
 
-build-release *args: (build-debug '--release' args)
+build-release *args:
+  #!/usr/bin/env sh
+  if [ "$(uname)" = "Linux" ]; then
+    just build-release-linux
+  elif [ "$(uname)" = "Darwin" ]; then
+    just build-release-macos
+  fi
+build-release-linux *args: (build-debug '--release' args)
 
-build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
+build-release-macos *args:
+    cargo build --release --target=aarch64-apple-darwin {{args}}
 
-build-macos:
-    cargo build --release --target=aarch64-apple-darwin
+    # Using native macOS' sed
+    /usr/bin/sed -i '' -e "s/__VERSION__/$(cargo pkgid | cut -d "#" -f2)/g" {{app-template-plist}}
+    /usr/bin/sed -i '' -e "s/__BUILD__/$(git describe --always --exclude='*')/g" {{app-template-plist}}
+
     lipo "target/aarch64-apple-darwin/release/{{name}}" -create -output "{{app-binary}}"
 
     mkdir -p "{{app-binary-dir}}"
@@ -59,21 +69,41 @@ build-macos:
     cp -fp "{{app-binary}}" "{{app-binary-dir}}"
     touch -r "{{app-binary}}" "{{app-dir}}/{{app-name}}"
     echo "Created '{{app-name}}' in '{{app-dir}}'"
+    git stash -- {{app-template-plist}}
+
+build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
 
 check *args:
     cargo clippy --all-features {{args}} -- -W clippy::pedantic
 
 check-json: (check '--message-format=json')
 
-run *args:
+run-linux *args:
     env RUST_BACKTRACE=full cargo run --release {{args}}
 
-install: install-migrations
-    install -Dm0755 {{bin-src}} {{bin-dst}}
-    install -Dm0644 res/linux/app.desktop {{desktop-dst}}
-    for size in `ls {{icons-src}}`; do \
-        install -Dm0644 "{{icons-src}}/$size/apps/{{appid}}.png" "{{icons-dst}}/$size/apps/{{appid}}.png"; \
-    done
+run-macos:
+    env RUST_BACKTRACE=full {{app-binary-dir}}/{{name}}
+
+run *args:
+  #!/usr/bin/env sh
+  if [ "$(uname)" = "Linux" ]; then
+    just run-linux
+  elif [ "$(uname)" = "Darwin" ]; then
+    just run-macos
+  fi
+  
+install:
+    #!/usr/bin/env sh
+    if [ "$(uname)" = "Linux" ]; then
+        just install-migrations
+        install -Dm0755 {{bin-src}} {{bin-dst}}
+        install -Dm0644 res/linux/app.desktop {{desktop-dst}}
+        for size in `ls {{icons-src}}`; do \
+            install -Dm0644 "{{icons-src}}/$size/apps/{{appid}}.png" "{{icons-dst}}/$size/apps/{{appid}}.png"; \
+        done
+    elif [ "$(uname)" = "Darwin" ]; then
+        cp -r {{app-dir}}/{{name}}.app /Applications/
+    fi
 
 install-migrations:
   #!/usr/bin/env sh
@@ -83,10 +113,15 @@ install-migrations:
   done
 
 uninstall:
-    rm {{bin-dst}} {{desktop-dst}}
-    for size in `ls {{icons-src}}`; do \
-        rm "{{icons-dst}}/$size/apps/{{appid}}.png"; \
-    done
+    #!/usr/bin/env sh
+    if [ "$(uname)" = "Linux" ]; then
+        rm {{bin-dst}} {{desktop-dst}}
+        for size in `ls {{icons-src}}`; do \
+            rm "{{icons-dst}}/$size/apps/{{appid}}.png"; \
+        done
+    elif [ "$(uname)" = "Darwin" ]; then
+        rm -rf /Applications/{{name}}.app
+    fi
 
 vendor:
     #!/usr/bin/env bash
