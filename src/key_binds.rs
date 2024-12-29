@@ -13,7 +13,7 @@ pub fn key_binds() -> HashMap<KeyBind, MenuAction> {
         ([$($modifier:ident),* $(,)?], $key:expr, $action:ident) => {{
             key_binds.insert(
                 KeyBind {
-                    modifiers: vec![$(Modifier::$modifier),*],
+                    modifiers: vec![$($modifier),*],
                     key: $key,
                 },
                 MenuAction::$action,
@@ -21,11 +21,27 @@ pub fn key_binds() -> HashMap<KeyBind, MenuAction> {
         }};
     }
 
-    bind!([Ctrl], Key::Character(",".into()), Settings);
-    bind!([Ctrl], Key::Character("i".into()), About);
-    bind!([Ctrl, Shift], Key::Character("n".into()), AddAccount);
-    bind!([Ctrl], Key::Character("n".into()), AddBookmark);
-    bind!([Ctrl], Key::Character("r".into()), RefreshBookmarks);
+    let primary_modifier = if cfg!(target_os = "macos") {
+        Modifier::Super
+    } else {
+        Modifier::Ctrl
+    };
+
+    let secondary_modifier = Modifier::Shift;
+
+    bind!([primary_modifier], Key::Character(",".into()), Settings);
+    bind!([primary_modifier], Key::Character("i".into()), About);
+    bind!(
+        [primary_modifier, secondary_modifier],
+        Key::Character("n".into()),
+        AddAccount
+    );
+    bind!([primary_modifier], Key::Character("n".into()), AddBookmark);
+    bind!(
+        [primary_modifier],
+        Key::Character("r".into()),
+        RefreshBookmarks
+    );
 
     key_binds
 }
