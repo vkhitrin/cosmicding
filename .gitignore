@@ -12,3 +12,4 @@ debian/*
 !debian/install
 !debian/rules
 !debian/source
+.DS_Store
