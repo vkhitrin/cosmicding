@@ -3,6 +3,7 @@ use crate::fl;
 use crate::models::account::Account;
 use crate::models::bookmarks::Bookmark;
 use crate::style::disabled_link_button;
+use crate::utils::icons::load_icon;
 use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::{
@@ -44,7 +45,7 @@ impl PageBookmarksView {
         if self.accounts.is_empty() {
             let container = widget::container(
                 widget::column::with_children(vec![
-                    widget::icon::from_name("web-browser-symbolic")
+                    widget::icon::icon(load_icon("web-browser-symbolic"))
                         .size(64)
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
@@ -87,7 +88,7 @@ impl PageBookmarksView {
                             spacing.space_none,
                             spacing.space_xxxs,
                         ])
-                        .push(widget::icon::from_name("web-browser-symbolic"))
+                        .push(widget::icon::icon(load_icon("web-browser-symbolic")))
                         .push(
                             widget::button::link(item.title.clone())
                                 .spacing(spacing.space_xxxs)
@@ -114,7 +115,7 @@ impl PageBookmarksView {
                                 },
                                 spacing.space_xxxs,
                             ])
-                            .push(widget::icon::from_name("text-x-generic-symbolic"))
+                            .push(widget::icon::icon(load_icon("text-x-generic-symbolic")))
                             .push(widget::text(item.description.clone()))
                             .align_y(Alignment::Start)
                             .into(),
@@ -135,7 +136,9 @@ impl PageBookmarksView {
                                 spacing.space_xxxs,
                                 spacing.space_xxxs,
                             ])
-                            .push(widget::icon::from_name("mail-mark-important-symbolic"))
+                            .push(widget::icon::icon(load_icon(
+                                "mail-mark-important-symbolic",
+                            )))
                             .push(
                                 widget::text::body(
                                     item.tag_names
@@ -222,30 +225,32 @@ impl PageBookmarksView {
                 // Mandatory fifth row - details
                 let mut details_row = widget::row::with_capacity(1).spacing(spacing.space_xxs);
                 details_row = details_row
-                    .push(widget::icon::from_name("accessories-clock-symbolic").size(12))
+                    .push(widget::icon::icon(load_icon("accessories-clock-symbolic")).size(12))
                     .push(
                         widget::text(date_added.format("%a, %d %b %Y %H:%M:%S").to_string())
                             .size(12),
                     );
                 if item.is_archived {
                     details_row = details_row
-                        .push(widget::icon::from_name("mail-archive-symbolic").size(12))
+                        .push(widget::icon::icon(load_icon("mail-archive-symbolic")).size(12))
                         .push(widget::text(fl!("archived")).size(12));
                 }
                 if item.unread {
                     details_row = details_row
-                        .push(widget::icon::from_name("x-office-spreadsheet-symbolic").size(12))
+                        .push(
+                            widget::icon::icon(load_icon("x-office-spreadsheet-symbolic")).size(12),
+                        )
                         .push(widget::text(fl!("unread")).size(12));
                 }
                 if item.shared {
                     details_row = details_row
-                        .push(widget::icon::from_name("emblem-shared-symbolic").size(12))
+                        .push(widget::icon::icon(load_icon("emblem-shared-symbolic")).size(12))
                         .push(widget::text(fl!("shared")).size(12));
                 }
                 columns.push(
                     details_row
                         .push(widget::horizontal_space())
-                        .push(widget::icon::from_name("user-available-symbolic").size(12))
+                        .push(widget::icon::icon(load_icon("user-available-symbolic")).size(12))
                         .push(widget::text(derived_account.display_name.clone()).size(12))
                         .align_y(iced::alignment::Vertical::Center)
                         .spacing(spacing.space_xxs)
@@ -439,7 +444,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("user-available-symbolic"))
+                .push(widget::icon::icon(load_icon("user-available-symbolic")))
                 .push(account_widget_title)
                 .padding([
                     spacing.space_none,
@@ -454,7 +459,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("web-browser-symbolic"))
+                .push(widget::icon::icon(load_icon("web-browser-symbolic")))
                 .push(url_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -468,7 +473,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("insert-text-symbolic"))
+                .push(widget::icon::icon(load_icon("insert-text-symbolic")))
                 .push(title_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -483,7 +488,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("text-x-generic-symbolic"))
+                .push(widget::icon::icon(load_icon("text-x-generic-symbolic")))
                 .push(description_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -497,7 +502,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("x-office-document-symbolic"))
+                .push(widget::icon::icon(load_icon("x-office-document-symbolic")))
                 .push(notes_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -511,7 +516,9 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("mail-mark-important-symbolic"))
+                .push(widget::icon::icon(load_icon(
+                    "mail-mark-important-symbolic",
+                )))
                 .push(tags_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -586,7 +593,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("user-available-symbolic"))
+                .push(widget::icon::icon(load_icon("user-available-symbolic")))
                 .push(account_widget_title)
                 .padding([
                     spacing.space_none,
@@ -601,7 +608,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("web-browser-symbolic"))
+                .push(widget::icon::icon(load_icon("web-browser-symbolic")))
                 .push(url_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -615,7 +622,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("insert-text-symbolic"))
+                .push(widget::icon::icon(load_icon("insert-text-symbolic")))
                 .push(title_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -630,7 +637,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("text-x-generic-symbolic"))
+                .push(widget::icon::icon(load_icon("text-x-generic-symbolic")))
                 .push(description_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -644,7 +651,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("x-office-document-symbolic"))
+                .push(widget::icon::icon(load_icon("x-office-document-symbolic")))
                 .push(notes_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -658,7 +665,9 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::from_name("mail-mark-important-symbolic"))
+                .push(widget::icon::icon(load_icon(
+                    "mail-mark-important-symbolic",
+                )))
                 .push(tags_widget_title)
                 .padding([
                     spacing.space_xxxs,

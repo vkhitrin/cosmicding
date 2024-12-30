@@ -1,3 +1,4 @@
+use crate::utils::icons::load_icon;
 use cosmic::{widget::icon, Element};
 
 use crate::{app, fl};
@@ -24,8 +25,8 @@ impl AppNavPage {
     }
     pub fn icon(self) -> cosmic::widget::Icon {
         match self {
-            Self::BookmarksView => icon::from_name("web-browser-symbolic").icon(),
-            Self::AccountsView => icon::from_name("contact-new-symbolic").icon(),
+            Self::BookmarksView => icon::icon(load_icon("web-browser-symbolic")),
+            Self::AccountsView => icon::icon(load_icon("contact-new-symbolic")),
         }
     }
 
