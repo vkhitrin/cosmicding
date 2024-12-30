@@ -10,6 +10,7 @@ use crate::pages::accounts::{add_account, edit_account, AppAccountsMessage, Page
 use crate::pages::bookmarks::{
     edit_bookmark, new_bookmark, view_notes, AppBookmarksMessage, PageBookmarksView,
 };
+use crate::utils::icons::load_icon;
 use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
@@ -255,7 +256,7 @@ impl Application for Cosmicding {
         let dialog = match dialog_page {
             DialogPage::RemoveAccount(account) => {
                 widget::dialog(fl!("remove") + " " + { &account.display_name })
-                    .icon(icon::from_name("dialog-warning-symbolic").size(58).icon())
+                    .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
                     .body(fl!("remove-account-confirm"))
                     .primary_action(
                         widget::button::destructive(fl!("yes")).on_press_maybe(Some(
@@ -268,7 +269,7 @@ impl Application for Cosmicding {
             }
             DialogPage::RemoveBookmark(account, bookmark) => {
                 widget::dialog(fl!("remove") + " " + { &bookmark.title })
-                    .icon(icon::from_name("dialog-warning-symbolic").size(58).icon())
+                    .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
                     .body(fl!("remove-bookmark-confirm"))
                     .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
                         Message::CompleteRemoveDialog(account.clone(), Some(bookmark.clone())),

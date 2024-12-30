@@ -39,6 +39,7 @@ Dependencies (Linux)
 - `libxkbcommon-dev`
 - `libcosmic`
 - `libsqlite3-dev`
+- `cosmic-icons`
 
 Dependencies (macOS)
 

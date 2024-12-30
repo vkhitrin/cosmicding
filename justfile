@@ -64,9 +64,10 @@ build-release-macos *args:
     lipo "target/aarch64-apple-darwin/release/{{name}}" -create -output "{{app-binary}}"
 
     mkdir -p "{{app-binary-dir}}"
-    mkdir -p "{{app-extras-dir}}"
+    mkdir -p "{{app-extras-dir}}/icons/"
     cp -fRp "{{app-template}}" "{{app-dir}}"
     cp -fp "{{app-binary}}" "{{app-binary-dir}}"
+    cp ./res/icons/* "{{app-extras-dir}}/icons/"
     touch -r "{{app-binary}}" "{{app-dir}}/{{app-name}}"
     echo "Created '{{app-name}}' in '{{app-dir}}'"
     git stash -- {{app-template-plist}}
