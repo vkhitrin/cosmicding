@@ -1,4 +1,5 @@
 use cosmic::widget::{self, icon::Handle};
+#[cfg(target_os = "macos")]
 use std::env;
 
 pub fn load_icon(icon: &str) -> Handle {

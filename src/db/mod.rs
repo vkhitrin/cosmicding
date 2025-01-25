@@ -1,8 +1,10 @@
+use crate::config::SortOption;
 use anyhow::{anyhow, Result};
 
 use std::path::Path;
 
-use sqlx::{migrate::MigrateDatabase, prelude::*, Sqlite, SqliteConnection};
+use sqlx::sqlite::Sqlite;
+use sqlx::{migrate::MigrateDatabase, prelude::*, SqlitePool};
 
 use crate::app::{APP, APPID, ORG, QUALIFIER};
 use crate::models::account::Account;
@@ -10,9 +12,9 @@ use crate::models::bookmarks::Bookmark;
 
 const DB_PATH: &str = constcat::concat!(APPID, "-db", ".sqlite");
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SqliteDatabase {
-    conn: SqliteConnection,
+    conn: SqlitePool,
 }
 
 impl SqliteDatabase {
@@ -33,7 +35,7 @@ impl SqliteDatabase {
             Sqlite::create_database(db_path).await?;
         }
 
-        let mut conn = SqliteConnection::connect(db_path).await?;
+        let conn = &SqlitePool::connect(db_path).await?;
 
         let migration_path = db_dir.join("migrations");
         std::fs::create_dir_all(&migration_path)?;
@@ -48,17 +50,36 @@ impl SqliteDatabase {
                 sqlx::migrate::Migrator::new(Path::new("./migrations")).await?
             }
         }
-        .run(&mut conn)
+        .run(conn)
         .await?;
 
-        let db = SqliteDatabase { conn };
+        let db = SqliteDatabase { conn: conn.clone() };
 
         Ok(db)
     }
 
-    pub async fn fetch_accounts(&mut self) -> Vec<Account> {
+    pub async fn count_accounts_entries(&mut self) -> usize {
+        let query: &str = "SELECT COUNT(*) FROM UserAccounts;";
+        let result: u64 = sqlx::query_scalar(query)
+            .fetch_one(&self.conn)
+            .await
+            .unwrap();
+        result as usize
+    }
+    pub async fn select_accounts(&mut self) -> Vec<Account> {
         let query: &str = "SELECT * FROM UserAccounts;";
-        let result = sqlx::query(query).fetch_all(&mut self.conn).await.unwrap();
+        let result: Vec<Account> = sqlx::query_as(query).fetch_all(&self.conn).await.unwrap();
+
+        result
+    }
+    pub async fn select_accounts_with_limit(&mut self, limit: u8, offset: usize) -> Vec<Account> {
+        let query: &str = "SELECT * FROM UserAccounts LIMIT $1 OFFSET $2;";
+        let result = sqlx::query(query)
+            .bind(limit)
+            .bind(offset.to_string())
+            .fetch_all(&self.conn)
+            .await
+            .unwrap();
 
         let data: Vec<Account> = result
             .iter()
@@ -76,11 +97,11 @@ impl SqliteDatabase {
             .collect();
         data
     }
-    pub async fn delete_account(&mut self, account: &Account) {
+    pub async fn delete_account(&mut self, account_id: i64) {
         let bookmarks_query: &str = "DELETE FROM UserAccounts WHERE id = $1;";
         sqlx::query(bookmarks_query)
-            .bind(account.id)
-            .execute(&mut self.conn)
+            .bind(account_id)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
@@ -94,7 +115,7 @@ impl SqliteDatabase {
             .bind(account.tls)
             .bind(account.enable_sharing)
             .bind(account.enable_public_sharing)
-            .execute(&mut self.conn)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
@@ -107,7 +128,7 @@ impl SqliteDatabase {
             .bind(account.tls)
             .bind(account.enable_sharing)
             .bind(account.enable_public_sharing)
-            .execute(&mut self.conn)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
@@ -120,7 +141,7 @@ impl SqliteDatabase {
     //    let update_timestamp_query =
     //        "UPDATE UserAccounts SET last_sync_status=$1, last_sync_timestamp=$2";
     //    sqlx::query(truncate_query)
-    //        .execute(&mut self.conn)
+    //        .execute(&self.conn)
     //        .await
     //        .unwrap();
     //    if !bookmarks.is_empty() {
@@ -131,7 +152,7 @@ impl SqliteDatabase {
     //    sqlx::query(update_timestamp_query)
     //        .bind(1)
     //        .bind(epoch_timestamp)
-    //        .execute(&mut self.conn)
+    //        .execute(&self.conn)
     //        .await
     //        .unwrap();
     //}
@@ -148,7 +169,7 @@ impl SqliteDatabase {
         if response_successful {
             sqlx::query(delete_query)
                 .bind(account.id)
-                .execute(&mut self.conn)
+                .execute(&self.conn)
                 .await
                 .unwrap();
             for bookmark in bookmarks {
@@ -159,7 +180,7 @@ impl SqliteDatabase {
             .bind(account.id)
             .bind(response_successful)
             .bind(epoch_timestamp)
-            .execute(&mut self.conn)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
@@ -202,13 +223,40 @@ impl SqliteDatabase {
             .bind(&bookmark.date_modified)
             .bind(&bookmark.website_title)
             .bind(&bookmark.website_description)
-            .execute(&mut self.conn)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
-    pub async fn fetch_bookmarks(&mut self) -> Vec<Bookmark> {
-        let query: &str = "SELECT * FROM Bookmarks;";
-        let result = sqlx::query(query).fetch_all(&mut self.conn).await.unwrap();
+
+    pub async fn count_bookmarks_entries(&mut self) -> usize {
+        let query: &str = "SELECT COUNT(*) FROM Bookmarks;";
+        let result: u64 = sqlx::query_scalar(query)
+            .fetch_one(&self.conn)
+            .await
+            .unwrap();
+        result as usize
+    }
+    pub async fn select_bookmarks_with_limit(
+        &mut self,
+        limit: u8,
+        offset: usize,
+        order_by: SortOption,
+    ) -> Vec<Bookmark> {
+        let order_by_string = match order_by {
+            SortOption::BookmarksDateNewest => "date_added DESC",
+            SortOption::BookmarksDateOldest => "date_added ASC",
+            SortOption::BookmarkAlphabeticalAscending => "title COLLATE NOCASE ASC",
+            SortOption::BookmarkAlphabeticalDescending => "title COLLATE NOCASE DESC",
+        };
+        let query: String =
+            format!("SELECT * FROM Bookmarks ORDER BY {order_by_string} LIMIT $1 OFFSET $2;");
+
+        let result = sqlx::query(&query)
+            .bind(limit)
+            .bind(offset.to_string())
+            .fetch_all(&self.conn)
+            .await
+            .unwrap();
 
         let data: Vec<Bookmark> = result
             .iter()
@@ -281,15 +329,15 @@ impl SqliteDatabase {
             .bind(&new_bookmark.website_title)
             .bind(&new_bookmark.website_description)
             .bind(old_bookmark.id)
-            .execute(&mut self.conn)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
-    pub async fn delete_all_bookmarks_of_account(&mut self, account: &Account) {
+    pub async fn delete_all_bookmarks_of_account(&mut self, account_id: i64) {
         let query: &str = "DELETE FROM Bookmarks WHERE user_account_id = $1;";
         sqlx::query(query)
-            .bind(account.id)
-            .execute(&mut self.conn)
+            .bind(account_id)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
@@ -297,28 +345,60 @@ impl SqliteDatabase {
         let query: &str = "DELETE FROM Bookmarks WHERE id = $1;";
         sqlx::query(query)
             .bind(bookmark.id)
-            .execute(&mut self.conn)
+            .execute(&self.conn)
             .await
             .unwrap();
     }
-    pub async fn search_bookmarks(&mut self, input: String) -> Vec<Bookmark> {
-        let query: &str = r"
-            SELECT * FROM Bookmarks 
+    pub async fn search_bookmarks(
+        &mut self,
+        search_string: String,
+        limit: u8,
+        offset: usize,
+        order_by: SortOption,
+    ) -> (usize, Vec<Bookmark>) {
+        let order_by_string = match order_by {
+            SortOption::BookmarksDateNewest => "date_added DESC",
+            SortOption::BookmarksDateOldest => "date_added ASC",
+            SortOption::BookmarkAlphabeticalAscending => "title COLLATE NOCASE ASC",
+            SortOption::BookmarkAlphabeticalDescending => "title COLLATE NOCASE DESC",
+        };
+        let query = format!(
+            r"
+        WITH bookmark_count AS (
+            SELECT COUNT(*) AS count FROM Bookmarks
             WHERE (
-                (
-                    coalesce(url, '') || ' ' ||
-                    coalesce(title, '') || ' ' ||
-                    coalesce(description, '') || ' ' ||
-                    coalesce(notes, '') || ' ' ||
-                    coalesce(tag_names, '')
-                )
-                LIKE '%' || $1 || '%'
-            );";
-        let result = sqlx::query(query)
-            .bind(input)
-            .fetch_all(&mut self.conn)
+                coalesce(url, '') || ' ' ||
+                coalesce(title, '') || ' ' ||
+                coalesce(description, '') || ' ' ||
+                coalesce(notes, '') || ' ' ||
+                coalesce(tag_names, '')
+            )
+            LIKE '%' || $1 || '%'
+        )
+        SELECT * FROM Bookmarks, bookmark_count
+        WHERE (
+            coalesce(url, '') || ' ' ||
+            coalesce(title, '') || ' ' ||
+            coalesce(description, '') || ' ' ||
+            coalesce(notes, '') || ' ' ||
+            coalesce(tag_names, '')
+        )
+        LIKE '%' || $1 || '%'
+        ORDER BY {order_by_string}
+        LIMIT $2 OFFSET $3;"
+        );
+
+        let result = sqlx::query(&query)
+            .bind(&search_string)
+            .bind(limit)
+            .bind(offset.to_string())
+            .fetch_all(&self.conn)
             .await
             .unwrap();
+
+        let row_count: usize = result
+            .first()
+            .map_or(0, |row| row.get::<i64, _>("count") as usize);
 
         let data: Vec<Bookmark> = result
             .iter()
@@ -353,6 +433,16 @@ impl SqliteDatabase {
                 }
             })
             .collect();
-        data
+
+        (row_count, data)
+    }
+    pub async fn select_single_account(&mut self, account_id: i64) -> Account {
+        let query: &str = "SELECT * FROM UserAccounts WHERE id = $1;";
+        let result: Account = sqlx::query_as(query)
+            .bind(account_id)
+            .fetch_one(&self.conn)
+            .await
+            .unwrap();
+        result
     }
 }

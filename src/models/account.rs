@@ -36,7 +36,9 @@ impl Account {
     }
 }
 
-// NOTE: (vkhitrin) we do not use these preferences as part of the application
+// NOTE: (vkhitrin) we do not use these preferences as part of the application.
+//       This is a response from the API and is not used in the application.
+//       We implement a general sorting mechanism for all bookmarks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchPreferences {
     pub sort: Option<String>,

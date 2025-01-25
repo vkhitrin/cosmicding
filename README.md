@@ -12,7 +12,7 @@
 cosmicding is a [linkding](https://github.com/sissbruecker/linkding) companion app for COSMIC™ Desktop Environment.  
 It provides an alternative frontend to linkding based on [libcosmic](https://github.com/pop-os/libcosmic).
 
-While cosmicding was designed for COSMIC™ Desktop Environment, it should be able to run cross-platform.
+While cosmicding was designed for COSMIC™ Desktop Environment, it may "run" cross-platform (#24).
 
 Features:
 
@@ -68,7 +68,7 @@ sudo just install
 
 cosmicding is currently under heavy development, and is not distributed outside of source code.
 
-The initial release is expected to support macOS and Linux platforms.
+The initial release is expected to support Linux platforms, and macOS partially.
 
 ## Thanks
 

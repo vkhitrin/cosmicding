@@ -31,8 +31,9 @@ impl AppTheme {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Default)]
 pub enum SortOption {
+    #[default]
     BookmarksDateNewest,
     BookmarksDateOldest,
     BookmarkAlphabeticalAscending,
@@ -44,6 +45,7 @@ pub enum SortOption {
 pub struct Config {
     pub app_theme: AppTheme,
     pub sort_option: SortOption,
+    pub items_per_page: u8,
 }
 
 impl Default for Config {
@@ -51,6 +53,7 @@ impl Default for Config {
         Self {
             app_theme: AppTheme::System,
             sort_option: SortOption::BookmarksDateNewest,
+            items_per_page: 10,
         }
     }
 }

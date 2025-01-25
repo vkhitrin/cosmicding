@@ -34,11 +34,11 @@ impl AppNavPage {
         match self {
             AppNavPage::AccountsView => app
                 .accounts_view
-                .view(app.state)
+                .view(app.state, &app.accounts_cursor)
                 .map(app::Message::AccountsView),
             AppNavPage::BookmarksView => app
                 .bookmarks_view
-                .view(app.state)
+                .view(app.state, &app.bookmarks_cursor)
                 .map(app::Message::BookmarksView),
         }
     }

@@ -1,10 +1,11 @@
 use crate::config::{AppTheme, Config, SortOption, CONFIG_VERSION};
-use crate::db::{self, SqliteDatabase};
+use crate::db::{self};
 use crate::fl;
 use crate::http::{self};
 use crate::key_binds::key_binds;
 use crate::models::account::{Account, LinkdingAccountApiResponse};
 use crate::models::bookmarks::{Bookmark, DetailedResponse};
+use crate::models::db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination};
 use crate::nav::AppNavPage;
 use crate::pages::accounts::{add_account, edit_account, AppAccountsMessage, PageAccountsView};
 use crate::pages::bookmarks::{
@@ -16,13 +17,13 @@ use cosmic::cosmic_config::{self, CosmicConfigEntry, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
 use cosmic::iced::{
     event,
+    futures::executor::block_on,
     keyboard::{Event as KeyEvent, Key, Modifiers},
     Alignment, Event, Length, Subscription,
 };
 use cosmic::widget::menu::action::MenuAction as _MenuAction;
 use cosmic::widget::{self, icon, menu, nav_bar};
 use cosmic::{theme, Application, ApplicationExt, Element};
-use futures::executor::block_on;
 use std::any::TypeId;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
@@ -46,15 +47,17 @@ pub struct Cosmicding {
     nav: nav_bar::Model,
     dialog_pages: VecDeque<DialogPage>,
     key_binds: HashMap<menu::KeyBind, MenuAction>,
-    config: Config,
+    pub config: Config,
     config_handler: Option<cosmic_config::Config>,
     modifiers: Modifiers,
     app_themes: Vec<String>,
-    db: SqliteDatabase,
+    pub bookmarks_cursor: BookmarksPaginationCursor,
+    pub accounts_cursor: AccountsPaginationCursor,
     pub accounts_view: PageAccountsView,
     pub bookmarks_view: PageBookmarksView,
     placeholder_account: Option<Account>,
     placeholder_bookmark: Option<Bookmark>,
+    placeholder_accounts_list: Vec<Account>,
     placeholder_selected_account_index: usize,
     toasts: widget::toaster::Toasts<Message>,
     pub state: ApplicationState,
@@ -71,25 +74,27 @@ pub enum Message {
     BookmarksView(AppBookmarksMessage),
     CloseToast(widget::ToastId),
     CompleteAddAccount(Account),
-    CompleteRemoveDialog(Account, Option<Bookmark>),
+    CompleteRemoveDialog(i64, Option<Bookmark>),
+    DecrementPageIndex(String),
     DialogCancel,
     DialogUpdate(DialogPage),
     DoneRefreshAccountProfile(Account, Option<LinkdingAccountApiResponse>),
     DoneRefreshBookmarksForAccount(Account, Vec<DetailedResponse>),
     DoneRefreshBookmarksForAllAccounts(Vec<DetailedResponse>),
     EditAccount(Account),
-    EditBookmark(Account, Bookmark),
+    EditBookmark(i64, Bookmark),
     Empty,
+    IncrementPageIndex(String),
     Key(Modifiers, Key),
     LoadAccounts,
     LoadBookmarks,
     Modifiers(Modifiers),
     OpenAccountsPage,
     OpenExternalUrl(String),
-    OpenRemoveAccountDialog(Account),
-    OpenRemoveBookmarkDialog(Account, Bookmark),
-    RemoveAccount(Account),
-    RemoveBookmark(Account, Bookmark),
+    OpenRemoveAccountDialog(i64),
+    OpenRemoveBookmarkDialog(i64, Bookmark),
+    RemoveAccount(i64),
+    RemoveBookmark(i64, Bookmark),
     SearchBookmarks(String),
     SetAccountAPIKey(String),
     SetAccountDisplayName(String),
@@ -103,6 +108,7 @@ pub enum Message {
     SetBookmarkTitle(String),
     SetBookmarkURL(String),
     SetBookmarkUnread(bool),
+    SetItemsPerPage(u8),
     SortOption(SortOption),
     StartRefreshAccountProfile(Account),
     StartRefreshBookmarksForAccount(Account),
@@ -120,8 +126,8 @@ pub enum Message {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum DialogPage {
-    RemoveAccount(Account),
-    RemoveBookmark(Account, Bookmark),
+    RemoveAccount(i64),
+    RemoveBookmark(i64, Bookmark),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -149,7 +155,11 @@ impl Application for Cosmicding {
     }
 
     fn init(core: Core, flags: Self::Flags) -> (Self, Task<Self::Message>) {
-        let db = block_on(async { db::SqliteDatabase::create().await.unwrap() });
+        let db_pool = Some(block_on(async {
+            db::SqliteDatabase::create().await.unwrap()
+        }));
+        let accounts_cursor = AccountsPaginationCursor::new(db_pool.clone().unwrap());
+        let bookmarks_cursor = BookmarksPaginationCursor::new(db_pool.clone().unwrap());
         let mut nav = nav_bar::Model::default();
         let app_themes = vec![fl!("match-desktop"), fl!("dark"), fl!("light")];
 
@@ -180,23 +190,31 @@ impl Application for Cosmicding {
             config_handler: flags.config_handler,
             modifiers: Modifiers::empty(),
             app_themes,
-            db,
+            bookmarks_cursor,
+            accounts_cursor,
             dialog_pages: VecDeque::new(),
             accounts_view: PageAccountsView::default(),
             bookmarks_view: PageBookmarksView::default(),
             placeholder_account: None,
             placeholder_bookmark: None,
+            placeholder_accounts_list: Vec::new(),
             placeholder_selected_account_index: 0,
             toasts: widget::toaster::Toasts::new(Message::CloseToast),
             state: ApplicationState::Startup,
         };
 
+        app.bookmarks_cursor.items_per_page = app.config.items_per_page;
+        app.accounts_cursor.items_per_page = app.config.items_per_page;
+
         let commands = vec![
             app.update_title(),
-            app.update(Message::LoadAccounts),
-            app.update(Message::LoadBookmarks),
+            app.update(Message::SetItemsPerPage(app.config.items_per_page)),
             app.update(Message::StartupCompleted),
         ];
+
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            app.bookmarks_cursor.refresh_count().await;
+        });
 
         (app, Task::batch(commands))
     }
@@ -237,12 +255,13 @@ impl Application for Cosmicding {
             ContextPage::EditAccountForm => edit_account(self.placeholder_account.clone().unwrap()),
             ContextPage::NewBookmarkForm => new_bookmark(
                 self.placeholder_bookmark.clone().unwrap(),
-                &self.accounts_view.accounts,
+                &self.placeholder_accounts_list,
                 self.placeholder_selected_account_index,
             ),
+
             ContextPage::EditBookmarkForm => edit_bookmark(
                 self.placeholder_bookmark.clone().unwrap(),
-                &self.accounts_view.accounts,
+                self.placeholder_account.as_ref().unwrap(),
             ),
             ContextPage::ViewBookmarkNotes => {
                 view_notes(self.placeholder_bookmark.clone().unwrap())
@@ -254,14 +273,13 @@ impl Application for Cosmicding {
         let dialog_page = self.dialog_pages.front()?;
 
         let dialog = match dialog_page {
-            DialogPage::RemoveAccount(account) => {
-                widget::dialog(fl!("remove") + " " + { &account.display_name })
+            DialogPage::RemoveAccount(account_id) => {
+                widget::dialog(fl!("remove") + " " + { &account_id.to_string() })
                     .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
                     .body(fl!("remove-account-confirm"))
                     .primary_action(
-                        widget::button::destructive(fl!("yes")).on_press_maybe(Some(
-                            Message::CompleteRemoveDialog(account.clone(), None),
-                        )),
+                        widget::button::destructive(fl!("yes"))
+                            .on_press_maybe(Some(Message::CompleteRemoveDialog(*account_id, None))),
                     )
                     .secondary_action(
                         widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
@@ -272,7 +290,7 @@ impl Application for Cosmicding {
                     .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
                     .body(fl!("remove-bookmark-confirm"))
                     .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
-                        Message::CompleteRemoveDialog(account.clone(), Some(bookmark.clone())),
+                        Message::CompleteRemoveDialog(*account, Some(bookmark.clone())),
                     )))
                     .secondary_action(
                         widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
@@ -302,6 +320,7 @@ impl Application for Cosmicding {
         .height(Length::Fill)
         .into()
     }
+
     fn subscription(&self) -> Subscription<Self::Message> {
         struct ConfigSubscription;
         struct ThemeSubscription;
@@ -383,6 +402,18 @@ impl Application for Cosmicding {
                     return self.update(Message::LoadBookmarks);
                 }
             }
+            Message::SetItemsPerPage(items_per_page) => {
+                config_set!(items_per_page, items_per_page);
+                self.bookmarks_cursor.items_per_page = items_per_page;
+                tokio::runtime::Runtime::new().unwrap().block_on(async {
+                    self.accounts_cursor.refresh_count().await;
+                    self.accounts_cursor.refresh_offset(0).await;
+                    self.bookmarks_cursor.refresh_count().await;
+                    self.bookmarks_cursor.refresh_offset(0).await;
+                });
+                commands.push(self.update(Message::LoadAccounts));
+                commands.push(self.update(Message::LoadBookmarks));
+            }
             Message::SystemThemeModeChange => {
                 return self.update_config();
             }
@@ -403,9 +434,11 @@ impl Application for Cosmicding {
             }
             Message::AccountsView(message) => commands.push(self.accounts_view.update(message)),
             Message::LoadAccounts => {
-                self.accounts_view.accounts =
-                    block_on(async { db::SqliteDatabase::fetch_accounts(&mut self.db).await });
-                self.bookmarks_view.accounts = self.accounts_view.accounts.clone();
+                block_on(async {
+                    self.accounts_cursor.fetch_next_results().await;
+                    self.accounts_cursor.refresh_count().await;
+                });
+                self.accounts_view.accounts = self.accounts_cursor.result.clone().unwrap();
                 // FIXME: (vkhitrin) If an account is deleted during refresh (should not be
                 //        possible without interacting with the database manually, a crash will
                 //        occur if an account context window is open.
@@ -429,117 +462,128 @@ impl Application for Cosmicding {
                 commands
                     .push(self.update(Message::ToggleContextPage(ContextPage::EditAccountForm)));
             }
-            Message::RemoveAccount(account) => {
-                block_on(async {
-                    db::SqliteDatabase::delete_all_bookmarks_of_account(&mut self.db, &account)
-                        .await;
-                });
-                block_on(async {
-                    db::SqliteDatabase::delete_account(&mut self.db, &account).await;
-                });
-                self.bookmarks_view
-                    .bookmarks
-                    .retain(|bkmrk| bkmrk.user_account_id != account.id);
-                commands.push(
-                    self.toasts
-                        .push(widget::toaster::Toast::new(fl!(
-                            "removed-account",
-                            acc = account.display_name
-                        )))
-                        .map(cosmic::app::Message::App),
-                );
-            }
-            Message::CompleteAddAccount(mut account) => {
-                let mut valid_account = false;
-                block_on(async {
-                    match http::check_account_on_instance(&account).await {
-                        Ok(value) => {
-                            account.enable_sharing = value.enable_sharing;
-                            account.enable_public_sharing = value.enable_public_sharing;
-                            valid_account = true;
-                        }
-                        Err(e) => {
-                            if e.to_string().contains("builder error") {
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(fl!(
-                                            "provided-url-is-not-valid"
-                                        )))
-                                        .map(cosmic::app::Message::App),
-                                );
-                            } else {
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::app::Message::App),
-                                );
-                            }
-                        }
-                    }
-                });
-                if valid_account {
+            Message::RemoveAccount(account_id) => {
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     block_on(async {
-                        db::SqliteDatabase::create_account(&mut self.db, &account).await;
+                        db::SqliteDatabase::delete_all_bookmarks_of_account(database, account_id)
+                            .await;
                     });
-                    commands.push(self.update(Message::LoadAccounts));
-                    commands.push(self.update(Message::StartRefreshBookmarksForAccount(
-                        self.accounts_view.accounts.last().unwrap().clone(),
-                    )));
+                    block_on(async {
+                        db::SqliteDatabase::delete_account(database, account_id).await;
+                    });
+                    self.bookmarks_view
+                        .bookmarks
+                        .retain(|bkmrk| bkmrk.user_account_id != Some(account_id));
                     commands.push(
                         self.toasts
                             .push(widget::toaster::Toast::new(fl!(
-                                "added-account",
-                                acc = account.display_name
+                                "removed-account",
+                                acc = account_id
                             )))
                             .map(cosmic::app::Message::App),
                     );
+                    block_on(async {
+                        self.accounts_cursor.refresh_count().await;
+                        self.accounts_cursor.fetch_next_results().await;
+                    });
+                    self.accounts_view.accounts = self.accounts_cursor.result.clone().unwrap();
+                }
+            }
+            Message::CompleteAddAccount(mut account) => {
+                let mut valid_account = false;
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    block_on(async {
+                        match http::check_account_on_instance(&account).await {
+                            Ok(value) => {
+                                account.enable_sharing = value.enable_sharing;
+                                account.enable_public_sharing = value.enable_public_sharing;
+                                valid_account = true;
+                            }
+                            Err(e) => {
+                                if e.to_string().contains("builder error") {
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(fl!(
+                                                "provided-url-is-not-valid"
+                                            )))
+                                            .map(cosmic::app::Message::App),
+                                    );
+                                } else {
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(format!("{e}")))
+                                            .map(cosmic::app::Message::App),
+                                    );
+                                }
+                            }
+                        }
+                    });
+                    if valid_account {
+                        block_on(async {
+                            db::SqliteDatabase::create_account(database, &account).await;
+                        });
+                        commands.push(self.update(Message::LoadAccounts));
+                        commands.push(self.update(Message::StartRefreshBookmarksForAccount(
+                            self.accounts_view.accounts.last().unwrap().clone(),
+                        )));
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "added-account",
+                                    acc = account.display_name
+                                )))
+                                .map(cosmic::app::Message::App),
+                        );
+                    }
                 }
                 self.core.window.show_context = false;
             }
             Message::UpdateAccount(mut account) => {
                 let mut valid_account = false;
-                block_on(async {
-                    match http::check_account_on_instance(&account).await {
-                        Ok(value) => {
-                            account.enable_sharing = value.enable_sharing;
-                            account.enable_public_sharing = value.enable_public_sharing;
-                            valid_account = true;
-                        }
-                        Err(e) => {
-                            if e.to_string().contains("builder error") {
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(fl!(
-                                            "provided-url-is-not-valid"
-                                        )))
-                                        .map(cosmic::app::Message::App),
-                                );
-                            } else {
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::app::Message::App),
-                                );
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    block_on(async {
+                        match http::check_account_on_instance(&account).await {
+                            Ok(value) => {
+                                account.enable_sharing = value.enable_sharing;
+                                account.enable_public_sharing = value.enable_public_sharing;
+                                valid_account = true;
+                            }
+                            Err(e) => {
+                                if e.to_string().contains("builder error") {
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(fl!(
+                                                "provided-url-is-not-valid"
+                                            )))
+                                            .map(cosmic::app::Message::App),
+                                    );
+                                } else {
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(format!("{e}")))
+                                            .map(cosmic::app::Message::App),
+                                    );
+                                }
                             }
                         }
-                    }
-                });
-                if valid_account {
-                    block_on(async {
-                        db::SqliteDatabase::update_account(&mut self.db, &account).await;
                     });
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!(
-                                "updated-account",
-                                acc = account.display_name
-                            )))
-                            .map(cosmic::app::Message::App),
-                    );
-                    commands.push(self.update(Message::LoadAccounts));
-                    commands.push(self.update(Message::StartRefreshBookmarksForAccount(
-                        self.accounts_view.accounts.last().unwrap().clone(),
-                    )));
+                    if valid_account {
+                        block_on(async {
+                            db::SqliteDatabase::update_account(database, &account).await;
+                        });
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "updated-account",
+                                    acc = account.display_name
+                                )))
+                                .map(cosmic::app::Message::App),
+                        );
+                        commands.push(self.update(Message::LoadAccounts));
+                        commands.push(self.update(Message::StartRefreshBookmarksForAccount(
+                            self.accounts_view.accounts.last().unwrap().clone(),
+                        )));
+                    }
                 }
                 self.core.window.show_context = false;
                 commands.push(self.update(Message::LoadAccounts));
@@ -564,26 +608,28 @@ impl Application for Cosmicding {
                 }
             }
             Message::DoneRefreshBookmarksForAllAccounts(remote_responses) => {
-                for response in remote_responses {
-                    block_on(async {
-                        db::SqliteDatabase::aggregate_bookmarks_for_acount(
-                            &mut self.db,
-                            &response.account,
-                            response.bookmarks.unwrap_or_else(Vec::new),
-                            response.timestamp,
-                            response.successful,
-                        )
-                        .await;
-                    });
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    for response in remote_responses {
+                        block_on(async {
+                            db::SqliteDatabase::aggregate_bookmarks_for_acount(
+                                database,
+                                &response.account,
+                                response.bookmarks.unwrap_or_else(Vec::new),
+                                response.timestamp,
+                                response.successful,
+                            )
+                            .await;
+                        });
+                    }
+                    commands.push(self.update(Message::LoadAccounts));
+                    commands.push(self.update(Message::LoadBookmarks));
+                    self.state = ApplicationState::Normal;
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
+                            .map(cosmic::app::Message::App),
+                    );
                 }
-                commands.push(self.update(Message::LoadAccounts));
-                commands.push(self.update(Message::LoadBookmarks));
-                self.state = ApplicationState::Normal;
-                commands.push(
-                    self.toasts
-                        .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
-                        .map(cosmic::app::Message::App),
-                );
             }
             Message::StartRefreshBookmarksForAccount(account) => {
                 if let ApplicationState::Refreshing = self.state {
@@ -609,29 +655,31 @@ impl Application for Cosmicding {
                 }
             }
             Message::DoneRefreshBookmarksForAccount(account, remote_responses) => {
-                for response in remote_responses {
-                    block_on(async {
-                        db::SqliteDatabase::aggregate_bookmarks_for_acount(
-                            &mut self.db,
-                            &account,
-                            response.bookmarks.unwrap_or_else(Vec::new),
-                            response.timestamp,
-                            response.successful,
-                        )
-                        .await;
-                    });
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    for response in remote_responses {
+                        block_on(async {
+                            db::SqliteDatabase::aggregate_bookmarks_for_acount(
+                                database,
+                                &account,
+                                response.bookmarks.unwrap_or_else(Vec::new),
+                                response.timestamp,
+                                response.successful,
+                            )
+                            .await;
+                        });
+                    }
+                    commands.push(self.update(Message::LoadAccounts));
+                    commands.push(self.update(Message::LoadBookmarks));
+                    self.state = ApplicationState::Normal;
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(fl!(
+                                "refreshed-bookmarks-for-account",
+                                acc = account.display_name
+                            )))
+                            .map(cosmic::app::Message::App),
+                    );
                 }
-                commands.push(self.update(Message::LoadAccounts));
-                commands.push(self.update(Message::LoadBookmarks));
-                self.state = ApplicationState::Normal;
-                commands.push(
-                    self.toasts
-                        .push(widget::toaster::Toast::new(fl!(
-                            "refreshed-bookmarks-for-account",
-                            acc = account.display_name
-                        )))
-                        .map(cosmic::app::Message::App),
-                );
             }
             Message::StartRefreshAccountProfile(account) => {
                 if let ApplicationState::Refreshing = self.state {
@@ -648,22 +696,34 @@ impl Application for Cosmicding {
                 }
             }
             Message::DoneRefreshAccountProfile(mut account, account_details) => {
-                if account_details.is_some() {
-                    let details = account_details.unwrap();
-                    account.enable_sharing = details.enable_sharing;
-                    account.enable_public_sharing = details.enable_public_sharing;
-                    block_on(async {
-                        db::SqliteDatabase::update_account(&mut self.db, &account).await;
-                    });
-                    commands.push(self.update(Message::LoadAccounts));
-                } else {
-                    block_on(async {
-                        db::SqliteDatabase::update_account(&mut self.db, &account).await;
-                    });
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    if account_details.is_some() {
+                        let details = account_details.unwrap();
+                        account.enable_sharing = details.enable_sharing;
+                        account.enable_public_sharing = details.enable_public_sharing;
+                        block_on(async {
+                            db::SqliteDatabase::update_account(database, &account).await;
+                        });
+                        commands.push(self.update(Message::LoadAccounts));
+                    } else {
+                        block_on(async {
+                            db::SqliteDatabase::update_account(database, &account).await;
+                        });
+                    }
+                    self.state = ApplicationState::Normal;
                 }
-                self.state = ApplicationState::Normal;
             }
             Message::AddBookmarkForm => {
+                // FIXME: (vkhitrin) this should not exist, "bypass" pagination to retrieve all
+                //        entries from database. Need to find a better approach to generate a list
+                //        of all accounts.
+                self.placeholder_accounts_list =
+                    tokio::runtime::Runtime::new().unwrap().block_on(async {
+                        db::SqliteDatabase::select_accounts(
+                            self.bookmarks_cursor.database.as_mut().unwrap(),
+                        )
+                        .await
+                    });
                 if !self.accounts_view.accounts.is_empty() {
                     self.placeholder_bookmark = Some(Bookmark::new(
                         None,
@@ -758,127 +818,150 @@ impl Application for Cosmicding {
             }
             Message::AddBookmark(account, bookmark) => {
                 let mut new_bkmrk: Option<Bookmark> = None;
-                block_on(async {
-                    match http::add_bookmark(&account, &bookmark).await {
-                        Ok(value) => {
-                            new_bkmrk = Some(value);
-                            commands.push(
-                                self.toasts
-                                    .push(widget::toaster::Toast::new(fl!(
-                                        "added-bookmark-to-account",
-                                        bkmrk = bookmark.url.clone(),
-                                        acc = account.display_name.clone()
-                                    )))
-                                    .map(cosmic::app::Message::App),
-                            );
-                        }
-                        Err(e) => {
-                            log::error!("Error adding bookmark: {}", e);
-                            commands.push(
-                                self.toasts
-                                    .push(widget::toaster::Toast::new(format!("{e}")))
-                                    .map(cosmic::app::Message::App),
-                            );
-                        }
-                    }
-                });
-                if let Some(bkmrk) = new_bkmrk {
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     block_on(async {
-                        db::SqliteDatabase::add_bookmark(&mut self.db, &bkmrk).await;
+                        match http::add_bookmark(&account, &bookmark).await {
+                            Ok(value) => {
+                                new_bkmrk = Some(value);
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(fl!(
+                                            "added-bookmark-to-account",
+                                            bkmrk = bookmark.url.clone(),
+                                            acc = account.display_name.clone()
+                                        )))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                            Err(e) => {
+                                log::error!("Error adding bookmark: {}", e);
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(format!("{e}")))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                        }
                     });
-                    self.bookmarks_view.bookmarks.push(bkmrk);
-                }
-                self.core.window.show_context = false;
-            }
-            Message::RemoveBookmark(account, bookmark) => {
-                block_on(async {
-                    match http::remove_bookmark(&account, &bookmark).await {
-                        Ok(()) => {
-                            let index = self
-                                .bookmarks_view
-                                .bookmarks
-                                .iter()
-                                .position(|x| *x == bookmark)
-                                .unwrap();
-                            self.bookmarks_view.bookmarks.remove(index);
-                            commands.push(
-                                self.toasts
-                                    .push(widget::toaster::Toast::new(fl!(
-                                        "removed-bookmark-from-account",
-                                        acc = account.display_name.clone()
-                                    )))
-                                    .map(cosmic::app::Message::App),
-                            );
-                        }
-                        Err(e) => {
-                            log::error!("Error removing bookmark: {}", e);
-                            commands.push(
-                                self.toasts
-                                    .push(widget::toaster::Toast::new(format!("{e}")))
-                                    .map(cosmic::app::Message::App),
-                            );
-                        }
+                    if let Some(bkmrk) = new_bkmrk {
+                        block_on(async {
+                            db::SqliteDatabase::add_bookmark(database, &bkmrk).await;
+                        });
+                        commands.push(self.update(Message::LoadBookmarks));
                     }
-                });
+                };
                 block_on(async {
-                    db::SqliteDatabase::delete_bookmark(&mut self.db, &bookmark).await;
+                    self.bookmarks_cursor.refresh_count().await;
                 });
                 self.core.window.show_context = false;
             }
-            Message::EditBookmark(account, bookmark) => {
-                self.placeholder_account = Some(account.clone());
+            Message::RemoveBookmark(account_id, bookmark) => {
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    let account: Account = block_on(async {
+                        db::SqliteDatabase::select_single_account(database, account_id).await
+                    });
+                    block_on(async {
+                        match http::remove_bookmark(&account, &bookmark).await {
+                            Ok(()) => {
+                                let index = self
+                                    .bookmarks_view
+                                    .bookmarks
+                                    .iter()
+                                    .position(|x| *x == bookmark)
+                                    .unwrap();
+                                self.bookmarks_view.bookmarks.remove(index);
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(fl!(
+                                            "removed-bookmark-from-account",
+                                            acc = account.display_name.clone()
+                                        )))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                            Err(e) => {
+                                log::error!("Error removing bookmark: {}", e);
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(format!("{e}")))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                        }
+                    });
+                    block_on(async {
+                        db::SqliteDatabase::delete_bookmark(database, &bookmark).await;
+                    });
+                }
+                block_on(async {
+                    self.bookmarks_cursor.refresh_count().await;
+                    self.bookmarks_cursor.fetch_next_results().await;
+                });
+                self.bookmarks_view.bookmarks = self.bookmarks_cursor.result.clone().unwrap();
+                self.core.window.show_context = false;
+            }
+            Message::EditBookmark(account_id, bookmark) => {
                 self.placeholder_bookmark = Some(bookmark.clone());
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    let account: Account = block_on(async {
+                        db::SqliteDatabase::select_single_account(database, account_id).await
+                    });
+                    self.placeholder_account = Some(account);
+                };
                 commands
                     .push(self.update(Message::ToggleContextPage(ContextPage::EditBookmarkForm)));
             }
             Message::UpdateBookmark(account, bookmark) => {
                 let mut updated_bkmrk: Option<Bookmark> = None;
-                block_on(async {
-                    match http::edit_bookmark(&account, &bookmark).await {
-                        Ok(value) => {
-                            updated_bkmrk = Some(value);
-                            commands.push(
-                                self.toasts
-                                    .push(widget::toaster::Toast::new(fl!(
-                                        "updated-bookmark-in-account",
-                                        acc = account.display_name.clone()
-                                    )))
-                                    .map(cosmic::app::Message::App),
-                            );
-                        }
-                        Err(e) => {
-                            log::error!("Error patching bookmark: {}", e);
-                            commands.push(
-                                self.toasts
-                                    .push(widget::toaster::Toast::new(format!("{e}")))
-                                    .map(cosmic::app::Message::App),
-                            );
-                        }
-                    }
-                });
-                if let Some(bkmrk) = updated_bkmrk {
-                    let index = self
-                        .bookmarks_view
-                        .bookmarks
-                        .iter()
-                        .position(|x| x.id == bookmark.id)
-                        .unwrap();
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     block_on(async {
-                        db::SqliteDatabase::update_bookmark(&mut self.db, &bookmark, &bkmrk).await;
+                        match http::edit_bookmark(&account, &bookmark).await {
+                            Ok(value) => {
+                                updated_bkmrk = Some(value);
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(fl!(
+                                            "updated-bookmark-in-account",
+                                            acc = account.display_name.clone()
+                                        )))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                            Err(e) => {
+                                log::error!("Error patching bookmark: {}", e);
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(format!("{e}")))
+                                        .map(cosmic::app::Message::App),
+                                );
+                            }
+                        }
                     });
-                    self.bookmarks_view.bookmarks[index] = bkmrk;
+                    if let Some(bkmrk) = updated_bkmrk {
+                        let index = self
+                            .bookmarks_view
+                            .bookmarks
+                            .iter()
+                            .position(|x| x.id == bookmark.id)
+                            .unwrap();
+                        block_on(async {
+                            db::SqliteDatabase::update_bookmark(database, &bookmark, &bkmrk).await;
+                        });
+                        self.bookmarks_view.bookmarks[index] = bkmrk;
+                    }
                 }
                 self.core.window.show_context = false;
             }
             Message::SearchBookmarks(query) => {
                 if query.is_empty() {
-                    self.bookmarks_view.bookmarks =
-                        block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
-                } else {
-                    self.bookmarks_view.bookmarks = block_on(async {
-                        db::SqliteDatabase::search_bookmarks(&mut self.db, query).await
+                    self.bookmarks_cursor.search_query = None;
+                    tokio::runtime::Runtime::new().unwrap().block_on(async {
+                        self.bookmarks_cursor.refresh_offset(0).await;
                     });
+                } else {
+                    self.bookmarks_cursor.search_query = Some(query);
                 }
+                commands.push(self.update(Message::LoadBookmarks));
             }
             Message::OpenExternalUrl(url) => {
                 _ = open::that_detached(url);
@@ -901,16 +984,16 @@ impl Application for Cosmicding {
             Message::UpdateConfig(config) => {
                 self.config = config;
             }
-            Message::OpenRemoveAccountDialog(account) => {
+            Message::OpenRemoveAccountDialog(account_id) => {
                 if self.dialog_pages.pop_front().is_none() {
                     self.dialog_pages
-                        .push_back(DialogPage::RemoveAccount(account));
+                        .push_back(DialogPage::RemoveAccount(account_id));
                 }
             }
-            Message::OpenRemoveBookmarkDialog(account, bookmark) => {
+            Message::OpenRemoveBookmarkDialog(account_id, bookmark) => {
                 if self.dialog_pages.pop_front().is_none() {
                     self.dialog_pages
-                        .push_back(DialogPage::RemoveBookmark(account, bookmark));
+                        .push_back(DialogPage::RemoveBookmark(account_id, bookmark));
                 }
             }
             Message::DialogUpdate(dialog_page) => {
@@ -922,8 +1005,9 @@ impl Application for Cosmicding {
                         DialogPage::RemoveAccount(account) => {
                             commands.push(self.update(Message::RemoveAccount(account)));
                         }
-                        DialogPage::RemoveBookmark(account, bookmark) => {
-                            commands.push(self.update(Message::RemoveBookmark(account, bookmark)));
+                        DialogPage::RemoveBookmark(account_id, bookmark) => {
+                            commands
+                                .push(self.update(Message::RemoveBookmark(account_id, bookmark)));
                         }
                     }
                 }
@@ -936,41 +1020,58 @@ impl Application for Cosmicding {
                 self.toasts.remove(id);
             }
             Message::LoadBookmarks => {
-                self.bookmarks_view.bookmarks =
-                    block_on(async { db::SqliteDatabase::fetch_bookmarks(&mut self.db).await });
                 match self.config.sort_option {
                     SortOption::BookmarksDateNewest => {
-                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
-                            b.clone()
-                                .date_added
-                                .unwrap()
-                                .cmp(&a.clone().date_added.unwrap())
-                        });
+                        self.bookmarks_cursor.sort_option = SortOption::BookmarksDateNewest;
                     }
                     SortOption::BookmarksDateOldest => {
-                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
-                            a.clone()
-                                .date_added
-                                .unwrap()
-                                .cmp(&b.clone().date_added.unwrap())
-                        });
+                        self.bookmarks_cursor.sort_option = SortOption::BookmarksDateOldest;
                     }
                     SortOption::BookmarkAlphabeticalAscending => {
-                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
-                            a.clone()
-                                .title
-                                .to_lowercase()
-                                .cmp(&b.clone().title.to_lowercase())
-                        });
+                        self.bookmarks_cursor.sort_option =
+                            SortOption::BookmarkAlphabeticalAscending;
                     }
                     SortOption::BookmarkAlphabeticalDescending => {
-                        self.bookmarks_view.bookmarks.sort_by(|a, b| {
-                            b.clone()
-                                .title
-                                .to_lowercase()
-                                .cmp(&a.clone().title.to_lowercase())
-                        });
+                        self.bookmarks_cursor.sort_option =
+                            SortOption::BookmarkAlphabeticalDescending;
                     }
+                }
+                block_on(async {
+                    self.bookmarks_cursor.fetch_next_results().await;
+                    self.bookmarks_cursor.refresh_count().await;
+                });
+                self.bookmarks_view.bookmarks = self.bookmarks_cursor.result.clone().unwrap();
+            }
+            Message::IncrementPageIndex(cursor_type) => {
+                if cursor_type == "bookmarks" {
+                    let current_page = self.bookmarks_cursor.current_page;
+                    let total_pages = self.bookmarks_cursor.total_pages;
+                    if current_page < total_pages {
+                        self.bookmarks_cursor.current_page = current_page + 1;
+                    }
+                    commands.push(self.update(Message::LoadBookmarks));
+                } else if cursor_type == "accounts" {
+                    let current_page = self.accounts_cursor.current_page;
+                    let total_pages = self.accounts_cursor.total_pages;
+                    if current_page < total_pages {
+                        self.accounts_cursor.current_page = current_page + 1;
+                    }
+                    commands.push(self.update(Message::LoadAccounts));
+                }
+            }
+            Message::DecrementPageIndex(cursor_type) => {
+                if cursor_type == "bookmarks" {
+                    let current_page = self.bookmarks_cursor.current_page;
+                    if current_page > 1 {
+                        self.bookmarks_cursor.current_page = current_page - 1;
+                    }
+                    commands.push(self.update(Message::LoadBookmarks));
+                } else if cursor_type == "accounts" {
+                    let current_page = self.accounts_cursor.current_page;
+                    if current_page > 1 {
+                        self.accounts_cursor.current_page = current_page - 1;
+                    }
+                    commands.push(self.update(Message::LoadAccounts));
                 }
             }
             Message::StartupCompleted => {
@@ -1035,27 +1136,43 @@ impl Cosmicding {
     }
 
     fn settings(&self) -> Element<Message> {
-        widget::settings::view_column(vec![widget::settings::section()
-            .title(fl!("appearance"))
-            .add({
-                let app_theme_selected = match self.config.app_theme {
-                    AppTheme::Dark => 1,
-                    AppTheme::Light => 2,
-                    AppTheme::System => 0,
-                };
-                widget::settings::item::builder(fl!("theme")).control(widget::dropdown(
-                    &self.app_themes,
-                    Some(app_theme_selected),
-                    move |index| {
-                        Message::AppTheme(match index {
-                            1 => AppTheme::Dark,
-                            2 => AppTheme::Light,
-                            _ => AppTheme::System,
-                        })
-                    },
-                ))
-            })
-            .into()])
+        widget::settings::view_column(vec![
+            widget::settings::section()
+                .title(fl!("appearance"))
+                .add({
+                    let app_theme_selected = match self.config.app_theme {
+                        AppTheme::Dark => 1,
+                        AppTheme::Light => 2,
+                        AppTheme::System => 0,
+                    };
+                    widget::settings::item::builder(fl!("theme")).control(widget::dropdown(
+                        &self.app_themes,
+                        Some(app_theme_selected),
+                        move |index| {
+                            Message::AppTheme(match index {
+                                1 => AppTheme::Dark,
+                                2 => AppTheme::Light,
+                                _ => AppTheme::System,
+                            })
+                        },
+                    ))
+                })
+                .into(),
+            widget::settings::section()
+                .title(fl!("view"))
+                .add({
+                    widget::settings::item::builder(fl!(
+                        "items-per-page",
+                        count = self.config.items_per_page
+                    ))
+                    .control(widget::slider(
+                        5..=50,
+                        self.config.items_per_page,
+                        Message::SetItemsPerPage,
+                    ))
+                })
+                .into(),
+        ])
         .into()
     }
 
