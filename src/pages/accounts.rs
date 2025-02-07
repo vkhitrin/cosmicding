@@ -1,8 +1,8 @@
 use crate::app::{ApplicationState, Message};
 use crate::fl;
 use crate::models::account::Account;
-use crate::style::disabled_link_button;
-use crate::utils::icons::load_icon;
+use crate::models::db_cursor::AccountsPaginationCursor;
+use crate::utils::{icons::load_icon, style::disabled_link_button};
 use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::iced_widget::tooltip;
@@ -18,10 +18,12 @@ use cosmic::{
 #[derive(Debug, Clone)]
 pub enum AppAccountsMessage {
     AddAccount,
-    EditAccount(Account),
+    DecrementPageIndex,
     DeleteAccount(Account),
-    RefreshBookmarksForAccount(Account),
+    EditAccount(Account),
+    IncrementPageIndex,
     OpenExternalURL(String),
+    RefreshBookmarksForAccount(Account),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -32,7 +34,11 @@ pub struct PageAccountsView {
 
 impl PageAccountsView {
     #[allow(clippy::too_many_lines)]
-    pub fn view(&self, app_state: ApplicationState) -> Element<'_, AppAccountsMessage> {
+    pub fn view(
+        &self,
+        app_state: ApplicationState,
+        accounts_cursor: &AccountsPaginationCursor,
+    ) -> Element<'_, AppAccountsMessage> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
             let container = widget::container(
@@ -107,32 +113,7 @@ impl PageAccountsView {
                         .align_y(Alignment::Center)
                         .into(),
                 );
-                // Mandatory second row - sync status
-                columns.push(
-                    widget::row::with_capacity(2)
-                        .spacing(spacing.space_xs)
-                        .padding([
-                            spacing.space_xxxs,
-                            spacing.space_xxs,
-                            spacing.space_xxxs,
-                            spacing.space_xxxs,
-                        ])
-                        .push(widget::icon::icon(load_icon(
-                            "emblem-synchronizing-symbolic",
-                        )))
-                        .push(widget::text::body(format!(
-                            "{}: {}",
-                            fl!("last-sync-status"),
-                            if item.last_sync_status {
-                                fl!("successful")
-                            } else {
-                                fl!("failed")
-                            }
-                        )))
-                        .align_y(Alignment::Center)
-                        .into(),
-                );
-                // Mandatory third row - sync timestamp
+                // Mandatory second row - sync timestamp + status
                 columns.push(
                     widget::row::with_capacity(2)
                         .spacing(spacing.space_xs)
@@ -144,14 +125,19 @@ impl PageAccountsView {
                         ])
                         .push(widget::icon::icon(load_icon("accessories-clock-symbolic")))
                         .push(widget::text::body(format!(
-                            "{}: {}",
+                            "{}: {} ({})",
                             fl!("last-sync-time"),
-                            local_time.format("%a, %d %b %Y %H:%M:%S")
+                            local_time.format("%a, %d %b %Y %H:%M:%S"),
+                            if item.last_sync_status {
+                                fl!("successful")
+                            } else {
+                                fl!("failed")
+                            }
                         )))
                         .align_y(Alignment::Center)
                         .into(),
                 );
-                // Mandatory fourth row - details
+                // Mandatory third row - details
                 columns.push(
                     widget::row::with_capacity(2)
                         .spacing(spacing.space_xs)
@@ -182,7 +168,7 @@ impl PageAccountsView {
                         .align_y(Alignment::Center)
                         .into(),
                 );
-                // Mandatory fifth row - actions
+                // Mandatory forth row - actions
                 let actions_row = widget::row::with_capacity(3)
                     .spacing(spacing.space_xs)
                     .push(refresh_button)
@@ -220,12 +206,51 @@ impl PageAccountsView {
                 .apply(widget::scrollable)
                 .height(Length::Fill);
 
+            let navigation_previous_button = widget::button::standard(fl!("previous"))
+                .on_press_maybe(if accounts_cursor.current_page > 1 {
+                    Some(AppAccountsMessage::DecrementPageIndex)
+                } else {
+                    None
+                })
+                .leading_icon(load_icon("go-previous-symbolic"));
+            let navigation_next_button = widget::button::standard(fl!("next"))
+                .on_press_maybe(
+                    if accounts_cursor.current_page < accounts_cursor.total_pages {
+                        Some(AppAccountsMessage::IncrementPageIndex)
+                    } else {
+                        None
+                    },
+                )
+                .trailing_icon(load_icon("go-next-symbolic"));
+            let page_navigation_widget = widget::container(widget::column::with_children(vec![
+                widget::row::with_capacity(2)
+                    .align_y(Alignment::Center)
+                    .push(widget::horizontal_space())
+                    .push(navigation_previous_button)
+                    .push(widget::text::body(format!(
+                        "{}/{}",
+                        accounts_cursor.current_page, accounts_cursor.total_pages
+                    )))
+                    .spacing(spacing.space_xxs)
+                    .padding([
+                        spacing.space_xxs,
+                        spacing.space_none,
+                        spacing.space_xxxs,
+                        spacing.space_none,
+                    ])
+                    .push(navigation_next_button)
+                    .push(widget::horizontal_space())
+                    .width(Length::Fill)
+                    .apply(widget::container)
+                    .into(),
+            ]));
+
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(2)
                     .align_y(Alignment::Center)
                     .push(widget::text::title3(fl!(
                         "accounts-with-count",
-                        count = self.accounts.len()
+                        count = accounts_cursor.total_entries.to_string()
                     )))
                     .spacing(spacing.space_xxs)
                     .padding([
@@ -242,7 +267,8 @@ impl PageAccountsView {
                     .width(Length::Fill)
                     .apply(widget::container)
                     .into()])
-                .push(accounts_widget),
+                .push(accounts_widget)
+                .push(page_navigation_widget),
             )
             .into()
         }
@@ -263,7 +289,7 @@ impl PageAccountsView {
             }
             AppAccountsMessage::DeleteAccount(account) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::OpenRemoveAccountDialog(account.clone()))
+                    cosmic::app::Message::App(Message::OpenRemoveAccountDialog(account.id.unwrap()))
                 }));
             }
             AppAccountsMessage::RefreshBookmarksForAccount(account) => {
@@ -276,6 +302,16 @@ impl PageAccountsView {
             AppAccountsMessage::OpenExternalURL(url) => {
                 commands.push(Task::perform(async {}, move |()| {
                     cosmic::app::Message::App(Message::OpenExternalUrl(url.clone()))
+                }));
+            }
+            AppAccountsMessage::IncrementPageIndex => {
+                commands.push(Task::perform(async {}, |()| {
+                    cosmic::app::Message::App(Message::IncrementPageIndex("accounts".to_string()))
+                }));
+            }
+            AppAccountsMessage::DecrementPageIndex => {
+                commands.push(Task::perform(async {}, |()| {
+                    cosmic::app::Message::App(Message::DecrementPageIndex("accounts".to_string()))
                 }));
             }
         }

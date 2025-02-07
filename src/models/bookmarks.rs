@@ -1,6 +1,7 @@
 use crate::models::account::Account;
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+use sqlx::FromRow;
+#[derive(Debug, Clone, Serialize, FromRow, Deserialize, Eq, PartialEq)]
 pub struct Bookmark {
     pub id: Option<i64>,
     pub user_account_id: Option<i64>,

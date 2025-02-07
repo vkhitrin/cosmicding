@@ -30,7 +30,6 @@ app-extras-dir := app-dir / app-name / 'Contents' / 'Resources'
 dmg-name := name + '.dmg'
 dmg-release := release-dir / 'macos'
 version := '0.1.0'
-build := 'test'
 
 default: build-release
 
@@ -83,6 +82,7 @@ run-linux *args:
     env RUST_BACKTRACE=full cargo run --release {{args}}
 
 run-macos:
+    just build-release
     env RUST_BACKTRACE=full {{app-binary-dir}}/{{name}}
 
 run *args:
