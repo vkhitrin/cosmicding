@@ -1,15 +1,15 @@
-use crate::app::{ApplicationState, Message};
+use crate::app::{icons::load_icon, ApplicationState, Message};
 use crate::fl;
 use crate::models::account::Account;
 use crate::models::db_cursor::AccountsPaginationCursor;
-use crate::utils::{icons::load_icon, style::disabled_link_button};
+use crate::style::button::ButtonStyle;
 use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::iced_widget::tooltip;
 use cosmic::{
     app::command::Task,
     cosmic_theme,
-    iced::{self, Alignment},
+    iced::Alignment,
     theme,
     widget::{self},
     Apply, Element,
@@ -54,8 +54,8 @@ impl PageAccountsView {
                 .spacing(20)
                 .align_x(Alignment::Center),
             )
-            .align_y(iced::alignment::Vertical::Center)
-            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(Alignment::Center)
+            .align_x(Alignment::Center)
             .height(Length::Fill)
             .width(Length::Fill);
             widget::column::with_capacity(2)
@@ -75,7 +75,7 @@ impl PageAccountsView {
                 let refresh_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("refresh"))
                         .font_size(12)
-                        .class(disabled_link_button()),
+                        .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("refresh")).font_size(12).on_press(
                         AppAccountsMessage::RefreshBookmarksForAccount(item.to_owned()),
                     ),
@@ -83,7 +83,7 @@ impl PageAccountsView {
                 let edit_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("edit"))
                         .font_size(12)
-                        .class(disabled_link_button()),
+                        .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("edit"))
                         .font_size(12)
                         .on_press(AppAccountsMessage::EditAccount(item.to_owned())),
@@ -91,7 +91,7 @@ impl PageAccountsView {
                 let remove_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("remove"))
                         .font_size(12)
-                        .class(disabled_link_button()),
+                        .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("remove"))
                         .font_size(12)
                         .on_press(AppAccountsMessage::DeleteAccount(item.to_owned())),
@@ -289,7 +289,7 @@ impl PageAccountsView {
             }
             AppAccountsMessage::DeleteAccount(account) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::OpenRemoveAccountDialog(account.id.unwrap()))
+                    cosmic::app::Message::App(Message::OpenRemoveAccountDialog(account.clone()))
                 }));
             }
             AppAccountsMessage::RefreshBookmarksForAccount(account) => {
@@ -338,7 +338,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
         widget::button::standard(fl!("save")).on_press(Message::CompleteAddAccount(account)),
     )
     .width(Length::Fill)
-    .align_x(iced::alignment::Horizontal::Center);
+    .align_x(Alignment::Center);
 
     widget::column()
         .spacing(space_xxs)
@@ -460,7 +460,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         widget::button::standard(fl!("save")).on_press(Message::UpdateAccount(account)),
     )
     .width(Length::Fill)
-    .align_x(iced::alignment::Horizontal::Center);
+    .align_x(Alignment::Center);
 
     widget::column()
         .spacing(space_xxs)

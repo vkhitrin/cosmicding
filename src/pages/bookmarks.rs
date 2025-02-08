@@ -1,19 +1,18 @@
-use crate::app::{ApplicationState, Message};
+use crate::app::{icons::load_icon, ApplicationState, Message};
 use crate::fl;
 use crate::models::account::Account;
 use crate::models::bookmarks::Bookmark;
 use crate::models::db_cursor::BookmarksPaginationCursor;
-use crate::utils::{icons::load_icon, style::disabled_link_button};
+use crate::style::button::ButtonStyle;
 use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::{
     app::command::Task,
-    iced::{self, Alignment},
+    iced::Alignment,
     widget::{self},
     Apply, Element,
 };
 use cosmic::{cosmic_theme, theme};
-use iced::alignment::{Horizontal, Vertical};
 
 #[derive(Debug, Default, Clone)]
 pub struct PageBookmarksView {
@@ -61,8 +60,8 @@ impl PageBookmarksView {
                 .spacing(20)
                 .align_x(Alignment::Center),
             )
-            .align_y(Vertical::Center)
-            .align_x(Horizontal::Center)
+            .align_y(Alignment::Center)
+            .align_x(Alignment::Center)
             .height(Length::Fill)
             .width(Length::Fill);
             widget::column::with_capacity(2)
@@ -158,7 +157,7 @@ impl PageBookmarksView {
                 let edit_bookmark_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("edit"))
                         .font_size(12)
-                        .class(disabled_link_button()),
+                        .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("edit")).font_size(12).on_press(
                         AppBookmarksMessage::EditBookmark(bookmark_account_id, item.to_owned()),
                     ),
@@ -166,7 +165,7 @@ impl PageBookmarksView {
                 let remove_bookmark_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("remove"))
                         .font_size(12)
-                        .class(disabled_link_button()),
+                        .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("remove")).font_size(12).on_press(
                         AppBookmarksMessage::DeleteBookmark(bookmark_account_id, item.to_owned()),
                     ),
@@ -174,7 +173,7 @@ impl PageBookmarksView {
                 let notes_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("notes"))
                         .font_size(12)
-                        .class(disabled_link_button()),
+                        .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("notes"))
                         .font_size(12)
                         .on_press(AppBookmarksMessage::ViewNotes(item.clone())),
@@ -186,7 +185,7 @@ impl PageBookmarksView {
                         .font_size(12)
                         .icon_size(11)
                         .tooltip(item.web_archive_snapshot_url.clone())
-                        .class(disabled_link_button()),
+                        .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("snapshot"))
                         .spacing(spacing.space_xxxs)
                         .trailing_icon(true)
@@ -245,7 +244,7 @@ impl PageBookmarksView {
                 columns.push(
                     details_row
                         .push(widget::horizontal_space())
-                        .align_y(iced::alignment::Vertical::Center)
+                        .align_y(Alignment::Center)
                         .spacing(spacing.space_xxs)
                         .padding([
                             spacing.space_xxxs,
@@ -479,7 +478,7 @@ where
         )),
     )
     .width(Length::Fill)
-    .align_x(iced::alignment::Horizontal::Center);
+    .align_x(Alignment::Center);
 
     widget::column()
         .spacing(space_xxs)
@@ -620,7 +619,7 @@ where
             .on_press(Message::UpdateBookmark(account.clone(), bookmark)),
     )
     .width(Length::Fill)
-    .align_x(iced::alignment::Horizontal::Center);
+    .align_x(Alignment::Center);
 
     widget::column()
         .spacing(space_xxs)

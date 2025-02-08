@@ -17,6 +17,7 @@ log = "0.4.22"
 once_cell = "1.19.0"
 open = "5.3.0"
 paste = "1.0.15"
+pretty_env_logger = "0.5.0"
 reqwest = { version = "0.12.8", features = ["json"] }
 rust-embed = "8.5.0"
 serde = "1.0.210"
@@ -28,23 +29,52 @@ tokio = { version = "1.40.0", features = ["full"] }
 version = "0.15"
 features = ["fluent-system", "desktop-requester"]
 
-[dependencies.libcosmic]
+[target.'cfg(target_os="macos")'.dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
 default-features = false
-# features = ["dbus-config", "tokio", "winit", "wgpu"]
 features = [
+    # Native cosmic about drawer
+    "about",
+    # Accessibility support
     "a11y",
+    # Uses cosmic-settings-daemon to watch for config file changes
     "dbus-config",
-    # NOTE: (vkhitrin) this is a temporary workaround to set initial
-    #       application title.
+    # Support creating additional application windows.
     "multi-window",
+    # On app startup, focuses an existing instance if the app is already open
     "single-instance",
+    # Uses tokio as the executor for the runtime
     "tokio",
+    # Windowing support for X11, Windows, Mac, & Redox
     "winit",
+    # GPU-accelerated rendering
     "wgpu",
 ]
-rev = "953685a88267894ea3fa40f2b99139c3c4e784d6"
-version = "0.1.0"
+process = []
+
+[target.'cfg(target_os="linux")'.dependencies.libcosmic]
+git = "https://github.com/pop-os/libcosmic"
+default-features = false
+features = [
+    # Native cosmic about drawer
+    "about",
+    # Accessibility support
+    "a11y",
+    # Uses cosmic-settings-daemon to watch for config file changes
+    "dbus-config",
+    # Support creating additional application windows.
+    "multi-window",
+    # On app startup, focuses an existing instance if the app is already open
+    "single-instance",
+    # Uses tokio as the executor for the runtime
+    "tokio",
+    # Windowing support for X11, Windows, Mac, & Redox
+    "winit",
+    # Add Wayland support to winit
+    "wayland",
+    # GPU-accelerated rendering
+    "wgpu",
+]
 
 [build-dependencies]
 vergen = { version = "8", features = ["git", "gitcl"] }

@@ -1,32 +1,42 @@
-use crate::config::{AppTheme, Config, SortOption, CONFIG_VERSION};
+use crate::app::{
+    config::{AppTheme, CosmicConfig, SortOption},
+    icons::load_icon,
+    menu as app_menu,
+    nav::AppNavPage,
+};
 use crate::db::{self};
 use crate::fl;
 use crate::http::{self};
-use crate::key_binds::key_binds;
 use crate::models::account::{Account, LinkdingAccountApiResponse};
 use crate::models::bookmarks::{Bookmark, DetailedResponse};
 use crate::models::db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination};
-use crate::nav::AppNavPage;
 use crate::pages::accounts::{add_account, edit_account, AppAccountsMessage, PageAccountsView};
 use crate::pages::bookmarks::{
     edit_bookmark, new_bookmark, view_notes, AppBookmarksMessage, PageBookmarksView,
 };
-use crate::utils::icons::load_icon;
-use cosmic::app::{Core, Task};
-use cosmic::cosmic_config::{self, CosmicConfigEntry, Update};
+use cosmic::app::{context_drawer, Core, Task};
+use cosmic::cosmic_config::{self, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
 use cosmic::iced::{
     event,
     futures::executor::block_on,
-    keyboard::{Event as KeyEvent, Key, Modifiers},
-    Alignment, Event, Length, Subscription,
+    keyboard::Event as KeyEvent,
+    keyboard::{Key, Modifiers},
+    Event, Length, Subscription,
 };
-use cosmic::widget::menu::action::MenuAction as _MenuAction;
-use cosmic::widget::{self, icon, menu, nav_bar};
-use cosmic::{theme, Application, ApplicationExt, Element};
+use cosmic::widget::menu::{action::MenuAction as _MenuAction, key_bind::KeyBind};
+use cosmic::widget::{self, about::About, icon, nav_bar};
+use cosmic::{Application, ApplicationExt, Element};
+use key_bind::key_binds;
 use std::any::TypeId;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
+
+pub mod config;
+pub mod icons;
+mod key_bind;
+pub mod menu;
+pub mod nav;
 
 pub const QUALIFIER: &str = "com";
 pub const ORG: &str = "vkhitrin";
@@ -35,19 +45,19 @@ pub const APPID: &str = constcat::concat!(QUALIFIER, ".", ORG, ".", APP);
 
 const REPOSITORY: &str = "https://github.com/vkhitrin/cosmicding";
 
-#[derive(Clone, Debug)]
 pub struct Flags {
     pub config_handler: Option<cosmic_config::Config>,
-    pub config: Config,
+    pub config: CosmicConfig,
 }
 
 pub struct Cosmicding {
     core: Core,
+    about: About,
     context_page: ContextPage,
     nav: nav_bar::Model,
     dialog_pages: VecDeque<DialogPage>,
-    key_binds: HashMap<menu::KeyBind, MenuAction>,
-    pub config: Config,
+    key_binds: HashMap<KeyBind, MenuAction>,
+    pub config: CosmicConfig,
     config_handler: Option<cosmic_config::Config>,
     modifiers: Modifiers,
     app_themes: Vec<String>,
@@ -91,9 +101,9 @@ pub enum Message {
     Modifiers(Modifiers),
     OpenAccountsPage,
     OpenExternalUrl(String),
-    OpenRemoveAccountDialog(i64),
+    OpenRemoveAccountDialog(Account),
     OpenRemoveBookmarkDialog(i64, Bookmark),
-    RemoveAccount(i64),
+    RemoveAccount(Account),
     RemoveBookmark(i64, Bookmark),
     SearchBookmarks(String),
     SetAccountAPIKey(String),
@@ -116,9 +126,10 @@ pub enum Message {
     StartupCompleted,
     SystemThemeModeChange,
     ToggleContextPage(ContextPage),
+    ContextClose,
     UpdateAccount(Account),
     UpdateBookmark(Account, Bookmark),
-    UpdateConfig(Config),
+    UpdateConfig(CosmicConfig),
     ViewBookmarkNotes(Bookmark),
 }
 
@@ -126,7 +137,7 @@ pub enum Message {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum DialogPage {
-    RemoveAccount(i64),
+    RemoveAccount(Account),
     RemoveBookmark(i64, Bookmark),
 }
 
@@ -163,6 +174,30 @@ impl Application for Cosmicding {
         let mut nav = nav_bar::Model::default();
         let app_themes = vec![fl!("match-desktop"), fl!("dark"), fl!("light")];
 
+        let release = env!("CARGO_PKG_VERSION");
+        let hash = env!("VERGEN_GIT_SHA");
+        let short_hash: String = hash.chars().take(7).collect();
+        let date = env!("VERGEN_GIT_COMMIT_DATE");
+
+        let about = About::default()
+            .name(fl!("cosmicding"))
+            .icon(Self::APP_ID)
+            .version(release)
+            .comments(fl!(
+                "git-description",
+                hash = short_hash.as_str(),
+                date = date
+            ))
+            .license("GPL-3.0")
+            .author("Vadim Khitrin")
+            .links([
+                ("Repository", REPOSITORY),
+                ("Support", &format!("{REPOSITORY}/issues")),
+                ("Linkding Official Site", "https://linkding.link"),
+            ])
+            .translators([("Luna Jernberg", "lunajernberg@gnome.org")])
+            .developers([("Vadim Khitrin", "me@vkhitrin.com")]);
+
         for &nav_page in AppNavPage::all() {
             let id = nav
                 .insert()
@@ -178,15 +213,11 @@ impl Application for Cosmicding {
 
         let mut app = Cosmicding {
             core,
+            about,
             context_page: ContextPage::default(),
             nav,
             key_binds: key_binds(),
-            config: cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
-                .map(|context| match Config::get_entry(&context) {
-                    Ok(config) => config,
-                    Err((_errors, config)) => config,
-                })
-                .unwrap_or_default(),
+            config: flags.config,
             config_handler: flags.config_handler,
             modifiers: Modifiers::empty(),
             app_themes,
@@ -220,7 +251,7 @@ impl Application for Cosmicding {
     }
 
     fn header_start(&self) -> Vec<Element<Self::Message>> {
-        vec![crate::menu::menu_bar(
+        vec![app_menu::menu_bar(
             &self.key_binds,
             !self.accounts_view.accounts.is_empty(),
             !self.bookmarks_view.bookmarks.is_empty(),
@@ -243,59 +274,89 @@ impl Application for Cosmicding {
         Task::none()
     }
 
-    fn context_drawer(&self) -> Option<Element<Self::Message>> {
+    fn context_drawer(&self) -> Option<context_drawer::ContextDrawer<Message>> {
         if !self.core.window.show_context {
             return None;
         }
 
-        Some(match self.context_page {
-            ContextPage::About => self.about(),
-            ContextPage::Settings => self.settings(),
-            ContextPage::AddAccountForm => add_account(self.placeholder_account.clone().unwrap()),
-            ContextPage::EditAccountForm => edit_account(self.placeholder_account.clone().unwrap()),
-            ContextPage::NewBookmarkForm => new_bookmark(
-                self.placeholder_bookmark.clone().unwrap(),
-                &self.placeholder_accounts_list,
-                self.placeholder_selected_account_index,
+        match self.context_page {
+            ContextPage::About => Some(
+                context_drawer::about(&self.about, Message::OpenExternalUrl, Message::ContextClose)
+                    .title(self.context_page.title()),
             ),
-
-            ContextPage::EditBookmarkForm => edit_bookmark(
-                self.placeholder_bookmark.clone().unwrap(),
-                self.placeholder_account.as_ref().unwrap(),
+            ContextPage::Settings => Some(
+                context_drawer::context_drawer(self.settings(), Message::ContextClose)
+                    .title(self.context_page.title()),
             ),
-            ContextPage::ViewBookmarkNotes => {
-                view_notes(self.placeholder_bookmark.clone().unwrap())
-            }
-        })
+            ContextPage::AddAccountForm => Some(
+                context_drawer::context_drawer(
+                    add_account(self.placeholder_account.clone().unwrap()),
+                    Message::ContextClose,
+                )
+                .title(self.context_page.title()),
+            ),
+            ContextPage::EditAccountForm => Some(
+                context_drawer::context_drawer(
+                    edit_account(self.placeholder_account.clone().unwrap()),
+                    Message::ContextClose,
+                )
+                .title(self.context_page.title()),
+            ),
+            ContextPage::NewBookmarkForm => Some(
+                context_drawer::context_drawer(
+                    new_bookmark(
+                        self.placeholder_bookmark.clone().unwrap(),
+                        &self.placeholder_accounts_list,
+                        self.placeholder_selected_account_index,
+                    ),
+                    Message::ContextClose,
+                )
+                .title(self.context_page.title()),
+            ),
+            ContextPage::EditBookmarkForm => Some(
+                context_drawer::context_drawer(
+                    edit_bookmark(
+                        self.placeholder_bookmark.clone().unwrap(),
+                        self.placeholder_account.as_ref().unwrap(),
+                    ),
+                    Message::ContextClose,
+                )
+                .title(self.context_page.title()),
+            ),
+            ContextPage::ViewBookmarkNotes => Some(
+                context_drawer::context_drawer(
+                    view_notes(self.placeholder_bookmark.clone().unwrap()),
+                    Message::ContextClose,
+                )
+                .title(self.context_page.title()),
+            ),
+        }
     }
 
     fn dialog(&self) -> Option<Element<Message>> {
         let dialog_page = self.dialog_pages.front()?;
 
         let dialog = match dialog_page {
-            DialogPage::RemoveAccount(account_id) => {
-                widget::dialog(fl!("remove") + " " + { &account_id.to_string() })
-                    .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
-                    .body(fl!("remove-account-confirm"))
-                    .primary_action(
-                        widget::button::destructive(fl!("yes"))
-                            .on_press_maybe(Some(Message::CompleteRemoveDialog(*account_id, None))),
-                    )
-                    .secondary_action(
-                        widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
-                    )
-            }
-            DialogPage::RemoveBookmark(account, bookmark) => {
-                widget::dialog(fl!("remove") + " " + { &bookmark.title })
-                    .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
-                    .body(fl!("remove-bookmark-confirm"))
-                    .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
-                        Message::CompleteRemoveDialog(*account, Some(bookmark.clone())),
-                    )))
-                    .secondary_action(
-                        widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
-                    )
-            }
+            DialogPage::RemoveAccount(account) => widget::dialog()
+                .title(fl!("remove") + " " + { &account.display_name })
+                .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
+                .body(fl!("remove-account-confirm"))
+                .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
+                    Message::CompleteRemoveDialog(account.id.unwrap(), None),
+                )))
+                .secondary_action(
+                    widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
+                ),
+            DialogPage::RemoveBookmark(account, bookmark) => widget::dialog()
+                .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
+                .title(fl!("remove") + " " + { &bookmark.title })
+                .body(fl!("remove-bookmark-confirm"))
+                .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
+                    Message::CompleteRemoveDialog(*account, Some(bookmark.clone())),
+                )))
+                .secondary_action(
+                    widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
+                ),
         };
 
         Some(dialog.into())
@@ -322,7 +383,6 @@ impl Application for Cosmicding {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
-        struct ConfigSubscription;
         struct ThemeSubscription;
 
         let subscriptions = vec![
@@ -335,21 +395,6 @@ impl Application for Cosmicding {
                     Some(Message::Modifiers(modifiers))
                 }
                 _ => None,
-            }),
-            cosmic_config::config_subscription(
-                TypeId::of::<ConfigSubscription>(),
-                Self::APP_ID.into(),
-                CONFIG_VERSION,
-            )
-            .map(|update: Update<ThemeMode>| {
-                if !update.errors.is_empty() {
-                    log::info!(
-                        "Errors loading config {:?}: {:?}",
-                        update.keys,
-                        update.errors
-                    );
-                }
-                Message::SystemThemeModeChange
             }),
             cosmic_config::config_subscription::<_, cosmic_theme::ThemeMode>(
                 TypeId::of::<ThemeSubscription>(),
@@ -378,14 +423,23 @@ impl Application for Cosmicding {
             ($name: ident, $value: expr) => {
                 match &self.config_handler {
                     Some(config_handler) => {
-                        if let Err(err) =
-                            paste::paste! { self.config.[<set_ $name>](config_handler, $value) }
-                        {
-                            log::warn!("Failed to save config {:?}: {}", stringify!($name), err);
+                        match paste::paste! { self.config.[<set_ $name>](config_handler, $value) } {
+                            Ok(_) => {}
+                            Err(err) => {
+                                log::warn!(
+                                    "failed to save config {:?}: {}",
+                                    stringify!($name),
+                                    err
+                                );
+                            }
                         }
                     }
                     None => {
                         self.config.$name = $value;
+                        log::warn!(
+                            "failed to save config {:?}: no config handler",
+                            stringify!($name)
+                        );
                     }
                 }
             };
@@ -429,9 +483,9 @@ impl Application for Cosmicding {
                     self.context_page = context_page;
                     self.core.window.show_context = true;
                 }
-
-                self.set_context_title(context_page.title());
+                //self.set_context_title(context_page.title());
             }
+            Message::ContextClose => self.core.window.show_context = false,
             Message::AccountsView(message) => commands.push(self.accounts_view.update(message)),
             Message::LoadAccounts => {
                 block_on(async {
@@ -462,23 +516,26 @@ impl Application for Cosmicding {
                 commands
                     .push(self.update(Message::ToggleContextPage(ContextPage::EditAccountForm)));
             }
-            Message::RemoveAccount(account_id) => {
+            Message::RemoveAccount(account) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     block_on(async {
-                        db::SqliteDatabase::delete_all_bookmarks_of_account(database, account_id)
-                            .await;
+                        db::SqliteDatabase::delete_all_bookmarks_of_account(
+                            database,
+                            account.id.unwrap(),
+                        )
+                        .await;
                     });
                     block_on(async {
-                        db::SqliteDatabase::delete_account(database, account_id).await;
+                        db::SqliteDatabase::delete_account(database, account.id.unwrap()).await;
                     });
                     self.bookmarks_view
                         .bookmarks
-                        .retain(|bkmrk| bkmrk.user_account_id != Some(account_id));
+                        .retain(|bkmrk| bkmrk.user_account_id != Some(account.id.unwrap()));
                     commands.push(
                         self.toasts
                             .push(widget::toaster::Toast::new(fl!(
                                 "removed-account",
-                                acc = account_id
+                                acc = account.display_name
                             )))
                             .map(cosmic::app::Message::App),
                     );
@@ -487,6 +544,7 @@ impl Application for Cosmicding {
                         self.accounts_cursor.fetch_next_results().await;
                     });
                     self.accounts_view.accounts = self.accounts_cursor.result.clone().unwrap();
+                    commands.push(self.update(Message::LoadBookmarks));
                 }
             }
             Message::CompleteAddAccount(mut account) => {
@@ -963,8 +1021,10 @@ impl Application for Cosmicding {
                 }
                 commands.push(self.update(Message::LoadBookmarks));
             }
-            Message::OpenExternalUrl(url) => {
-                _ = open::that_detached(url);
+            Message::OpenExternalUrl(ref url) => {
+                if let Err(err) = open::that_detached(url) {
+                    log::error!("Failed to open URL: {}", err);
+                }
             }
             Message::ViewBookmarkNotes(bookmark) => {
                 self.placeholder_bookmark = Some(bookmark.clone());
@@ -984,10 +1044,10 @@ impl Application for Cosmicding {
             Message::UpdateConfig(config) => {
                 self.config = config;
             }
-            Message::OpenRemoveAccountDialog(account_id) => {
+            Message::OpenRemoveAccountDialog(account) => {
                 if self.dialog_pages.pop_front().is_none() {
                     self.dialog_pages
-                        .push_back(DialogPage::RemoveAccount(account_id));
+                        .push_back(DialogPage::RemoveAccount(account));
                 }
             }
             Message::OpenRemoveBookmarkDialog(account_id, bookmark) => {
@@ -1103,37 +1163,6 @@ impl Application for Cosmicding {
 
 impl Cosmicding {
     #[allow(clippy::unused_self)]
-    pub fn about(&self) -> Element<Message> {
-        let spacing = theme::active().cosmic().spacing;
-
-        let release = env!("CARGO_PKG_VERSION");
-        let hash = env!("VERGEN_GIT_SHA");
-        let short_hash: String = hash.chars().take(7).collect();
-        let date = env!("VERGEN_GIT_COMMIT_DATE");
-
-        widget::column::with_children(vec![
-            widget::text::title3(fl!("cosmicding")).into(),
-            widget::button::link(REPOSITORY)
-                .on_press(Message::OpenExternalUrl(REPOSITORY.to_string()))
-                .padding(spacing.space_none)
-                .into(),
-            widget::button::link(fl!(
-                "git-description",
-                hash = short_hash.as_str(),
-                date = date
-            ))
-            .on_press(Message::OpenExternalUrl(format!(
-                "{REPOSITORY}/commits/{hash}"
-            )))
-            .padding(spacing.space_none)
-            .into(),
-            widget::text::caption(format!("v{release}")).into(),
-        ])
-        .align_x(Alignment::Center)
-        .spacing(spacing.space_xxs)
-        .width(Length::Fill)
-        .into()
-    }
 
     fn settings(&self) -> Element<Message> {
         widget::settings::view_column(vec![

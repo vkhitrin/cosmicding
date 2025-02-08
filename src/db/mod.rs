@@ -1,4 +1,4 @@
-use crate::config::SortOption;
+use crate::app::config::SortOption;
 use anyhow::{anyhow, Result};
 
 use std::path::Path;

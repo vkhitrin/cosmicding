@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::config::SortOption;
+use crate::app::config::SortOption;
 use cosmic::widget::menu::key_bind::KeyBind;
 use cosmic::{
     widget::menu::{items, root, Item, ItemHeight, ItemWidth, MenuBar, Tree},
@@ -26,17 +26,17 @@ pub fn menu_bar<'a>(
             items(
                 key_binds,
                 vec![
-                    Item::Button(fl!("add-account"), MenuAction::AddAccount),
+                    Item::Button(fl!("add-account"), None, MenuAction::AddAccount),
                     if accounts_present && matches!(app_state, ApplicationState::Normal) {
-                        Item::Button(fl!("add-bookmark"), MenuAction::AddBookmark)
+                        Item::Button(fl!("add-bookmark"), None, MenuAction::AddBookmark)
                     } else {
-                        Item::ButtonDisabled(fl!("add-bookmark"), MenuAction::AddBookmark)
+                        Item::ButtonDisabled(fl!("add-bookmark"), None, MenuAction::AddBookmark)
                     },
                     Item::Divider,
                     if bookmarks_present && matches!(app_state, ApplicationState::Normal) {
-                        Item::Button(fl!("refresh-bookmarks"), MenuAction::RefreshBookmarks)
+                        Item::Button(fl!("refresh-bookmarks"), None, MenuAction::RefreshBookmarks)
                     } else {
-                        Item::ButtonDisabled(fl!("refresh-bookmarks"), MenuAction::Empty)
+                        Item::ButtonDisabled(fl!("refresh-bookmarks"), None, MenuAction::Empty)
                     },
                 ],
             ),
@@ -46,8 +46,8 @@ pub fn menu_bar<'a>(
             items(
                 key_binds,
                 vec![
-                    Item::Button(fl!("about"), MenuAction::About),
-                    Item::Button(fl!("settings"), MenuAction::Settings),
+                    Item::Button(fl!("about"), None, MenuAction::About),
+                    Item::Button(fl!("settings"), None, MenuAction::Settings),
                 ],
             ),
         ),
@@ -61,22 +61,26 @@ pub fn menu_bar<'a>(
                     vec![
                         Item::CheckBox(
                             fl!("bookmark-date-newest"),
+                            None,
                             matches!(sort_option, SortOption::BookmarksDateNewest),
                             MenuAction::SetSortBookmarks(SortOption::BookmarksDateNewest),
                         ),
                         Item::CheckBox(
                             fl!("bookmark-date-oldest"),
+                            None,
                             matches!(sort_option, SortOption::BookmarksDateOldest),
                             MenuAction::SetSortBookmarks(SortOption::BookmarksDateOldest),
                         ),
                         Item::Divider,
                         Item::CheckBox(
                             fl!("bookmark-alphabetical-ascending"),
+                            None,
                             matches!(sort_option, SortOption::BookmarkAlphabeticalAscending),
                             MenuAction::SetSortBookmarks(SortOption::BookmarkAlphabeticalAscending),
                         ),
                         Item::CheckBox(
                             fl!("bookmark-alphabetical-descending"),
+                            None,
                             matches!(sort_option, SortOption::BookmarkAlphabeticalDescending),
                             MenuAction::SetSortBookmarks(
                                 SortOption::BookmarkAlphabeticalDescending,
@@ -85,15 +89,17 @@ pub fn menu_bar<'a>(
                     ]
                 } else {
                     vec![
-                        Item::ButtonDisabled(fl!("bookmark-date-newest"), MenuAction::Empty),
-                        Item::ButtonDisabled(fl!("bookmark-date-oldest"), MenuAction::Empty),
+                        Item::ButtonDisabled(fl!("bookmark-date-newest"), None, MenuAction::Empty),
+                        Item::ButtonDisabled(fl!("bookmark-date-oldest"), None, MenuAction::Empty),
                         Item::Divider,
                         Item::ButtonDisabled(
                             fl!("bookmark-alphabetical-ascending"),
+                            None,
                             MenuAction::Empty,
                         ),
                         Item::ButtonDisabled(
                             fl!("bookmark-alphabetical-descending"),
+                            None,
                             MenuAction::Empty,
                         ),
                     ]
