@@ -666,8 +666,12 @@ impl Application for Cosmicding {
                 }
             }
             Message::DoneRefreshBookmarksForAllAccounts(remote_responses) => {
+                let mut failed_accounts: Vec<String> = Vec::new();
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     for response in remote_responses {
+                        if response.successful == false {
+                            failed_accounts.push(response.account.display_name.clone());
+                        }
                         block_on(async {
                             db::SqliteDatabase::aggregate_bookmarks_for_acount(
                                 database,
@@ -682,11 +686,22 @@ impl Application for Cosmicding {
                     commands.push(self.update(Message::LoadAccounts));
                     commands.push(self.update(Message::LoadBookmarks));
                     self.state = ApplicationState::Normal;
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
-                            .map(cosmic::app::Message::App),
-                    );
+                    if !failed_accounts.is_empty() {
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "failed-refreshing-accounts",
+                                    accounts = failed_accounts.join(", ")
+                                )))
+                                .map(cosmic::app::Message::App),
+                        );
+                    } else {
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
+                                .map(cosmic::app::Message::App),
+                        );
+                    }
                 }
             }
             Message::StartRefreshBookmarksForAccount(account) => {
@@ -713,8 +728,12 @@ impl Application for Cosmicding {
                 }
             }
             Message::DoneRefreshBookmarksForAccount(account, remote_responses) => {
+                let mut failure_refreshing = false;
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     for response in remote_responses {
+                        if response.successful == false {
+                            failure_refreshing = true;
+                        }
                         block_on(async {
                             db::SqliteDatabase::aggregate_bookmarks_for_acount(
                                 database,
@@ -729,14 +748,25 @@ impl Application for Cosmicding {
                     commands.push(self.update(Message::LoadAccounts));
                     commands.push(self.update(Message::LoadBookmarks));
                     self.state = ApplicationState::Normal;
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!(
-                                "refreshed-bookmarks-for-account",
-                                acc = account.display_name
-                            )))
-                            .map(cosmic::app::Message::App),
-                    );
+                    if failure_refreshing {
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "failed-refreshing-bookmarks-for-account",
+                                    account = account.display_name
+                                )))
+                                .map(cosmic::app::Message::App),
+                        );
+                    } else {
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "refreshed-bookmarks-for-account",
+                                    acc = account.display_name
+                                )))
+                                .map(cosmic::app::Message::App),
+                        );
+                    }
                 }
             }
             Message::StartRefreshAccountProfile(account) => {
