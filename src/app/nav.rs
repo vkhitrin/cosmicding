@@ -1,4 +1,4 @@
-use crate::utils::icons::load_icon;
+use crate::app::icons::load_icon;
 use cosmic::{widget::icon, Element};
 
 use crate::{app, fl};

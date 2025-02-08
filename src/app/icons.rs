@@ -2,6 +2,7 @@ use cosmic::widget::{self, icon::Handle};
 #[cfg(target_os = "macos")]
 use std::env;
 
+// NOTE: Consider caching icons in the future
 pub fn load_icon(icon: &str) -> Handle {
     // On Linux, we use the XDG desktop icons
     #[cfg(target_os = "linux")]
