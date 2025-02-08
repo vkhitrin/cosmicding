@@ -50,7 +50,6 @@ features = [
     # GPU-accelerated rendering
     "wgpu",
 ]
-process = []
 
 [target.'cfg(target_os="linux")'.dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
