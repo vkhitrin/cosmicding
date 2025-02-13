@@ -3,9 +3,10 @@ use crate::fl;
 use crate::models::account::Account;
 use crate::models::bookmarks::Bookmark;
 use crate::models::db_cursor::BookmarksPaginationCursor;
-use crate::style::button::ButtonStyle;
+use crate::style::{button::ButtonStyle, text_editor::text_editor_class};
 use chrono::{DateTime, Local};
 use cosmic::iced::Length;
+use cosmic::iced_core::text;
 use cosmic::{
     app::command::Task,
     iced::Alignment,
@@ -432,6 +433,8 @@ impl PageBookmarksView {
 #[allow(clippy::too_many_lines)]
 pub fn new_bookmark<'a, 'b>(
     bookmark: Bookmark,
+    bookmark_notes: &'a widget::text_editor::Content,
+    bookmark_description: &'a widget::text_editor::Content,
     accounts: &'b [Account],
     selected_account_index: usize,
 ) -> Element<'a, Message>
@@ -452,25 +455,47 @@ where
     let title_widget_text_input =
         widget::text_input("Title", bookmark.title.clone()).on_input(Message::SetBookmarkTitle);
     let description_widget_title = widget::text::body(fl!("description"));
-    let description_widget_text_input =
-        widget::text_input("Description", bookmark.description.clone())
-            .on_input(Message::SetBookmarkDescription);
+    let description_widget_text_editor = widget::text_editor(bookmark_description)
+        .height(120)
+        .padding(spacing.space_xxs)
+        .wrapping(text::Wrapping::WordOrGlyph)
+        .on_action(Message::InputBookmarkDescription)
+        .class(cosmic::theme::iced::TextEditor::Custom(Box::new(
+            text_editor_class,
+        )));
     let notes_widget_title = widget::text::body(fl!("notes"));
-    let notes_widget_text_input = widget::text_input(fl!("notes"), bookmark.notes.clone())
-        .on_input(Message::SetBookmarkNotes);
+    let notes_widget_text_editor = widget::text_editor(bookmark_notes)
+        .height(120)
+        .padding(spacing.space_xxs)
+        .wrapping(text::Wrapping::WordOrGlyph)
+        .on_action(Message::InputBookmarkNotes)
+        .class(cosmic::theme::iced::TextEditor::Custom(Box::new(
+            text_editor_class,
+        )));
     let tags_widget_title = widget::text::body(fl!("tags"));
     let tags_widget_subtext = widget::text::caption(fl!("tags-subtext"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
-    let archived_widget_checkbox = widget::checkbox(fl!("archived"), bookmark.is_archived)
-        .on_toggle(Message::SetBookmarkArchived);
-    let unread_widget_checkbox =
-        widget::checkbox(fl!("unread"), bookmark.unread).on_toggle(Message::SetBookmarkUnread);
-    let shared_widget_checkbox = if accounts[selected_account_index].clone().enable_sharing {
-        widget::checkbox(fl!("shared"), bookmark.shared).on_toggle(Message::SetBookmarkShared)
-    } else {
-        widget::checkbox(fl!("shared-disabled"), false)
-    };
+    let archived_widget_toggler = widget::toggler(bookmark.is_archived)
+        .on_toggle(Message::SetBookmarkArchived)
+        .spacing(10)
+        .label(fl!("archived"));
+    let unread_widget_toggler = widget::toggler(bookmark.unread)
+        .on_toggle(Message::SetBookmarkUnread)
+        .spacing(10)
+        .label(fl!("unread"));
+    let shared_widget_toggler = widget::toggler(bookmark.shared)
+        .spacing(10)
+        .on_toggle_maybe(if accounts[selected_account_index].enable_sharing {
+            Some(Message::SetBookmarkShared)
+        } else {
+            None
+        })
+        .label(if accounts[selected_account_index].enable_sharing {
+            fl!("shared")
+        } else {
+            fl!("shared-disabled")
+        });
     let buttons_widget_container = widget::container(
         widget::button::standard(fl!("save")).on_press(Message::AddBookmark(
             accounts[selected_account_index].clone(),
@@ -537,7 +562,7 @@ where
                 ])
                 .align_y(Alignment::Start),
         )
-        .push(description_widget_text_input)
+        .push(description_widget_text_editor)
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
@@ -551,7 +576,7 @@ where
                 ])
                 .align_y(Alignment::Center),
         )
-        .push(notes_widget_text_input)
+        .push(notes_widget_text_editor)
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
@@ -570,16 +595,21 @@ where
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
         .push(widget::Space::new(0, 5))
-        .push(archived_widget_checkbox)
-        .push(unread_widget_checkbox)
-        .push(shared_widget_checkbox)
+        .push(archived_widget_toggler)
+        .push(unread_widget_toggler)
+        .push(shared_widget_toggler)
         .push(widget::Space::new(0, 5))
         .push(buttons_widget_container)
         .into()
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn edit_bookmark<'a, 'b>(bookmark: Bookmark, account: &'b Account) -> Element<'a, Message>
+pub fn edit_bookmark<'a, 'b>(
+    bookmark: Bookmark,
+    bookmark_notes: &'a widget::text_editor::Content,
+    bookmark_description: &'a widget::text_editor::Content,
+    account: &'b Account,
+) -> Element<'a, Message>
 where
     'b: 'a,
 {
@@ -595,25 +625,47 @@ where
     let title_widget_text_input =
         widget::text_input("Title", bookmark.title.clone()).on_input(Message::SetBookmarkTitle);
     let description_widget_title = widget::text::body(fl!("description"));
-    let description_widget_text_input =
-        widget::text_input("Description", bookmark.description.clone())
-            .on_input(Message::SetBookmarkDescription);
+    let description_widget_text_editor = widget::text_editor(bookmark_description)
+        .height(120)
+        .padding(spacing.space_xxs)
+        .wrapping(text::Wrapping::WordOrGlyph)
+        .on_action(Message::InputBookmarkDescription)
+        .class(cosmic::theme::iced::TextEditor::Custom(Box::new(
+            text_editor_class,
+        )));
     let notes_widget_title = widget::text::body(fl!("notes"));
-    let notes_widget_text_input = widget::text_input(fl!("notes"), bookmark.notes.clone())
-        .on_input(Message::SetBookmarkNotes);
+    let notes_widget_text_editor = widget::text_editor(bookmark_notes)
+        .height(120)
+        .padding(spacing.space_xxs)
+        .wrapping(text::Wrapping::WordOrGlyph)
+        .on_action(Message::InputBookmarkNotes)
+        .class(cosmic::theme::iced::TextEditor::Custom(Box::new(
+            text_editor_class,
+        )));
     let tags_widget_title = widget::text::body(fl!("tags"));
     let tags_widget_subtext = widget::text::caption(fl!("tags-subtext"));
     let tags_widget_text_input = widget::text_input("Tags", bookmark.tag_names.join(" ").clone())
         .on_input(Message::SetBookmarkTags);
-    let archived_widget_checkbox = widget::checkbox(fl!("archived"), bookmark.is_archived)
-        .on_toggle(Message::SetBookmarkArchived);
-    let unread_widget_checkbox =
-        widget::checkbox(fl!("unread"), bookmark.unread).on_toggle(Message::SetBookmarkUnread);
-    let shared_widget_checkbox = if account.clone().enable_sharing {
-        widget::checkbox(fl!("shared"), bookmark.shared).on_toggle(Message::SetBookmarkShared)
-    } else {
-        widget::checkbox(fl!("shared-disabled"), false)
-    };
+    let archived_widget_toggler = widget::toggler(bookmark.is_archived)
+        .on_toggle(Message::SetBookmarkArchived)
+        .spacing(10)
+        .label(fl!("archived"));
+    let unread_widget_toggler = widget::toggler(bookmark.unread)
+        .on_toggle(Message::SetBookmarkUnread)
+        .spacing(10)
+        .label(fl!("unread"));
+    let shared_widget_toggler = widget::toggler(bookmark.shared)
+        .spacing(10)
+        .on_toggle_maybe(if account.clone().enable_sharing {
+            Some(Message::SetBookmarkShared)
+        } else {
+            None
+        })
+        .label(if account.clone().enable_sharing {
+            fl!("shared")
+        } else {
+            fl!("shared-disabled")
+        });
     let buttons_widget_container = widget::container(
         widget::button::standard(fl!("save"))
             .on_press(Message::UpdateBookmark(account.clone(), bookmark)),
@@ -678,7 +730,7 @@ where
                 ])
                 .align_y(Alignment::Start),
         )
-        .push(description_widget_text_input)
+        .push(description_widget_text_editor)
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
@@ -692,7 +744,7 @@ where
                 ])
                 .align_y(Alignment::Center),
         )
-        .push(notes_widget_text_input)
+        .push(notes_widget_text_editor)
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
@@ -711,19 +763,26 @@ where
         .push(tags_widget_subtext)
         .push(tags_widget_text_input)
         .push(widget::Space::new(0, 5))
-        .push(archived_widget_checkbox)
-        .push(unread_widget_checkbox)
-        .push(shared_widget_checkbox)
+        .push(archived_widget_toggler)
+        .push(unread_widget_toggler)
+        .push(shared_widget_toggler)
         .push(widget::Space::new(0, 5))
         .push(buttons_widget_container)
         .into()
 }
 
-pub fn view_notes<'a>(bookmark: Bookmark) -> Element<'a, Message> {
+pub fn view_notes(bookmark_notes: &widget::text_editor::Content) -> Element<Message> {
+    let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
+    let bookmark_notes_widget = widget::text_editor(bookmark_notes)
+        .padding(spacing.space_xxs)
+        .wrapping(text::Wrapping::WordOrGlyph)
+        .class(cosmic::theme::iced::TextEditor::Custom(Box::new(
+            text_editor_class,
+        )));
 
     widget::column()
         .spacing(space_xxs)
-        .push(widget::text::body(bookmark.notes))
+        .push(bookmark_notes_widget)
         .into()
 }
