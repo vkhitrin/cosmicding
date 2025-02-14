@@ -445,4 +445,15 @@ impl SqliteDatabase {
             .unwrap();
         result
     }
+    pub async fn check_if_account_exists(&mut self, url: &String, api_token: &String) -> bool {
+        let query: &str =
+            "SELECT COUNT(*) FROM UserAccounts WHERE instance = $1 AND api_token = $2;";
+        let result: bool = sqlx::query_scalar(query)
+            .bind(url)
+            .bind(api_token)
+            .fetch_one(&self.conn)
+            .await
+            .unwrap();
+        result
+    }
 }

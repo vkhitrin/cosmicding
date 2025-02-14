@@ -557,49 +557,65 @@ impl Application for Cosmicding {
             }
             Message::CompleteAddAccount(mut account) => {
                 let mut valid_account = false;
-                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    block_on(async {
-                        match http::check_account_on_instance(&account).await {
-                            Ok(value) => {
-                                account.enable_sharing = value.enable_sharing;
-                                account.enable_public_sharing = value.enable_public_sharing;
-                                valid_account = true;
-                            }
-                            Err(e) => {
-                                if e.to_string().contains("builder error") {
-                                    commands.push(
-                                        self.toasts
-                                            .push(widget::toaster::Toast::new(fl!(
-                                                "provided-url-is-not-valid"
-                                            )))
-                                            .map(cosmic::app::Message::App),
-                                    );
-                                } else {
-                                    commands.push(
-                                        self.toasts
-                                            .push(widget::toaster::Toast::new(format!("{e}")))
-                                            .map(cosmic::app::Message::App),
-                                    );
-                                }
-                            }
-                        }
+                if let Some(ref mut database) = &mut self.accounts_cursor.database {
+                    let account_exists = block_on(async {
+                        db::SqliteDatabase::check_if_account_exists(
+                            database,
+                            &account.instance,
+                            &account.api_token,
+                        )
+                        .await
                     });
-                    if valid_account {
-                        block_on(async {
-                            db::SqliteDatabase::create_account(database, &account).await;
-                        });
-                        commands.push(self.update(Message::LoadAccounts));
-                        commands.push(self.update(Message::StartRefreshBookmarksForAccount(
-                            self.accounts_view.accounts.last().unwrap().clone(),
-                        )));
+                    if account_exists {
                         commands.push(
                             self.toasts
-                                .push(widget::toaster::Toast::new(fl!(
-                                    "added-account",
-                                    acc = account.display_name
-                                )))
+                                .push(widget::toaster::Toast::new(fl!("account-exists")))
                                 .map(cosmic::app::Message::App),
                         );
+                    } else {
+                        block_on(async {
+                            match http::check_account_on_instance(&account).await {
+                                Ok(value) => {
+                                    account.enable_sharing = value.enable_sharing;
+                                    account.enable_public_sharing = value.enable_public_sharing;
+                                    valid_account = true;
+                                }
+                                Err(e) => {
+                                    if e.to_string().contains("builder error") {
+                                        commands.push(
+                                            self.toasts
+                                                .push(widget::toaster::Toast::new(fl!(
+                                                    "provided-url-is-not-valid"
+                                                )))
+                                                .map(cosmic::app::Message::App),
+                                        );
+                                    } else {
+                                        commands.push(
+                                            self.toasts
+                                                .push(widget::toaster::Toast::new(format!("{e}")))
+                                                .map(cosmic::app::Message::App),
+                                        );
+                                    }
+                                }
+                            }
+                        });
+                        if valid_account {
+                            block_on(async {
+                                db::SqliteDatabase::create_account(database, &account).await;
+                            });
+                            commands.push(self.update(Message::LoadAccounts));
+                            commands.push(self.update(Message::StartRefreshBookmarksForAccount(
+                                self.accounts_view.accounts.last().unwrap().clone(),
+                            )));
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "added-account",
+                                        acc = account.display_name
+                                    )))
+                                    .map(cosmic::app::Message::App),
+                            );
+                        }
                     }
                 }
                 self.core.window.show_context = false;
