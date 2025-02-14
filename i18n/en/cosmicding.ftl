@@ -1,5 +1,6 @@
 about = About
 account = Account
+account-exists =Account already exists
 accounts = Accounts
 accounts-with-count = Accounts ({$count})
 add-account = Add Account

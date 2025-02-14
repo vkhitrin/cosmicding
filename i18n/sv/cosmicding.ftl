@@ -1,5 +1,6 @@
 about = Om
 account = Konto
+account-exists = Konto finns redan
 accounts = Konton
 accounts-with-count = Konton ({$count})
 add-account = Lägg till konto
