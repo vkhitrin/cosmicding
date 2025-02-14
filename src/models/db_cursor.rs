@@ -79,7 +79,7 @@ impl Pagination for BookmarksPaginationCursor {
             } else {
                 let (count, bookmarks) = database
                     .search_bookmarks(
-                        self.search_query.as_mut().unwrap().to_string(),
+                        self.search_query.as_ref().unwrap().to_string(),
                         self.items_per_page,
                         self.offset,
                         self.sort_option,
@@ -87,10 +87,10 @@ impl Pagination for BookmarksPaginationCursor {
                     .await;
                 self.total_entries = count;
                 self.refresh_count().await;
-                if !bookmarks.is_empty() {
-                    self.result = Some(bookmarks);
-                } else {
+                if bookmarks.is_empty() {
                     self.result = Some([].to_vec());
+                } else {
+                    self.result = Some(bookmarks);
                 }
             }
         }

@@ -332,8 +332,10 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
     let api_key_widget_text_input = widget::text_input(fl!("token"), account.api_token.clone())
         .on_input(Message::SetAccountAPIKey)
         .password();
-    let tls_widget_checkbox =
-        widget::checkbox(fl!("tls"), account.tls).on_toggle(Message::SetAccountTLS);
+    let tls_widget_toggler = widget::toggler(account.tls)
+        .on_toggle(Message::SetAccountTLS)
+        .spacing(10)
+        .label(fl!("tls"));
     let buttons_widget_container = widget::container(
         widget::button::standard(fl!("save")).on_press(Message::CompleteAddAccount(account)),
     )
@@ -386,7 +388,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
         .push(api_key_widget_text_input)
         .push(
             widget::row::with_capacity(1)
-                .push(tls_widget_checkbox)
+                .push(tls_widget_toggler)
                 .padding([
                     spacing.space_s,
                     spacing.space_none,
@@ -412,8 +414,10 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
     let api_key_widget_text_input = widget::text_input(fl!("token"), account.api_token.clone())
         .on_input(Message::SetAccountAPIKey)
         .password();
-    let tls_widget_checkbox =
-        widget::checkbox(fl!("tls"), account.tls).on_toggle(Message::SetAccountTLS);
+    let tls_widget_toggler = widget::toggler(account.tls)
+        .on_toggle(Message::SetAccountTLS)
+        .spacing(10)
+        .label(fl!("tls"));
     let enable_shared_widget_text = if account.enable_sharing {
         widget::tooltip(
             widget::row::with_capacity(2)
@@ -508,7 +512,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         .push(api_key_widget_text_input)
         .push(
             widget::row::with_capacity(1)
-                .push(tls_widget_checkbox)
+                .push(tls_widget_toggler)
                 .padding([
                     spacing.space_s,
                     spacing.space_none,

@@ -67,6 +67,8 @@ pub struct Cosmicding {
     pub bookmarks_view: PageBookmarksView,
     placeholder_account: Option<Account>,
     placeholder_bookmark: Option<Bookmark>,
+    placeholder_bookmark_notes: widget::text_editor::Content,
+    placeholder_bookmark_description: widget::text_editor::Content,
     placeholder_accounts_list: Vec<Account>,
     placeholder_selected_account_index: usize,
     toasts: widget::toaster::Toasts<Message>,
@@ -111,8 +113,8 @@ pub enum Message {
     SetAccountInstance(String),
     SetAccountTLS(bool),
     SetBookmarkArchived(bool),
-    SetBookmarkDescription(String),
-    SetBookmarkNotes(String),
+    InputBookmarkDescription(widget::text_editor::Action),
+    InputBookmarkNotes(widget::text_editor::Action),
     SetBookmarkShared(bool),
     SetBookmarkTags(String),
     SetBookmarkTitle(String),
@@ -228,6 +230,8 @@ impl Application for Cosmicding {
             bookmarks_view: PageBookmarksView::default(),
             placeholder_account: None,
             placeholder_bookmark: None,
+            placeholder_bookmark_notes: widget::text_editor::Content::new(),
+            placeholder_bookmark_description: widget::text_editor::Content::new(),
             placeholder_accounts_list: Vec::new(),
             placeholder_selected_account_index: 0,
             toasts: widget::toaster::Toasts::new(Message::CloseToast),
@@ -306,6 +310,8 @@ impl Application for Cosmicding {
                 context_drawer::context_drawer(
                     new_bookmark(
                         self.placeholder_bookmark.clone().unwrap(),
+                        &self.placeholder_bookmark_notes,
+                        &self.placeholder_bookmark_description,
                         &self.placeholder_accounts_list,
                         self.placeholder_selected_account_index,
                     ),
@@ -317,6 +323,8 @@ impl Application for Cosmicding {
                 context_drawer::context_drawer(
                     edit_bookmark(
                         self.placeholder_bookmark.clone().unwrap(),
+                        &self.placeholder_bookmark_notes,
+                        &self.placeholder_bookmark_description,
                         self.placeholder_account.as_ref().unwrap(),
                     ),
                     Message::ContextClose,
@@ -325,7 +333,7 @@ impl Application for Cosmicding {
             ),
             ContextPage::ViewBookmarkNotes => Some(
                 context_drawer::context_drawer(
-                    view_notes(self.placeholder_bookmark.clone().unwrap()),
+                    view_notes(&self.placeholder_bookmark_notes),
                     Message::ContextClose,
                 )
                 .title(self.context_page.title()),
@@ -669,7 +677,7 @@ impl Application for Cosmicding {
                 let mut failed_accounts: Vec<String> = Vec::new();
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     for response in remote_responses {
-                        if response.successful == false {
+                        if !response.successful {
                             failed_accounts.push(response.account.display_name.clone());
                         }
                         block_on(async {
@@ -686,19 +694,19 @@ impl Application for Cosmicding {
                     commands.push(self.update(Message::LoadAccounts));
                     commands.push(self.update(Message::LoadBookmarks));
                     self.state = ApplicationState::Normal;
-                    if !failed_accounts.is_empty() {
+                    if failed_accounts.is_empty() {
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
+                                .map(cosmic::app::Message::App),
+                        );
+                    } else {
                         commands.push(
                             self.toasts
                                 .push(widget::toaster::Toast::new(fl!(
                                     "failed-refreshing-accounts",
                                     accounts = failed_accounts.join(", ")
                                 )))
-                                .map(cosmic::app::Message::App),
-                        );
-                    } else {
-                        commands.push(
-                            self.toasts
-                                .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
                                 .map(cosmic::app::Message::App),
                         );
                     }
@@ -731,7 +739,7 @@ impl Application for Cosmicding {
                 let mut failure_refreshing = false;
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     for response in remote_responses {
-                        if response.successful == false {
+                        if !response.successful {
                             failure_refreshing = true;
                         }
                         block_on(async {
@@ -832,6 +840,12 @@ impl Application for Cosmicding {
                         None,
                         None,
                     ));
+                    if !self.placeholder_bookmark_notes.text().is_empty() {
+                        self.placeholder_bookmark_notes = widget::text_editor::Content::new();
+                    }
+                    if !self.placeholder_bookmark_description.text().is_empty() {
+                        self.placeholder_bookmark_description = widget::text_editor::Content::new();
+                    }
                     commands.push(
                         self.update(Message::ToggleContextPage(ContextPage::NewBookmarkForm)),
                     );
@@ -870,14 +884,16 @@ impl Application for Cosmicding {
                     bookmark_placeholder.title = title;
                 }
             }
-            Message::SetBookmarkDescription(description) => {
+            Message::InputBookmarkNotes(action) => {
+                self.placeholder_bookmark_notes.perform(action);
                 if let Some(ref mut bookmark_placeholder) = &mut self.placeholder_bookmark {
-                    bookmark_placeholder.description = description;
+                    bookmark_placeholder.notes = self.placeholder_bookmark_notes.text();
                 }
             }
-            Message::SetBookmarkNotes(notes) => {
+            Message::InputBookmarkDescription(action) => {
+                self.placeholder_bookmark_description.perform(action);
                 if let Some(ref mut bookmark_placeholder) = &mut self.placeholder_bookmark {
-                    bookmark_placeholder.notes = notes;
+                    bookmark_placeholder.description = self.placeholder_bookmark_description.text();
                 }
             }
             Message::SetBookmarkTags(tags_string) => {
@@ -990,6 +1006,12 @@ impl Application for Cosmicding {
             }
             Message::EditBookmark(account_id, bookmark) => {
                 self.placeholder_bookmark = Some(bookmark.clone());
+                self.placeholder_bookmark_notes = widget::text_editor::Content::with_text(
+                    &self.placeholder_bookmark.as_ref().unwrap().notes,
+                );
+                self.placeholder_bookmark_description = widget::text_editor::Content::with_text(
+                    &self.placeholder_bookmark.as_ref().unwrap().description,
+                );
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     let account: Account = block_on(async {
                         db::SqliteDatabase::select_single_account(database, account_id).await
@@ -1057,7 +1079,8 @@ impl Application for Cosmicding {
                 }
             }
             Message::ViewBookmarkNotes(bookmark) => {
-                self.placeholder_bookmark = Some(bookmark.clone());
+                self.placeholder_bookmark_notes =
+                    widget::text_editor::Content::with_text(&bookmark.notes);
                 commands
                     .push(self.update(Message::ToggleContextPage(ContextPage::ViewBookmarkNotes)));
             }
@@ -1193,7 +1216,6 @@ impl Application for Cosmicding {
 
 impl Cosmicding {
     #[allow(clippy::unused_self)]
-
     fn settings(&self) -> Element<Message> {
         widget::settings::view_column(vec![
             widget::settings::section()
