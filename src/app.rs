@@ -938,20 +938,34 @@ impl Application for Cosmicding {
             }
             Message::AddBookmark(account, bookmark) => {
                 let mut new_bkmrk: Option<Bookmark> = None;
+                let mut bookmark_exists = false;
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     block_on(async {
                         match http::add_bookmark(&account, &bookmark).await {
                             Ok(value) => {
-                                new_bkmrk = Some(value);
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(fl!(
-                                            "added-bookmark-to-account",
-                                            bkmrk = bookmark.url.clone(),
-                                            acc = account.display_name.clone()
-                                        )))
-                                        .map(cosmic::app::Message::App),
-                                );
+                                new_bkmrk = Some(value.bookmark);
+                                if value.is_new {
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(fl!(
+                                                "added-bookmark-to-account",
+                                                bkmrk = bookmark.url.clone(),
+                                                acc = account.display_name.clone()
+                                            )))
+                                            .map(cosmic::app::Message::App),
+                                    );
+                                } else {
+                                    bookmark_exists = true;
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(fl!(
+                                                "updated-bookmark-in-account",
+                                                bkmrk = bookmark.url,
+                                                acc = account.display_name.clone()
+                                            )))
+                                            .map(cosmic::app::Message::App),
+                                    );
+                                }
                             }
                             Err(e) => {
                                 log::error!("Error adding bookmark: {}", e);
@@ -964,15 +978,18 @@ impl Application for Cosmicding {
                         }
                     });
                     if let Some(bkmrk) = new_bkmrk {
-                        block_on(async {
-                            db::SqliteDatabase::add_bookmark(database, &bkmrk).await;
-                        });
+                        if bookmark_exists {
+                            block_on(async {
+                                db::SqliteDatabase::update_bookmark(database, &bkmrk, &bkmrk).await;
+                            });
+                        } else {
+                            block_on(async {
+                                db::SqliteDatabase::add_bookmark(database, &bkmrk).await;
+                            });
+                        }
                         commands.push(self.update(Message::LoadBookmarks));
                     }
                 };
-                block_on(async {
-                    self.bookmarks_cursor.refresh_count().await;
-                });
                 self.core.window.show_context = false;
             }
             Message::RemoveBookmark(account_id, bookmark) => {
@@ -1013,10 +1030,7 @@ impl Application for Cosmicding {
                         db::SqliteDatabase::delete_bookmark(database, &bookmark).await;
                     });
                 }
-                block_on(async {
-                    self.bookmarks_cursor.refresh_count().await;
-                    self.bookmarks_cursor.fetch_next_results().await;
-                });
+                commands.push(self.update(Message::LoadBookmarks));
                 self.bookmarks_view.bookmarks = self.bookmarks_cursor.result.clone().unwrap();
                 self.core.window.show_context = false;
             }
@@ -1048,6 +1062,7 @@ impl Application for Cosmicding {
                                     self.toasts
                                         .push(widget::toaster::Toast::new(fl!(
                                             "updated-bookmark-in-account",
+                                            bkmrk = bookmark.url.clone(),
                                             acc = account.display_name.clone()
                                         )))
                                         .map(cosmic::app::Message::App),
@@ -1071,7 +1086,7 @@ impl Application for Cosmicding {
                             .position(|x| x.id == bookmark.id)
                             .unwrap();
                         block_on(async {
-                            db::SqliteDatabase::update_bookmark(database, &bookmark, &bkmrk).await;
+                            db::SqliteDatabase::update_bookmark(database, &bkmrk, &bkmrk).await;
                         });
                         self.bookmarks_view.bookmarks[index] = bkmrk;
                     }

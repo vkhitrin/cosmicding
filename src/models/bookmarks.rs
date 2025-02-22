@@ -98,3 +98,24 @@ impl DetailedResponse {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LinkdingBookmarksApiCheckMetadata {
+    pub url: Option<String>,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub preview_image: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LinkdingBookmarksApiCheckResponse {
+    pub bookmark: Option<Bookmark>,
+    pub metadata: LinkdingBookmarksApiCheckMetadata,
+    pub auto_tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckDetailsResponse {
+    pub bookmark: Bookmark,
+    pub is_new: bool,
+}
