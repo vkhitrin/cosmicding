@@ -328,7 +328,7 @@ impl SqliteDatabase {
             .bind(&new_bookmark.date_modified)
             .bind(&new_bookmark.website_title)
             .bind(&new_bookmark.website_description)
-            .bind(old_bookmark.id)
+            .bind(old_bookmark.linkding_internal_id)
             .execute(&self.conn)
             .await
             .unwrap();

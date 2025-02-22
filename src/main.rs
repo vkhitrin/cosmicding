@@ -5,6 +5,7 @@ mod http;
 mod models;
 mod pages;
 mod style;
+mod utils;
 
 use core::settings;
 
