@@ -673,19 +673,23 @@ impl Application for Cosmicding {
             }
             Message::BookmarksView(message) => commands.push(self.bookmarks_view.update(message)),
             Message::StartRefreshBookmarksForAllAccounts => {
-                if let ApplicationState::Refreshing = self.state {
-                } else {
-                    self.state = ApplicationState::Refreshing;
-                    let message = |x: Vec<DetailedResponse>| {
-                        cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(x))
-                    };
-                    if !self.accounts_view.accounts.is_empty() {
-                        commands.push(Task::perform(
-                            http::fetch_bookmarks_from_all_accounts(
-                                self.accounts_view.accounts.clone(),
-                            ),
-                            message,
-                        ));
+                if !self.accounts_view.accounts.is_empty() {
+                    if let ApplicationState::Refreshing = self.state {
+                    } else {
+                        self.state = ApplicationState::Refreshing;
+                        let message = |x: Vec<DetailedResponse>| {
+                            cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(
+                                x,
+                            ))
+                        };
+                        if !self.accounts_view.accounts.is_empty() {
+                            commands.push(Task::perform(
+                                http::fetch_bookmarks_from_all_accounts(
+                                    self.accounts_view.accounts.clone(),
+                                ),
+                                message,
+                            ));
+                        }
                     }
                 }
             }
@@ -855,6 +859,7 @@ impl Application for Cosmicding {
                         Vec::new(),
                         None,
                         None,
+                        Some(true),
                     ));
                     if !self.placeholder_bookmark_notes.text().is_empty() {
                         self.placeholder_bookmark_notes = widget::text_editor::Content::new();
@@ -913,10 +918,14 @@ impl Application for Cosmicding {
                 }
             }
             Message::SetBookmarkTags(tags_string) => {
-                let tags: Vec<String> = tags_string
-                    .split(' ')
-                    .map(|s| s.trim().to_string())
-                    .collect();
+                let tags: Vec<String> = if tags_string.is_empty() {
+                    Vec::new()
+                } else {
+                    tags_string
+                        .split(' ')
+                        .map(|s| s.trim().to_string())
+                        .collect()
+                };
                 if let Some(ref mut bookmark_placeholder) = &mut self.placeholder_bookmark {
                     bookmark_placeholder.tag_names = tags;
                 }

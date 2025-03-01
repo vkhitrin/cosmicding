@@ -38,7 +38,11 @@ impl AppNavPage {
                 .map(app::Message::AccountsView),
             AppNavPage::BookmarksView => app
                 .bookmarks_view
-                .view(app.state, &app.bookmarks_cursor)
+                .view(
+                    app.state,
+                    &app.bookmarks_cursor,
+                    app.accounts_cursor.total_entries == 0,
+                )
                 .map(app::Message::BookmarksView),
         }
     }

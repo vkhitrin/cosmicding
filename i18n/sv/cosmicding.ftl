@@ -65,6 +65,7 @@ save = Spara
 search = Sök
 setting-managed-externally = Den här inställningen kan endast hanteras från Linkding webbgränssnitt
 settings = Inställningar
+sharing = Delning
 shared = Delad
 shared-disabled = Delad (Inaktiverad)
 snapshot = Ögonblicksbild

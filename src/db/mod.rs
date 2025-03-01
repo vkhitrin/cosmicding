@@ -203,8 +203,9 @@ impl SqliteDatabase {
                 date_added,
                 date_modified,
                 website_title,
-                website_description)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);";
+                website_description,
+                is_owner)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);";
         sqlx::query(query)
             .bind(bookmark.user_account_id)
             .bind(bookmark.linkding_internal_id)
@@ -223,6 +224,7 @@ impl SqliteDatabase {
             .bind(&bookmark.date_modified)
             .bind(&bookmark.website_title)
             .bind(&bookmark.website_description)
+            .bind(&bookmark.is_owner)
             .execute(&self.conn)
             .await
             .unwrap();
@@ -288,6 +290,7 @@ impl SqliteDatabase {
                     date_modified: row.get("date_modified"),
                     website_title: row.get("website_title"),
                     website_description: row.get("website_description"),
+                    is_owner: row.get("is_owner"),
                 }
             })
             .collect();
@@ -311,7 +314,7 @@ impl SqliteDatabase {
                 date_modified=$13,
                 website_title=$14,
                 website_description=$15
-            WHERE linkding_internal_id=$16;";
+            WHERE id=$16;";
         sqlx::query(query)
             .bind(&new_bookmark.url)
             .bind(&new_bookmark.title)
@@ -328,7 +331,7 @@ impl SqliteDatabase {
             .bind(&new_bookmark.date_modified)
             .bind(&new_bookmark.website_title)
             .bind(&new_bookmark.website_description)
-            .bind(old_bookmark.linkding_internal_id)
+            .bind(old_bookmark.id)
             .execute(&self.conn)
             .await
             .unwrap();
@@ -430,6 +433,7 @@ impl SqliteDatabase {
                     date_modified: row.get("date_modified"),
                     website_title: row.get("website_title"),
                     website_description: row.get("website_description"),
+                    is_owner: row.get("is_owner"),
                 }
             })
             .collect();

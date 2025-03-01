@@ -17,7 +17,6 @@ use cosmic::{cosmic_theme, theme};
 
 #[derive(Debug, Default, Clone)]
 pub struct PageBookmarksView {
-    accounts_exist: bool,
     pub bookmarks: Vec<Bookmark>,
     bookmark_placeholder: Option<Bookmark>,
     query_placeholder: String,
@@ -45,9 +44,10 @@ impl PageBookmarksView {
         &self,
         app_state: ApplicationState,
         bookmarks_cursor: &BookmarksPaginationCursor,
+        no_accounts: bool,
     ) -> Element<'_, AppBookmarksMessage> {
         let spacing = theme::active().cosmic().spacing;
-        if self.accounts_exist {
+        if no_accounts {
             let container = widget::container(
                 widget::column::with_children(vec![
                     widget::icon::icon(load_icon("web-browser-symbolic"))
@@ -197,10 +197,11 @@ impl PageBookmarksView {
                             item.web_archive_snapshot_url.clone(),
                         )),
                 };
-                let mut actions_row = widget::row::with_capacity(1)
-                    .spacing(spacing.space_xxs)
-                    .push(edit_bookmark_button)
-                    .push(remove_bookmark_button);
+                let mut actions_row = widget::row::with_capacity(1).spacing(spacing.space_xxs);
+                if item.is_owner == Some(true) {
+                    actions_row = actions_row.push(edit_bookmark_button);
+                    actions_row = actions_row.push(remove_bookmark_button);
+                }
                 if !item.notes.is_empty() {
                     actions_row = actions_row.push(notes_button);
                 }
@@ -240,7 +241,11 @@ impl PageBookmarksView {
                 if item.shared {
                     details_row = details_row
                         .push(widget::icon::icon(load_icon("emblem-shared-symbolic")).size(12))
-                        .push(widget::text(fl!("shared")).size(12));
+                        .push(if item.is_owner == Some(true) {
+                            widget::text(fl!("sharing")).size(12)
+                        } else {
+                            widget::text(fl!("shared")).size(12)
+                        });
                 }
                 columns.push(
                     details_row
@@ -276,13 +281,15 @@ impl PageBookmarksView {
                 _ => widget::button::standard(fl!("add-bookmark")),
             };
 
-            let bookmarks_widget = widget::column::with_capacity(1)
-                .spacing(spacing.space_xxs)
-                .push(items)
-                .apply(widget::container)
-                .height(Length::Shrink)
-                .apply(widget::scrollable)
-                .height(Length::Fill);
+            let bookmarks_widget = Some(
+                widget::column::with_capacity(1)
+                    .spacing(spacing.space_xxs)
+                    .push(items)
+                    .apply(widget::container)
+                    .height(Length::Shrink)
+                    .apply(widget::scrollable)
+                    .height(Length::Fill),
+            );
 
             let navigation_previous_button = widget::button::standard(fl!("previous"))
                 .on_press_maybe(if bookmarks_cursor.current_page > 1 {
@@ -301,28 +308,29 @@ impl PageBookmarksView {
                 )
                 .trailing_icon(load_icon("go-next-symbolic"));
 
-            let page_navigation_widget = widget::container(widget::column::with_children(vec![
-                widget::row::with_capacity(2)
-                    .align_y(Alignment::Center)
-                    .push(widget::horizontal_space())
-                    .push(navigation_previous_button)
-                    .push(widget::text::body(format!(
-                        "{}/{}",
-                        bookmarks_cursor.current_page, bookmarks_cursor.total_pages
-                    )))
-                    .spacing(spacing.space_xxs)
-                    .padding([
-                        spacing.space_xxs,
-                        spacing.space_none,
-                        spacing.space_xxxs,
-                        spacing.space_none,
-                    ])
-                    .push(navigation_next_button)
-                    .push(widget::horizontal_space())
-                    .width(Length::Fill)
-                    .apply(widget::container)
-                    .into(),
-            ]));
+            let page_navigation_widget =
+                Some(widget::container(widget::column::with_children(vec![
+                    widget::row::with_capacity(2)
+                        .align_y(Alignment::Center)
+                        .push(widget::horizontal_space())
+                        .push(navigation_previous_button)
+                        .push(widget::text::body(format!(
+                            "{}/{}",
+                            bookmarks_cursor.current_page, bookmarks_cursor.total_pages
+                        )))
+                        .spacing(spacing.space_xxs)
+                        .padding([
+                            spacing.space_xxs,
+                            spacing.space_none,
+                            spacing.space_xxxs,
+                            spacing.space_none,
+                        ])
+                        .push(navigation_next_button)
+                        .push(widget::horizontal_space())
+                        .width(Length::Fill)
+                        .apply(widget::container)
+                        .into(),
+                ])));
 
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(2)
@@ -348,8 +356,16 @@ impl PageBookmarksView {
                     .width(Length::Fill)
                     .apply(widget::container)
                     .into()])
-                .push(bookmarks_widget)
-                .push(page_navigation_widget),
+                .push_maybe(if self.bookmarks.is_empty() {
+                    None
+                } else {
+                    bookmarks_widget
+                })
+                .push_maybe(if self.bookmarks.is_empty() {
+                    None
+                } else {
+                    page_navigation_widget
+                }),
             )
             .into()
         }

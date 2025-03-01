@@ -21,8 +21,11 @@ pub struct Bookmark {
     pub tag_names: Vec<String>,
     pub date_added: Option<String>,
     pub date_modified: Option<String>,
+    pub is_owner: Option<bool>,
 }
 
+// NOTE: (vkhitrin) as of March 1st, 2025, linkding doesn't expose the user which shared the
+// bookmark, we will maintain an internal field to indicate if the current account is an owner.
 impl Bookmark {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -43,6 +46,7 @@ impl Bookmark {
         linkding_tag_names: Vec<String>,
         linkding_date_added: Option<String>,
         linkding_date_modified: Option<String>,
+        internnal_workaround_is_owner: Option<bool>,
     ) -> Self {
         Self {
             id: None,
@@ -63,6 +67,7 @@ impl Bookmark {
             tag_names: linkding_tag_names,
             date_added: linkding_date_added,
             date_modified: linkding_date_modified,
+            is_owner: internnal_workaround_is_owner,
         }
     }
 }
