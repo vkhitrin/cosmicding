@@ -65,6 +65,7 @@ save = Save
 search = Search
 setting-managed-externally = This setting can only be managed from Linkding web UI
 settings = Settings
+sharing = Sharing
 shared = Shared
 shared-disabled = Shared (Disabled)
 snapshot = Snapshot

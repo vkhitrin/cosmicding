@@ -42,6 +42,7 @@ pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<De
 //  NOTE: (vkhitrin) perhaps this method should be split into two:
 //        (1) fetch bookmarks (2) fetch archived bookmarks
 #[allow(clippy::too_many_lines)]
+#[allow(clippy::if_same_then_else)]
 pub async fn fetch_bookmarks_for_account(
     account: &Account,
 ) -> Result<DetailedResponse, Box<dyn std::error::Error>> {
@@ -51,6 +52,7 @@ pub async fn fetch_bookmarks_for_account(
     let rest_api_bookmarks_url: String = account.instance.clone() + "/api/bookmarks/";
     let rest_api_archived_bookmarks_url: String =
         account.instance.clone() + "/api/bookmarks/archived/";
+    let rest_api_shared_bookmarks_url: String = account.instance.clone() + "/api/bookmarks/shared/";
     let http_client = ClientBuilder::new()
         .danger_accept_invalid_certs(account.tls)
         .build()
@@ -102,6 +104,7 @@ pub async fn fetch_bookmarks_for_account(
                         bookmark.tag_names,
                         bookmark.date_added,
                         bookmark.date_modified,
+                        Some(true),
                     );
                     bookmarks.push(transformed_bookmark);
                 }
@@ -119,7 +122,7 @@ pub async fn fetch_bookmarks_for_account(
     }
     let archived_bookmarks_response: reqwest::Response = http_client
         .get(rest_api_archived_bookmarks_url)
-        .headers(headers)
+        .headers(headers.clone())
         .send()
         .await?;
     // NOTE: (vkhitrin) if no Date header was returned, we will use current time.
@@ -160,6 +163,7 @@ pub async fn fetch_bookmarks_for_account(
                         bookmark.tag_names,
                         bookmark.date_added,
                         bookmark.date_modified,
+                        Some(true),
                     );
                     bookmarks.push(transformed_bookmark);
                 }
@@ -174,6 +178,75 @@ pub async fn fetch_bookmarks_for_account(
             "HTTP Error while fetching archived bookmarks {:?}:\n{:?}",
             archived_bookmarks_response.status(),
             archived_bookmarks_response.text().await
+        );
+    }
+    let shared_bookmarks_response: reqwest::Response = http_client
+        .get(rest_api_shared_bookmarks_url)
+        .headers(headers)
+        .send()
+        .await?;
+    // NOTE: (vkhitrin) if no Date header was returned, we will use current time.
+    let shared_bookmarks_parsed_date = shared_bookmarks_response
+        .headers()
+        .get("Date")
+        .cloned()
+        .unwrap_or_else(|| HeaderValue::from_str(&Utc::now().to_rfc2822()).expect(""));
+    if shared_bookmarks_response.status().is_success() {
+        detailed_response.successful = true;
+        let date: DateTime<Utc> =
+            DateTime::parse_from_rfc2822(shared_bookmarks_parsed_date.to_str().unwrap())?
+                .with_timezone(&Utc);
+        let unix_timestamp = SystemTime::from(date).duration_since(UNIX_EPOCH)?.as_secs();
+        detailed_response.timestamp = unix_timestamp as i64;
+        let shared_bookmarks_response_json = shared_bookmarks_response
+            .json::<LinkdingBookmarksApiResponse>()
+            .await;
+        // Handle the Result
+        match shared_bookmarks_response_json {
+            Ok(shared_bookmarks_response) => {
+                for bookmark in shared_bookmarks_response.results {
+                    let transformed_bookmark = Bookmark::new(
+                        account.id,
+                        bookmark.id,
+                        bookmark.url,
+                        bookmark.title,
+                        bookmark.description,
+                        bookmark.website_title.unwrap_or_else(String::new),
+                        bookmark.website_description.unwrap_or_else(String::new),
+                        bookmark.notes,
+                        bookmark.web_archive_snapshot_url,
+                        bookmark.favicon_url.unwrap_or_else(String::new),
+                        bookmark.preview_image_url.unwrap_or_else(String::new),
+                        bookmark.is_archived,
+                        bookmark.unread,
+                        bookmark.shared,
+                        bookmark.tag_names,
+                        bookmark.date_added,
+                        bookmark.date_modified,
+                        Some(false),
+                    );
+                    // NOTE: Do not populate bookmarks if they originate from the same
+                    // account based on linkding internal bookmark ID.
+                    // if !bookmarks.contains(&transformed_bookmark) {
+                    if !bookmarks.iter().any(|b| {
+                        b.linkding_internal_id == transformed_bookmark.linkding_internal_id
+                    }) {
+                        bookmarks.push(transformed_bookmark);
+                    } else if bookmarks.is_empty() {
+                        bookmarks.push(transformed_bookmark);
+                    }
+                }
+            }
+            Err(e) => {
+                log::error!("Error parsing JSON: {:?}", e);
+            }
+        }
+    } else {
+        detailed_response.successful = false;
+        log::error!(
+            "HTTP Error while fetching archived bookmarks {:?}:\n{:?}",
+            shared_bookmarks_response.status(),
+            shared_bookmarks_response.text().await
         );
     }
     detailed_response.bookmarks = Some(bookmarks);
@@ -207,6 +280,7 @@ pub async fn add_bookmark(
         obj.remove("preview_image_url");
         obj.remove("date_added");
         obj.remove("date_modified");
+        obj.remove("is_owner");
     }
     // NOTE: (vkhitrin) I was not able to get serde_json::value:RawValue to omit quotes
     //let bookmark_url = transformed_json_value["url"].to_string().replace('"', "");
@@ -373,6 +447,7 @@ pub async fn edit_bookmark(
         obj.remove("preview_image_url");
         obj.remove("date_added");
         obj.remove("date_modified");
+        obj.remove("is_owner");
     }
     let response: reqwest::Response = http_client
         .patch(rest_api_url)
@@ -386,6 +461,7 @@ pub async fn edit_bookmark(
                 value.linkding_internal_id = value.id;
                 value.user_account_id = account.id;
                 value.id = None;
+                value.is_owner = Some(true);
                 Ok(value)
             }
             Err(_e) => Err(Box::new(std::io::Error::new(
