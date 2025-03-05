@@ -1,16 +1,43 @@
 use std::collections::HashMap;
 
 use crate::app::config::SortOption;
-use cosmic::widget::menu::key_bind::KeyBind;
+use cosmic::widget::menu::{action::MenuAction as _MenuAction, key_bind::KeyBind};
 use cosmic::{
     widget::menu::{items, root, Item, ItemHeight, ItemWidth, MenuBar, Tree},
     Element,
 };
 
 use crate::{
-    app::{ApplicationState, MenuAction, Message},
+    app::{ApplicationState, ContextPage, Message},
     fl,
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MenuAction {
+    About,
+    AddAccount,
+    AddBookmark,
+    Empty,
+    RefreshBookmarks,
+    Settings,
+    SetSortBookmarks(SortOption),
+}
+
+impl _MenuAction for MenuAction {
+    type Message = Message;
+
+    fn message(&self) -> Self::Message {
+        match self {
+            MenuAction::About => Message::ToggleContextPage(ContextPage::About),
+            MenuAction::Empty => Message::Empty,
+            MenuAction::AddAccount => Message::AddAccount,
+            MenuAction::Settings => Message::ToggleContextPage(ContextPage::Settings),
+            MenuAction::AddBookmark => Message::AddBookmarkForm,
+            MenuAction::RefreshBookmarks => Message::StartRefreshBookmarksForAllAccounts,
+            MenuAction::SetSortBookmarks(option) => Message::SortOption(*option),
+        }
+    }
+}
 
 #[allow(clippy::module_name_repetitions)]
 pub fn menu_bar<'a>(
