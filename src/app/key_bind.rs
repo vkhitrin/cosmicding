@@ -4,7 +4,7 @@ use cosmic::iced::keyboard::Key;
 use cosmic::widget::menu::key_bind::KeyBind;
 use cosmic::widget::menu::key_bind::Modifier;
 
-use crate::app::MenuAction;
+use crate::app::menu::MenuAction;
 
 pub fn key_binds() -> HashMap<KeyBind, MenuAction> {
     let mut key_binds = HashMap::new();

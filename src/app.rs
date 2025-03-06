@@ -14,7 +14,6 @@ use crate::pages::accounts::{add_account, edit_account, AppAccountsMessage, Page
 use crate::pages::bookmarks::{
     edit_bookmark, new_bookmark, view_notes, AppBookmarksMessage, PageBookmarksView,
 };
-use cosmic::app::{context_drawer, Core, Task};
 use cosmic::cosmic_config::{self, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
 use cosmic::iced::{
@@ -24,8 +23,12 @@ use cosmic::iced::{
     keyboard::{Key, Modifiers},
     Event, Length, Subscription,
 };
-use cosmic::widget::menu::{action::MenuAction as _MenuAction, key_bind::KeyBind};
+use cosmic::widget::menu::key_bind::KeyBind;
 use cosmic::widget::{self, about::About, icon, nav_bar};
+use cosmic::{
+    app::{context_drawer, Core, Task},
+    widget::menu::Action,
+};
 use cosmic::{Application, ApplicationExt, Element};
 use key_bind::key_binds;
 use std::any::TypeId;
@@ -56,7 +59,7 @@ pub struct Cosmicding {
     context_page: ContextPage,
     nav: nav_bar::Model,
     dialog_pages: VecDeque<DialogPage>,
-    key_binds: HashMap<KeyBind, MenuAction>,
+    key_binds: HashMap<KeyBind, menu::MenuAction>,
     pub config: CosmicConfig,
     config_handler: Option<cosmic_config::Config>,
     modifiers: Modifiers,
@@ -1126,8 +1129,9 @@ impl Application for Cosmicding {
             }
             Message::Key(modifiers, key) => {
                 for (key_bind, menu_action) in &self.key_binds {
+                    let menu_message = menu_action.message();
                     if key_bind.matches(modifiers, &key) {
-                        return self.update(menu_action.message());
+                        return self.update(menu_message);
                     }
                 }
             }
@@ -1337,33 +1341,6 @@ impl ContextPage {
             Self::NewBookmarkForm => fl!("add-bookmark"),
             Self::EditBookmarkForm => fl!("edit-bookmark"),
             Self::ViewBookmarkNotes => fl!("notes"),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum MenuAction {
-    About,
-    AddAccount,
-    AddBookmark,
-    Empty,
-    RefreshBookmarks,
-    Settings,
-    SetSortBookmarks(SortOption),
-}
-
-impl _MenuAction for MenuAction {
-    type Message = Message;
-
-    fn message(&self) -> Self::Message {
-        match self {
-            MenuAction::About => Message::ToggleContextPage(ContextPage::About),
-            MenuAction::Empty => Message::Empty,
-            MenuAction::AddAccount => Message::AddAccount,
-            MenuAction::Settings => Message::ToggleContextPage(ContextPage::Settings),
-            MenuAction::AddBookmark => Message::AddBookmarkForm,
-            MenuAction::RefreshBookmarks => Message::StartRefreshBookmarksForAllAccounts,
-            MenuAction::SetSortBookmarks(option) => Message::SortOption(*option),
         }
     }
 }

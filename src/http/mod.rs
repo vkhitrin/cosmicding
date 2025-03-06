@@ -13,6 +13,7 @@ use reqwest::{
 };
 use serde_json::Value;
 use std::fmt::Write;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use urlencoding::encode;
 
@@ -120,6 +121,7 @@ pub async fn fetch_bookmarks_for_account(
             bookmarks_response.text().await
         );
     }
+    tokio::time::sleep(Duration::from_millis(0)).await;
     let archived_bookmarks_response: reqwest::Response = http_client
         .get(rest_api_archived_bookmarks_url)
         .headers(headers.clone())
@@ -131,6 +133,7 @@ pub async fn fetch_bookmarks_for_account(
         .get("Date")
         .cloned()
         .unwrap_or_else(|| HeaderValue::from_str(&Utc::now().to_rfc2822()).expect(""));
+    tokio::time::sleep(Duration::from_millis(0)).await;
     if archived_bookmarks_response.status().is_success() {
         detailed_response.successful = true;
         let date: DateTime<Utc> =
@@ -180,6 +183,7 @@ pub async fn fetch_bookmarks_for_account(
             archived_bookmarks_response.text().await
         );
     }
+    tokio::time::sleep(Duration::from_millis(0)).await;
     let shared_bookmarks_response: reqwest::Response = http_client
         .get(rest_api_shared_bookmarks_url)
         .headers(headers)
