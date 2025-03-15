@@ -6,6 +6,20 @@ pub fn settings() -> cosmic::app::Settings {
             .min_width(360.0)
             .min_height(180.0),
     )
+    // NOTE: An example of client decorations enabled.
+    //       Useless as long as we render the native
+    //       libcosmic menu
+    // #[cfg(target_os = "macos")]
+    // {
+    //     cosmic::app::Settings::default()
+    //         .size_limits(
+    //             cosmic::iced::Limits::NONE
+    //                 .min_width(360.0)
+    //                 .min_height(180.0),
+    //         )
+    //         .client_decorations(false)
+    //         .resizable(None)
+    // }
 }
 
 pub fn flags() -> crate::app::Flags {
@@ -19,6 +33,5 @@ pub fn init() {
     i18n::localize();
 
     std::env::set_var("RUST_LOG", "warn");
-    pretty_env_logger::init();
-    log::info!("such information");
+    pretty_env_logger::init_timed();
 }

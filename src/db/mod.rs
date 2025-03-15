@@ -224,7 +224,7 @@ impl SqliteDatabase {
             .bind(&bookmark.date_modified)
             .bind(&bookmark.website_title)
             .bind(&bookmark.website_description)
-            .bind(&bookmark.is_owner)
+            .bind(bookmark.is_owner)
             .execute(&self.conn)
             .await
             .unwrap();

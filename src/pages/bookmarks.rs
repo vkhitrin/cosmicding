@@ -8,7 +8,7 @@ use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::iced_core::text;
 use cosmic::{
-    app::command::Task,
+    app::Task,
     iced::Alignment,
     widget::{self},
     Apply, Element,
@@ -375,22 +375,22 @@ impl PageBookmarksView {
         match message {
             AppBookmarksMessage::OpenAccountsPage => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::OpenAccountsPage)
+                    cosmic::Action::App(Message::OpenAccountsPage)
                 }));
             }
             AppBookmarksMessage::RefreshBookmarks => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::StartRefreshBookmarksForAllAccounts)
+                    cosmic::Action::App(Message::StartRefreshBookmarksForAllAccounts)
                 }));
             }
             AppBookmarksMessage::AddBookmark => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::AddBookmarkForm)
+                    cosmic::Action::App(Message::AddBookmarkForm)
                 }));
             }
             AppBookmarksMessage::DeleteBookmark(account_id, bookmark) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::OpenRemoveBookmarkDialog(
+                    cosmic::Action::App(Message::OpenRemoveBookmarkDialog(
                         account_id,
                         bookmark.clone(),
                     ))
@@ -399,46 +399,46 @@ impl PageBookmarksView {
             AppBookmarksMessage::EditBookmark(account_id, bookmark) => {
                 self.bookmark_placeholder = Some(bookmark.clone());
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::EditBookmark(account_id, bookmark.clone()))
+                    cosmic::Action::App(Message::EditBookmark(account_id, bookmark.clone()))
                 }));
             }
             AppBookmarksMessage::SearchBookmarks(query) => {
                 self.query_placeholder.clone_from(&query);
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::SearchBookmarks(query.clone()))
+                    cosmic::Action::App(Message::SearchBookmarks(query.clone()))
                 }));
             }
             AppBookmarksMessage::ClearSearch => {
                 if !self.query_placeholder.is_empty() {
                     self.query_placeholder = String::new();
                     commands.push(Task::perform(async {}, |()| {
-                        cosmic::app::Message::App(Message::SearchBookmarks(String::new()))
+                        cosmic::Action::App(Message::SearchBookmarks(String::new()))
                     }));
                 }
             }
             AppBookmarksMessage::OpenExternalURL(url) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::OpenExternalUrl(url.clone()))
+                    cosmic::Action::App(Message::OpenExternalUrl(url.clone()))
                 }));
             }
             AppBookmarksMessage::ViewNotes(bookmark) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::ViewBookmarkNotes(bookmark.clone()))
+                    cosmic::Action::App(Message::ViewBookmarkNotes(bookmark.clone()))
                 }));
             }
             AppBookmarksMessage::EmptyMessage => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::Empty)
+                    cosmic::Action::App(Message::Empty)
                 }));
             }
             AppBookmarksMessage::IncrementPageIndex => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::IncrementPageIndex("bookmarks".to_string()))
+                    cosmic::Action::App(Message::IncrementPageIndex("bookmarks".to_string()))
                 }));
             }
             AppBookmarksMessage::DecrementPageIndex => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::DecrementPageIndex("bookmarks".to_string()))
+                    cosmic::Action::App(Message::DecrementPageIndex("bookmarks".to_string()))
                 }));
             }
         }
