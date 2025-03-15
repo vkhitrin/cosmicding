@@ -7,7 +7,7 @@ use chrono::{DateTime, Local};
 use cosmic::iced::Length;
 use cosmic::iced_widget::tooltip;
 use cosmic::{
-    app::command::Task,
+    app::Task,
     cosmic_theme,
     iced::Alignment,
     theme,
@@ -278,40 +278,38 @@ impl PageAccountsView {
         match message {
             AppAccountsMessage::AddAccount => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::AddAccount)
+                    cosmic::Action::App(Message::AddAccount)
                 }));
             }
             AppAccountsMessage::EditAccount(account) => {
                 self.account_placeholder = Some(account.clone());
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::EditAccount(account.clone()))
+                    cosmic::Action::App(Message::EditAccount(account.clone()))
                 }));
             }
             AppAccountsMessage::DeleteAccount(account) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::OpenRemoveAccountDialog(account.clone()))
+                    cosmic::Action::App(Message::OpenRemoveAccountDialog(account.clone()))
                 }));
             }
             AppAccountsMessage::RefreshBookmarksForAccount(account) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::StartRefreshBookmarksForAccount(
-                        account.clone(),
-                    ))
+                    cosmic::Action::App(Message::StartRefreshBookmarksForAccount(account.clone()))
                 }));
             }
             AppAccountsMessage::OpenExternalURL(url) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::app::Message::App(Message::OpenExternalUrl(url.clone()))
+                    cosmic::Action::App(Message::OpenExternalUrl(url.clone()))
                 }));
             }
             AppAccountsMessage::IncrementPageIndex => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::IncrementPageIndex("accounts".to_string()))
+                    cosmic::Action::App(Message::IncrementPageIndex("accounts".to_string()))
                 }));
             }
             AppAccountsMessage::DecrementPageIndex => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::app::Message::App(Message::DecrementPageIndex("accounts".to_string()))
+                    cosmic::Action::App(Message::DecrementPageIndex("accounts".to_string()))
                 }));
             }
         }

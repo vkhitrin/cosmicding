@@ -277,7 +277,6 @@ impl Application for Cosmicding {
         }
 
         self.core.window.show_context = false;
-
         Task::none()
     }
 
@@ -548,7 +547,7 @@ impl Application for Cosmicding {
                                 "removed-account",
                                 acc = account.display_name
                             )))
-                            .map(cosmic::app::Message::App),
+                            .map(cosmic::Action::App),
                     );
                     block_on(async {
                         self.accounts_cursor.refresh_count().await;
@@ -573,7 +572,7 @@ impl Application for Cosmicding {
                         commands.push(
                             self.toasts
                                 .push(widget::toaster::Toast::new(fl!("account-exists")))
-                                .map(cosmic::app::Message::App),
+                                .map(cosmic::Action::App),
                         );
                     } else {
                         block_on(async {
@@ -590,13 +589,13 @@ impl Application for Cosmicding {
                                                 .push(widget::toaster::Toast::new(fl!(
                                                     "provided-url-is-not-valid"
                                                 )))
-                                                .map(cosmic::app::Message::App),
+                                                .map(cosmic::Action::App),
                                         );
                                     } else {
                                         commands.push(
                                             self.toasts
                                                 .push(widget::toaster::Toast::new(format!("{e}")))
-                                                .map(cosmic::app::Message::App),
+                                                .map(cosmic::Action::App),
                                         );
                                     }
                                 }
@@ -616,7 +615,7 @@ impl Application for Cosmicding {
                                         "added-account",
                                         acc = account.display_name
                                     )))
-                                    .map(cosmic::app::Message::App),
+                                    .map(cosmic::Action::App),
                             );
                         }
                     }
@@ -640,13 +639,13 @@ impl Application for Cosmicding {
                                             .push(widget::toaster::Toast::new(fl!(
                                                 "provided-url-is-not-valid"
                                             )))
-                                            .map(cosmic::app::Message::App),
+                                            .map(cosmic::Action::App),
                                     );
                                 } else {
                                     commands.push(
                                         self.toasts
                                             .push(widget::toaster::Toast::new(format!("{e}")))
-                                            .map(cosmic::app::Message::App),
+                                            .map(cosmic::Action::App),
                                     );
                                 }
                             }
@@ -662,7 +661,7 @@ impl Application for Cosmicding {
                                     "updated-account",
                                     acc = account.display_name
                                 )))
-                                .map(cosmic::app::Message::App),
+                                .map(cosmic::Action::App),
                         );
                         commands.push(self.update(Message::LoadAccounts));
                         commands.push(self.update(Message::StartRefreshBookmarksForAccount(
@@ -681,9 +680,7 @@ impl Application for Cosmicding {
                     } else {
                         self.state = ApplicationState::Refreshing;
                         let message = |x: Vec<DetailedResponse>| {
-                            cosmic::app::Message::App(Message::DoneRefreshBookmarksForAllAccounts(
-                                x,
-                            ))
+                            cosmic::Action::App(Message::DoneRefreshBookmarksForAllAccounts(x))
                         };
                         if !self.accounts_view.accounts.is_empty() {
                             commands.push(Task::perform(
@@ -721,7 +718,7 @@ impl Application for Cosmicding {
                         commands.push(
                             self.toasts
                                 .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
-                                .map(cosmic::app::Message::App),
+                                .map(cosmic::Action::App),
                         );
                     } else {
                         commands.push(
@@ -730,7 +727,7 @@ impl Application for Cosmicding {
                                     "failed-refreshing-accounts",
                                     accounts = failed_accounts.join(", ")
                                 )))
-                                .map(cosmic::app::Message::App),
+                                .map(cosmic::Action::App),
                         );
                     }
                 }
@@ -743,7 +740,7 @@ impl Application for Cosmicding {
                     acc_vec.retain(|acc| acc.id == account.id);
                     let borrowed_acc = acc_vec[0].clone();
                     let message = move |bookmarks: Vec<DetailedResponse>| {
-                        cosmic::app::Message::App(Message::DoneRefreshBookmarksForAccount(
+                        cosmic::Action::App(Message::DoneRefreshBookmarksForAccount(
                             borrowed_acc.clone(),
                             bookmarks,
                         ))
@@ -786,7 +783,7 @@ impl Application for Cosmicding {
                                     "failed-refreshing-bookmarks-for-account",
                                     account = account.display_name
                                 )))
-                                .map(cosmic::app::Message::App),
+                                .map(cosmic::Action::App),
                         );
                     } else {
                         commands.push(
@@ -795,7 +792,7 @@ impl Application for Cosmicding {
                                     "refreshed-bookmarks-for-account",
                                     acc = account.display_name
                                 )))
-                                .map(cosmic::app::Message::App),
+                                .map(cosmic::Action::App),
                         );
                     }
                 }
@@ -806,7 +803,7 @@ impl Application for Cosmicding {
                     self.state = ApplicationState::Refreshing;
                     let borrowed_acc = account.clone();
                     let message = move |api_response: Option<LinkdingAccountApiResponse>| {
-                        cosmic::app::Message::App(Message::DoneRefreshAccountProfile(
+                        cosmic::Action::App(Message::DoneRefreshAccountProfile(
                             borrowed_acc.clone(),
                             api_response,
                         ))
@@ -964,7 +961,7 @@ impl Application for Cosmicding {
                                                 bkmrk = bookmark.url.clone(),
                                                 acc = account.display_name.clone()
                                             )))
-                                            .map(cosmic::app::Message::App),
+                                            .map(cosmic::Action::App),
                                     );
                                 } else {
                                     bookmark_exists = true;
@@ -975,7 +972,7 @@ impl Application for Cosmicding {
                                                 bkmrk = bookmark.url,
                                                 acc = account.display_name.clone()
                                             )))
-                                            .map(cosmic::app::Message::App),
+                                            .map(cosmic::Action::App),
                                     );
                                 }
                             }
@@ -984,7 +981,7 @@ impl Application for Cosmicding {
                                 commands.push(
                                     self.toasts
                                         .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::app::Message::App),
+                                        .map(cosmic::Action::App),
                                 );
                             }
                         }
@@ -1025,7 +1022,7 @@ impl Application for Cosmicding {
                                             "removed-bookmark-from-account",
                                             acc = account.display_name.clone()
                                         )))
-                                        .map(cosmic::app::Message::App),
+                                        .map(cosmic::Action::App),
                                 );
                             }
                             Err(e) => {
@@ -1033,7 +1030,7 @@ impl Application for Cosmicding {
                                 commands.push(
                                     self.toasts
                                         .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::app::Message::App),
+                                        .map(cosmic::Action::App),
                                 );
                             }
                         }
@@ -1077,7 +1074,7 @@ impl Application for Cosmicding {
                                             bkmrk = bookmark.url.clone(),
                                             acc = account.display_name.clone()
                                         )))
-                                        .map(cosmic::app::Message::App),
+                                        .map(cosmic::Action::App),
                                 );
                             }
                             Err(e) => {
@@ -1085,7 +1082,7 @@ impl Application for Cosmicding {
                                 commands.push(
                                     self.toasts
                                         .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::app::Message::App),
+                                        .map(cosmic::Action::App),
                                 );
                             }
                         }
@@ -1241,7 +1238,7 @@ impl Application for Cosmicding {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         crate::app::Message::StartRefreshBookmarksForAllAccounts
                     },
-                    cosmic::app::Message::App,
+                    cosmic::Action::App,
                 ));
                 self.state = ApplicationState::Normal;
             }
@@ -1303,7 +1300,7 @@ impl Cosmicding {
 
     fn update_config(&mut self) -> Task<Message> {
         let theme = self.config.app_theme.theme();
-        cosmic::app::command::set_theme(theme)
+        cosmic::command::set_theme(theme)
     }
 
     pub fn update_title(&mut self) -> Task<Message> {
