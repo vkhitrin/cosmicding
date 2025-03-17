@@ -8,7 +8,7 @@ use cosmic::{
 };
 
 use crate::{
-    app::{ApplicationState, ContextPage, Message},
+    app::{actions::ApplicationAction, context::ContextPage, ApplicationState},
     fl,
 };
 
@@ -24,17 +24,17 @@ pub enum MenuAction {
 }
 
 impl _MenuAction for MenuAction {
-    type Message = Message;
+    type Message = ApplicationAction;
 
     fn message(&self) -> Self::Message {
         match self {
-            MenuAction::About => Message::ToggleContextPage(ContextPage::About),
-            MenuAction::Empty => Message::Empty,
-            MenuAction::AddAccount => Message::AddAccount,
-            MenuAction::Settings => Message::ToggleContextPage(ContextPage::Settings),
-            MenuAction::AddBookmark => Message::AddBookmarkForm,
-            MenuAction::RefreshBookmarks => Message::StartRefreshBookmarksForAllAccounts,
-            MenuAction::SetSortBookmarks(option) => Message::SortOption(*option),
+            MenuAction::About => ApplicationAction::ToggleContextPage(ContextPage::About),
+            MenuAction::Empty => ApplicationAction::Empty,
+            MenuAction::AddAccount => ApplicationAction::AddAccount,
+            MenuAction::Settings => ApplicationAction::ToggleContextPage(ContextPage::Settings),
+            MenuAction::AddBookmark => ApplicationAction::AddBookmarkForm,
+            MenuAction::RefreshBookmarks => ApplicationAction::StartRefreshBookmarksForAllAccounts,
+            MenuAction::SetSortBookmarks(option) => ApplicationAction::SortOption(*option),
         }
     }
 }
@@ -46,7 +46,7 @@ pub fn menu_bar<'a>(
     bookmarks_present: bool,
     sort_option: SortOption,
     app_state: ApplicationState,
-) -> Element<'a, Message> {
+) -> Element<'a, ApplicationAction> {
     MenuBar::new(vec![
         Tree::with_children(
             root(fl!("file")),
