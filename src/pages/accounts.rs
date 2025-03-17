@@ -1,4 +1,8 @@
-use crate::app::{icons::load_icon, ApplicationState, Message};
+use crate::app::{
+    actions::{AccountsAction, ApplicationAction},
+    icons::load_icon,
+    ApplicationState,
+};
 use crate::fl;
 use crate::models::account::Account;
 use crate::models::db_cursor::AccountsPaginationCursor;
@@ -15,17 +19,6 @@ use cosmic::{
     Apply, Element,
 };
 
-#[derive(Debug, Clone)]
-pub enum AppAccountsMessage {
-    AddAccount,
-    DecrementPageIndex,
-    DeleteAccount(Account),
-    EditAccount(Account),
-    IncrementPageIndex,
-    OpenExternalURL(String),
-    RefreshBookmarksForAccount(Account),
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct PageAccountsView {
     pub accounts: Vec<Account>,
@@ -38,7 +31,7 @@ impl PageAccountsView {
         &self,
         app_state: ApplicationState,
         accounts_cursor: &AccountsPaginationCursor,
-    ) -> Element<'_, AppAccountsMessage> {
+    ) -> Element<'_, AccountsAction> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
             let container = widget::container(
@@ -48,7 +41,7 @@ impl PageAccountsView {
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
                     widget::button::standard(fl!("add-account"))
-                        .on_press(AppAccountsMessage::AddAccount)
+                        .on_press(AccountsAction::AddAccount)
                         .into(),
                 ])
                 .spacing(20)
@@ -76,9 +69,9 @@ impl PageAccountsView {
                     ApplicationState::Refreshing => widget::button::link(fl!("refresh"))
                         .font_size(12)
                         .class(ButtonStyle::DisabledLink(false).into()),
-                    _ => widget::button::link(fl!("refresh")).font_size(12).on_press(
-                        AppAccountsMessage::RefreshBookmarksForAccount(item.to_owned()),
-                    ),
+                    _ => widget::button::link(fl!("refresh"))
+                        .font_size(12)
+                        .on_press(AccountsAction::RefreshBookmarksForAccount(item.to_owned())),
                 };
                 let edit_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("edit"))
@@ -86,7 +79,7 @@ impl PageAccountsView {
                         .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("edit"))
                         .font_size(12)
-                        .on_press(AppAccountsMessage::EditAccount(item.to_owned())),
+                        .on_press(AccountsAction::EditAccount(item.to_owned())),
                 };
                 let remove_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("remove"))
@@ -94,7 +87,7 @@ impl PageAccountsView {
                         .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("remove"))
                         .font_size(12)
-                        .on_press(AppAccountsMessage::DeleteAccount(item.to_owned())),
+                        .on_press(AccountsAction::DeleteAccount(item.to_owned())),
                 };
 
                 // Mandatory first row - details
@@ -180,7 +173,7 @@ impl PageAccountsView {
                             .trailing_icon(true)
                             .icon_size(10)
                             .font_size(12)
-                            .on_press(AppAccountsMessage::OpenExternalURL(item.instance.clone()))
+                            .on_press(AccountsAction::OpenExternalURL(item.instance.clone()))
                             .tooltip(item.instance.clone()),
                     );
                 columns.push(
@@ -208,7 +201,7 @@ impl PageAccountsView {
 
             let navigation_previous_button = widget::button::standard(fl!("previous"))
                 .on_press_maybe(if accounts_cursor.current_page > 1 {
-                    Some(AppAccountsMessage::DecrementPageIndex)
+                    Some(AccountsAction::DecrementPageIndex)
                 } else {
                     None
                 })
@@ -216,7 +209,7 @@ impl PageAccountsView {
             let navigation_next_button = widget::button::standard(fl!("next"))
                 .on_press_maybe(
                     if accounts_cursor.current_page < accounts_cursor.total_pages {
-                        Some(AppAccountsMessage::IncrementPageIndex)
+                        Some(AccountsAction::IncrementPageIndex)
                     } else {
                         None
                     },
@@ -262,7 +255,7 @@ impl PageAccountsView {
                     .push(widget::horizontal_space())
                     .push(
                         widget::button::standard(fl!("add-account"))
-                            .on_press(AppAccountsMessage::AddAccount),
+                            .on_press(AccountsAction::AddAccount),
                     )
                     .width(Length::Fill)
                     .apply(widget::container)
@@ -273,43 +266,49 @@ impl PageAccountsView {
             .into()
         }
     }
-    pub fn update(&mut self, message: AppAccountsMessage) -> Task<Message> {
+    pub fn update(&mut self, message: AccountsAction) -> Task<ApplicationAction> {
         let mut commands = Vec::new();
         match message {
-            AppAccountsMessage::AddAccount => {
+            AccountsAction::AddAccount => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::Action::App(Message::AddAccount)
+                    cosmic::Action::App(ApplicationAction::AddAccount)
                 }));
             }
-            AppAccountsMessage::EditAccount(account) => {
+            AccountsAction::EditAccount(account) => {
                 self.account_placeholder = Some(account.clone());
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::Action::App(Message::EditAccount(account.clone()))
+                    cosmic::Action::App(ApplicationAction::EditAccount(account.clone()))
                 }));
             }
-            AppAccountsMessage::DeleteAccount(account) => {
+            AccountsAction::DeleteAccount(account) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::Action::App(Message::OpenRemoveAccountDialog(account.clone()))
+                    cosmic::Action::App(ApplicationAction::OpenRemoveAccountDialog(account.clone()))
                 }));
             }
-            AppAccountsMessage::RefreshBookmarksForAccount(account) => {
+            AccountsAction::RefreshBookmarksForAccount(account) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::Action::App(Message::StartRefreshBookmarksForAccount(account.clone()))
+                    cosmic::Action::App(ApplicationAction::StartRefreshBookmarksForAccount(
+                        account.clone(),
+                    ))
                 }));
             }
-            AppAccountsMessage::OpenExternalURL(url) => {
+            AccountsAction::OpenExternalURL(url) => {
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::Action::App(Message::OpenExternalUrl(url.clone()))
+                    cosmic::Action::App(ApplicationAction::OpenExternalUrl(url.clone()))
                 }));
             }
-            AppAccountsMessage::IncrementPageIndex => {
+            AccountsAction::IncrementPageIndex => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::Action::App(Message::IncrementPageIndex("accounts".to_string()))
+                    cosmic::Action::App(ApplicationAction::IncrementPageIndex(
+                        "accounts".to_string(),
+                    ))
                 }));
             }
-            AppAccountsMessage::DecrementPageIndex => {
+            AccountsAction::DecrementPageIndex => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::Action::App(Message::DecrementPageIndex("accounts".to_string()))
+                    cosmic::Action::App(ApplicationAction::DecrementPageIndex(
+                        "accounts".to_string(),
+                    ))
                 }));
             }
         }
@@ -317,25 +316,26 @@ impl PageAccountsView {
     }
 }
 
-pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
+pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
     let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let display_name_widget_title = widget::text::body(fl!("display-name"));
     let display_name_widget_text_input = widget::text_input("Name", account.display_name.clone())
-        .on_input(Message::SetAccountDisplayName);
+        .on_input(ApplicationAction::SetAccountDisplayName);
     let instance_widget_title = widget::text::body(fl!("instance"));
     let instance_widget_text_input = widget::text_input("Instance", account.instance.clone())
-        .on_input(Message::SetAccountInstance);
+        .on_input(ApplicationAction::SetAccountInstance);
     let api_key_widget_title = widget::text::body(fl!("api-key"));
     let api_key_widget_text_input = widget::text_input(fl!("token"), account.api_token.clone())
-        .on_input(Message::SetAccountAPIKey)
+        .on_input(ApplicationAction::SetAccountAPIKey)
         .password();
     let tls_widget_toggler = widget::toggler(account.tls)
-        .on_toggle(Message::SetAccountTLS)
+        .on_toggle(ApplicationAction::SetAccountTLS)
         .spacing(10)
         .label(fl!("tls"));
     let buttons_widget_container = widget::container(
-        widget::button::standard(fl!("save")).on_press(Message::CompleteAddAccount(account)),
+        widget::button::standard(fl!("save"))
+            .on_press(ApplicationAction::CompleteAddAccount(account)),
     )
     .width(Length::Fill)
     .align_x(Alignment::Center);
@@ -399,21 +399,21 @@ pub fn add_account<'a>(account: Account) -> Element<'a, Message> {
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
+pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
     let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let display_name_widget_title = widget::text::body(fl!("display-name"));
     let display_name_widget_text_input = widget::text_input("Name", account.display_name.clone())
-        .on_input(Message::SetAccountDisplayName);
+        .on_input(ApplicationAction::SetAccountDisplayName);
     let instance_widget_title = widget::text::body(fl!("instance"));
     let instance_widget_text_input = widget::text_input("Instance", account.instance.clone())
-        .on_input(Message::SetAccountInstance);
+        .on_input(ApplicationAction::SetAccountInstance);
     let api_key_widget_title = widget::text::body(fl!("api-key"));
     let api_key_widget_text_input = widget::text_input(fl!("token"), account.api_token.clone())
-        .on_input(Message::SetAccountAPIKey)
+        .on_input(ApplicationAction::SetAccountAPIKey)
         .password();
     let tls_widget_toggler = widget::toggler(account.tls)
-        .on_toggle(Message::SetAccountTLS)
+        .on_toggle(ApplicationAction::SetAccountTLS)
         .spacing(10)
         .label(fl!("tls"));
     let enable_shared_widget_text = if account.enable_sharing {
@@ -459,7 +459,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, Message> {
         .padding(10)
     };
     let buttons_widget_container = widget::container(
-        widget::button::standard(fl!("save")).on_press(Message::UpdateAccount(account)),
+        widget::button::standard(fl!("save")).on_press(ApplicationAction::UpdateAccount(account)),
     )
     .width(Length::Fill)
     .align_x(Alignment::Center);

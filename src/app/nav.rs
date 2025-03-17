@@ -1,7 +1,10 @@
 use crate::app::icons::load_icon;
 use cosmic::{widget::icon, Element};
 
-use crate::{app, fl};
+use crate::{
+    app::{actions::ApplicationAction, Cosmicding},
+    fl,
+};
 
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
 pub enum AppNavPage {
@@ -30,12 +33,12 @@ impl AppNavPage {
         }
     }
 
-    pub fn view(self, app: &app::Cosmicding) -> Element<'_, app::Message> {
+    pub fn view(self, app: &Cosmicding) -> Element<'_, ApplicationAction> {
         match self {
             AppNavPage::AccountsView => app
                 .accounts_view
                 .view(app.state, &app.accounts_cursor)
-                .map(app::Message::AccountsView),
+                .map(ApplicationAction::AccountsView),
             AppNavPage::BookmarksView => app
                 .bookmarks_view
                 .view(
@@ -43,7 +46,7 @@ impl AppNavPage {
                     &app.bookmarks_cursor,
                     app.accounts_cursor.total_entries == 0,
                 )
-                .map(app::Message::BookmarksView),
+                .map(ApplicationAction::BookmarksView),
         }
     }
 
