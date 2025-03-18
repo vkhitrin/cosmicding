@@ -1,12 +1,3 @@
-use crate::app::{
-    actions::ApplicationAction,
-    config::{AppTheme, CosmicConfig, SortOption},
-    context::ContextPage,
-    dialog::DialogPage,
-    icons::load_icon,
-    menu as app_menu,
-    nav::AppNavPage,
-};
 use crate::db::{self};
 use crate::fl;
 use crate::http::{self};
@@ -15,6 +6,18 @@ use crate::models::bookmarks::{Bookmark, DetailedResponse};
 use crate::models::db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination};
 use crate::pages::accounts::{add_account, edit_account, PageAccountsView};
 use crate::pages::bookmarks::{edit_bookmark, new_bookmark, view_notes, PageBookmarksView};
+use crate::{
+    app::{
+        actions::ApplicationAction,
+        config::{AppTheme, CosmicConfig, SortOption},
+        context::ContextPage,
+        dialog::DialogPage,
+        icons::load_icon,
+        menu as app_menu,
+        nav::AppNavPage,
+    },
+    models::favicon_cache::FaviconCache,
+};
 use cosmic::cosmic_config::{self, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
 use cosmic::iced::{
@@ -33,7 +36,7 @@ use cosmic::{Application, ApplicationExt, Element};
 use key_bind::key_binds;
 use std::any::TypeId;
 use std::collections::{HashMap, VecDeque};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub mod actions;
 pub mod config;
@@ -476,6 +479,13 @@ impl Application for Cosmicding {
             ApplicationAction::RemoveAccount(account) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     block_on(async {
+                        db::SqliteDatabase::delete_all_favicons_cache_of_account(
+                            database,
+                            account.id.unwrap(),
+                        )
+                        .await;
+                    });
+                    block_on(async {
                         db::SqliteDatabase::delete_all_bookmarks_of_account(
                             database,
                             account.id.unwrap(),
@@ -656,7 +666,7 @@ impl Application for Cosmicding {
                             failed_accounts.push(response.account.display_name.clone());
                         }
                         block_on(async {
-                            db::SqliteDatabase::aggregate_bookmarks_for_acount(
+                            db::SqliteDatabase::aggregate_bookmarks_for_account(
                                 database,
                                 &response.account,
                                 response.bookmarks.unwrap_or_else(Vec::new),
@@ -719,7 +729,7 @@ impl Application for Cosmicding {
                             failure_refreshing = true;
                         }
                         block_on(async {
-                            db::SqliteDatabase::aggregate_bookmarks_for_acount(
+                            db::SqliteDatabase::aggregate_bookmarks_for_account(
                                 database,
                                 &account,
                                 response.bookmarks.unwrap_or_else(Vec::new),
@@ -1156,6 +1166,50 @@ impl Application for Cosmicding {
                     self.bookmarks_cursor.refresh_count().await;
                 });
                 self.bookmarks_view.bookmarks = self.bookmarks_cursor.result.clone().unwrap();
+                // TODO: (vkhitrin) fetching favicons should not be a blocking procedure!
+                for bookmark in self.bookmarks_view.bookmarks.clone() {
+                    block_on(async {
+                        if bookmark.favicon_url.is_some() {
+                            if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                                if !db::SqliteDatabase::check_if_favicon_cache_exists(
+                                    database,
+                                    &bookmark.favicon_url.clone().unwrap(),
+                                )
+                                .await
+                                {
+                                    let favicon = match http::fetch_bookmark_favicon(
+                                        bookmark.favicon_url.clone().unwrap(),
+                                    )
+                                    .await
+                                    {
+                                        Ok(value) => Some(value),
+                                        Err(_e) => None,
+                                    };
+                                    let epoch_timestamp = SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .expect("")
+                                        .as_secs();
+                                    if favicon.is_some() {
+                                        db::SqliteDatabase::add_favicon_cache(
+                                            database,
+                                            FaviconCache::new(
+                                                bookmark.favicon_url.clone().unwrap(),
+                                                favicon.unwrap().to_vec(),
+                                                epoch_timestamp as i64,
+                                            ),
+                                        )
+                                        .await
+                                    } else {
+                                        log::error!(
+                                            "Failed to retrieve favicon '{}'",
+                                            bookmark.favicon_url.clone().unwrap()
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
             }
             ApplicationAction::IncrementPageIndex(cursor_type) => {
                 if cursor_type == "bookmarks" {

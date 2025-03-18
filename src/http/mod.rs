@@ -7,6 +7,7 @@ use crate::models::bookmarks::{
 use crate::utils::json::parse_serde_json_value_to_raw_string;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use cosmic::iced_core::image::Bytes;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     ClientBuilder, StatusCode,
@@ -578,6 +579,31 @@ pub async fn check_bookmark_on_instance(
             std::io::ErrorKind::Other,
             fl!("invalid-api-token"),
         ))),
+        _ => Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            fl!(
+                "unexpected-http-return-code",
+                http_rc = response.status().to_string()
+            ),
+        ))),
+    }
+}
+
+pub async fn fetch_bookmark_favicon(url: String) -> Result<Bytes, Box<dyn std::error::Error>> {
+    let http_client = ClientBuilder::new().build()?;
+    let response: reqwest::Response = http_client.get(url).send().await?;
+    match response.status() {
+        StatusCode::OK => match response.bytes().await {
+            Ok(value) => {
+                Ok(value)
+            }
+            Err(e) => {
+                Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e,
+                )))
+            }
+        },
         _ => Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
             fl!(
