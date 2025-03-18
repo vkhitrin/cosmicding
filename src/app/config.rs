@@ -15,6 +15,7 @@ pub struct CosmicConfig {
     pub app_theme: AppTheme,
     pub sort_option: SortOption,
     pub items_per_page: u8,
+    pub enable_favicons: bool,
 }
 
 impl CosmicConfig {
@@ -26,7 +27,7 @@ impl CosmicConfig {
         match Self::config_handler() {
             Some(config_handler) => {
                 CosmicConfig::get_entry(&config_handler).unwrap_or_else(|(errs, config)| {
-                    log::info!("errors loading config: {:?}", errs);
+                    log::info!("errors loading config: {errs:?}");
                     config
                 })
             }
@@ -50,6 +51,7 @@ impl Default for CosmicConfig {
             app_theme: AppTheme::System,
             sort_option: SortOption::BookmarksDateNewest,
             items_per_page: 10,
+            enable_favicons: true,
         }
     }
 }

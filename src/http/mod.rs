@@ -7,6 +7,7 @@ use crate::models::bookmarks::{
 use crate::utils::json::parse_serde_json_value_to_raw_string;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use cosmic::iced_core::image::Bytes;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     ClientBuilder, StatusCode,
@@ -33,7 +34,7 @@ pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<De
                 let error_response =
                     DetailedResponse::new(account, epoch_timestamp as i64, false, None);
                 all_responses.push(error_response);
-                log::error!("Error fetching bookmarks: {}", e);
+                log::error!("Error fetching bookmarks: {e}");
             }
         }
     }
@@ -111,7 +112,7 @@ pub async fn fetch_bookmarks_for_account(
                 }
             }
             Err(e) => {
-                log::error!("Error parsing JSON: {:?}", e);
+                log::error!("Error parsing JSON: {e:?}");
             }
         }
     } else {
@@ -172,7 +173,7 @@ pub async fn fetch_bookmarks_for_account(
                 }
             }
             Err(e) => {
-                log::error!("Error parsing JSON: {:?}", e);
+                log::error!("Error parsing JSON: {e:?}");
             }
         }
     } else {
@@ -242,7 +243,7 @@ pub async fn fetch_bookmarks_for_account(
                 }
             }
             Err(e) => {
-                log::error!("Error parsing JSON: {:?}", e);
+                log::error!("Error parsing JSON: {e:?}");
             }
         }
     } else {
@@ -586,4 +587,29 @@ pub async fn check_bookmark_on_instance(
             ),
         ))),
     }
+}
+
+pub async fn fetch_bookmark_favicon(url: String) -> Bytes {
+    let mut bytes: Bytes = Bytes::new();
+    let http_client = ClientBuilder::new()
+        .build()
+        .expect("Failed to construct HTTP client");
+    let response: reqwest::Response = http_client
+        .get(url)
+        .send()
+        .await
+        .expect("Failed fetching favicon");
+    match response.status() {
+        StatusCode::OK => match response.bytes().await {
+            Ok(value) => bytes = value,
+            Err(e) => {
+                log::error!("Error fetching favicon: {e}");
+            }
+        },
+        _ => log::error!(
+            "Unexpected http return code {:?}",
+            response.status().to_string()
+        ),
+    }
+    bytes
 }

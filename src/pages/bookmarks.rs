@@ -67,6 +67,18 @@ impl PageBookmarksView {
                 let date_added: DateTime<Local> =
                     item.date_added.clone().unwrap().parse().expect("");
                 let mut columns = Vec::new();
+                let favicon_data = item
+                    .favicon_cached
+                    .as_ref()
+                    .filter(|cached| !cached.data.is_empty())
+                    .map(|cached| cached.data.clone());
+                let favicon: widget::image::Handle = if let Some(data) = favicon_data {
+                    widget::image::Handle::from_bytes(data)
+                } else {
+                    let placeholder: &[u8] =
+                        include_bytes!("../../res/icons/favicon_placeholder.png");
+                    widget::image::Handle::from_bytes(placeholder)
+                };
                 // Mandatory first row - title
                 columns.push(
                     widget::row::with_capacity(2)
@@ -77,7 +89,7 @@ impl PageBookmarksView {
                             spacing.space_none,
                             spacing.space_xxxs,
                         ])
-                        .push(widget::icon::icon(load_icon("web-browser-symbolic")))
+                        .push(widget::image(favicon).width(16))
                         .push(
                             widget::button::link(item.title.clone())
                                 .spacing(spacing.space_xxxs)
@@ -104,7 +116,6 @@ impl PageBookmarksView {
                                 },
                                 spacing.space_xxxs,
                             ])
-                            .push(widget::icon::icon(load_icon("text-x-generic-symbolic")))
                             .push(widget::text(item.description.clone()))
                             .align_y(Alignment::Start)
                             .into(),
@@ -125,9 +136,6 @@ impl PageBookmarksView {
                                 spacing.space_xxxs,
                                 spacing.space_xxxs,
                             ])
-                            .push(widget::icon::icon(load_icon(
-                                "mail-mark-important-symbolic",
-                            )))
                             .push(
                                 widget::text::body(
                                     item.tag_names
@@ -208,12 +216,9 @@ impl PageBookmarksView {
                 );
                 // Mandatory fifth row - details
                 let mut details_row = widget::row::with_capacity(1).spacing(spacing.space_xxs);
-                details_row = details_row
-                    .push(widget::icon::icon(load_icon("accessories-clock-symbolic")).size(12))
-                    .push(
-                        widget::text(date_added.format("%a, %d %b %Y %H:%M:%S").to_string())
-                            .size(12),
-                    );
+                details_row = details_row.push(
+                    widget::text(date_added.format("%a, %d %b %Y %H:%M:%S").to_string()).size(12),
+                );
                 if item.is_archived {
                     details_row = details_row
                         .push(widget::icon::icon(load_icon("mail-archive-symbolic")).size(12))
@@ -309,7 +314,7 @@ impl PageBookmarksView {
                         .padding([
                             spacing.space_xxs,
                             spacing.space_none,
-                            spacing.space_xxxs,
+                            spacing.space_xxs,
                             spacing.space_none,
                         ])
                         .push(navigation_next_button)
