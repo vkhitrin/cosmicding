@@ -970,7 +970,11 @@ impl Application for Cosmicding {
                             }
                         }
                     });
-                    if let Some(bkmrk) = new_bkmrk {
+                    // NOTE: (vkhitrin) during creation, linkding doesn't populate 'favicon_url'.
+                    //       In order to display the new favicon, users are required to wait a
+                    //       a bit, and then perform a manual refresh.
+                    if let Some(mut bkmrk) = new_bkmrk {
+                        bkmrk.is_owner = Some(true);
                         if bookmark_exists {
                             block_on(async {
                                 db::SqliteDatabase::update_bookmark(database, &bkmrk, &bkmrk).await;
@@ -1237,32 +1241,30 @@ impl Application for Cosmicding {
                 }
             }
             ApplicationAction::StartFetchFaviconForBookmark(bookmark) => {
-                if !matches!(self.state, ApplicationState::Refreshing) {
-                    if let Some(favicon_url) = bookmark.favicon_url.clone() {
-                        if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                            let favicon_url_clone = favicon_url.clone();
-                            block_on(async {
-                                if !db::SqliteDatabase::check_if_favicon_cache_exists(
-                                    database,
-                                    &favicon_url_clone,
-                                )
-                                .await
-                                {
-                                    let message = move |b: Bytes| {
-                                        cosmic::Action::App(
-                                            ApplicationAction::DoneFetchFaviconForBookmark(
-                                                favicon_url.clone(),
-                                                b,
-                                            ),
-                                        )
-                                    };
-                                    commands.push(Task::perform(
-                                        http::fetch_bookmark_favicon(favicon_url_clone.clone()),
-                                        message,
-                                    ));
-                                }
-                            });
-                        }
+                if let Some(favicon_url) = bookmark.favicon_url.clone() {
+                    if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                        let favicon_url_clone = favicon_url.clone();
+                        block_on(async {
+                            if !db::SqliteDatabase::check_if_favicon_cache_exists(
+                                database,
+                                &favicon_url_clone,
+                            )
+                            .await
+                            {
+                                let message = move |b: Bytes| {
+                                    cosmic::Action::App(
+                                        ApplicationAction::DoneFetchFaviconForBookmark(
+                                            favicon_url.clone(),
+                                            b,
+                                        ),
+                                    )
+                                };
+                                commands.push(Task::perform(
+                                    http::fetch_bookmark_favicon(favicon_url_clone.clone()),
+                                    message,
+                                ));
+                            }
+                        });
                     }
                 }
             }
@@ -1282,7 +1284,7 @@ impl Application for Cosmicding {
                         });
                     }
                 }
-                return self.update(ApplicationAction::LoadBookmarks);
+                commands.push(self.update(ApplicationAction::LoadBookmarks));
             }
             ApplicationAction::PurgeFaviconsCache => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
