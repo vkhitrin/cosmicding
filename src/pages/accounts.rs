@@ -228,7 +228,7 @@ impl PageAccountsView {
                     .padding([
                         spacing.space_xxs,
                         spacing.space_none,
-                        spacing.space_xxxs,
+                        spacing.space_xxs,
                         spacing.space_none,
                     ])
                     .push(navigation_next_button)

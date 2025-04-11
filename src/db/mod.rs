@@ -1,4 +1,5 @@
 use crate::app::config::SortOption;
+use crate::models::favicon_cache::Favicon;
 use anyhow::{anyhow, Result};
 
 use std::path::Path;
@@ -156,7 +157,7 @@ impl SqliteDatabase {
     //        .await
     //        .unwrap();
     //}
-    pub async fn aggregate_bookmarks_for_acount(
+    pub async fn aggregate_bookmarks_for_account(
         &mut self,
         account: &Account,
         bookmarks: Vec<Bookmark>,
@@ -250,8 +251,19 @@ impl SqliteDatabase {
             SortOption::BookmarkAlphabeticalAscending => "title COLLATE NOCASE ASC",
             SortOption::BookmarkAlphabeticalDescending => "title COLLATE NOCASE DESC",
         };
-        let query: String =
-            format!("SELECT * FROM Bookmarks ORDER BY {order_by_string} LIMIT $1 OFFSET $2;");
+        let query: String = format!(
+            r"
+            SELECT Bookmarks.favicon_url AS bookmark_favicon_url,
+                   Bookmarks.*,
+                   FaviconCache.last_sync_timestamp AS favicon_cache_last_sync_timestamp,
+                   FaviconCache.favicon_url as favicon_cache_favicon_url,
+                   FaviconCache.*
+            FROM 
+                Bookmarks 
+            LEFT JOIN FaviconCache ON Bookmarks.favicon_url = FaviconCache.favicon_url
+            ORDER BY {order_by_string} LIMIT $1 OFFSET $2;
+            "
+        );
 
         let result = sqlx::query(&query)
             .bind(limit)
@@ -280,7 +292,7 @@ impl SqliteDatabase {
                     description: row.get("description"),
                     notes: row.get("notes"),
                     web_archive_snapshot_url: row.get("web_archive_snapshot_url"),
-                    favicon_url: row.get("favicon_url"),
+                    favicon_url: row.get("bookmark_favicon_url"),
                     preview_image_url: row.get("preview_image_url"),
                     is_archived: row.get("is_archived"),
                     unread: row.get("unread"),
@@ -291,6 +303,11 @@ impl SqliteDatabase {
                     website_title: row.get("website_title"),
                     website_description: row.get("website_description"),
                     is_owner: row.get("is_owner"),
+                    favicon_cached: Some(Favicon::new(
+                        row.get("favicon_cache_favicon_url"),
+                        row.get("favicon_data"),
+                        row.get("favicon_cache_last_sync_timestamp"),
+                    )),
                 }
             })
             .collect();
@@ -434,10 +451,14 @@ impl SqliteDatabase {
                     website_title: row.get("website_title"),
                     website_description: row.get("website_description"),
                     is_owner: row.get("is_owner"),
+                    favicon_cached: Some(Favicon::new(
+                        row.get("favicon_cache_favicon_url"),
+                        row.get("favicon_data"),
+                        row.get("favicon_cache_last_sync_timestamp"),
+                    )),
                 }
             })
             .collect();
-
         (row_count, data)
     }
     pub async fn select_single_account(&mut self, account_id: i64) -> Account {
@@ -459,5 +480,36 @@ impl SqliteDatabase {
             .await
             .unwrap();
         result
+    }
+    pub async fn check_if_favicon_cache_exists(&mut self, favicon_url: &String) -> bool {
+        let query: &str = "SELECT COUNT(*) FROM FaviconCache WHERE favicon_url = $1;";
+        let result: bool = sqlx::query_scalar(query)
+            .bind(favicon_url)
+            .fetch_one(&self.conn)
+            .await
+            .unwrap();
+        result
+    }
+    pub async fn add_favicon_cache(&mut self, favicon: Favicon) {
+        let query: &str = "INSERT OR IGNORE INTO FaviconCache (favicon_url, favicon_data, last_sync_timestamp) VALUES ($1, $2 ,$3);";
+        sqlx::query(query)
+            .bind(favicon.url)
+            .bind(favicon.data)
+            .bind(favicon.last_sync_timestamp)
+            .execute(&self.conn)
+            .await
+            .unwrap();
+    }
+    pub async fn delete_all_favicons_cache_of_account(&mut self, account_id: i64) {
+        let query: &str = "DELETE FROM FaviconCache WHERE favicon_url IN (SELECT favicon_url FROM Bookmarks WHERE user_account_id = $1);";
+        sqlx::query(query)
+            .bind(account_id)
+            .execute(&self.conn)
+            .await
+            .unwrap();
+    }
+    pub async fn purge_favicons_cache(&mut self) {
+        let query: &str = "DELETE FROM FaviconCache;";
+        sqlx::query(query).execute(&self.conn).await.unwrap();
     }
 }

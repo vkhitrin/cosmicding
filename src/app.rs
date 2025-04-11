@@ -1,12 +1,3 @@
-use crate::app::{
-    actions::ApplicationAction,
-    config::{AppTheme, CosmicConfig, SortOption},
-    context::ContextPage,
-    dialog::DialogPage,
-    icons::load_icon,
-    menu as app_menu,
-    nav::AppNavPage,
-};
 use crate::db::{self};
 use crate::fl;
 use crate::http::{self};
@@ -15,6 +6,18 @@ use crate::models::bookmarks::{Bookmark, DetailedResponse};
 use crate::models::db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination};
 use crate::pages::accounts::{add_account, edit_account, PageAccountsView};
 use crate::pages::bookmarks::{edit_bookmark, new_bookmark, view_notes, PageBookmarksView};
+use crate::{
+    app::{
+        actions::ApplicationAction,
+        config::{AppTheme, CosmicConfig, SortOption},
+        context::ContextPage,
+        dialog::DialogPage,
+        icons::load_icon,
+        menu as app_menu,
+        nav::AppNavPage,
+    },
+    models::favicon_cache::Favicon,
+};
 use cosmic::cosmic_config::{self, Update};
 use cosmic::cosmic_theme::{self, ThemeMode};
 use cosmic::iced::{
@@ -23,6 +26,8 @@ use cosmic::iced::{
     keyboard::{Event as KeyEvent, Modifiers},
     Event, Length, Subscription,
 };
+use cosmic::iced_core::image::Bytes;
+use cosmic::iced_widget::tooltip;
 use cosmic::widget::menu::key_bind::KeyBind;
 use cosmic::widget::{self, about::About, icon, nav_bar};
 use cosmic::{
@@ -33,7 +38,7 @@ use cosmic::{Application, ApplicationExt, Element};
 use key_bind::key_binds;
 use std::any::TypeId;
 use std::collections::{HashMap, VecDeque};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub mod actions;
 pub mod config;
@@ -292,7 +297,7 @@ impl Application for Cosmicding {
                 .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
                 .body(fl!("remove-account-confirm"))
                 .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
-                    ApplicationAction::CompleteRemoveDialog(account.id.unwrap(), None),
+                    ApplicationAction::CompleteRemoveDialog(account.id, None),
                 )))
                 .secondary_action(
                     widget::button::standard(fl!("cancel"))
@@ -303,8 +308,20 @@ impl Application for Cosmicding {
                 .title(fl!("remove") + " " + { &bookmark.title })
                 .body(fl!("remove-bookmark-confirm"))
                 .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
-                    ApplicationAction::CompleteRemoveDialog(*account, Some(bookmark.clone())),
+                    ApplicationAction::CompleteRemoveDialog(Some(*account), Some(bookmark.clone())),
                 )))
+                .secondary_action(
+                    widget::button::standard(fl!("cancel"))
+                        .on_press(ApplicationAction::DialogCancel),
+                ),
+            DialogPage::PurgeFaviconsCache() => widget::dialog()
+                .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
+                .title(fl!("purge-favicons-cache"))
+                .body(fl!("purge-favicons-cache-confirm"))
+                .primary_action(
+                    widget::button::destructive(fl!("yes"))
+                        .on_press_maybe(Some(ApplicationAction::CompleteRemoveDialog(None, None))),
+                )
                 .secondary_action(
                     widget::button::standard(fl!("cancel"))
                         .on_press(ApplicationAction::DialogCancel),
@@ -423,6 +440,10 @@ impl Application for Cosmicding {
             ApplicationAction::SystemThemeModeChange => {
                 return self.update_config();
             }
+            ApplicationAction::EnableFavicons(enable_favicon) => {
+                config_set!(enable_favicons, enable_favicon);
+                self.config.enable_favicons = enable_favicon;
+            }
             ApplicationAction::OpenAccountsPage => {
                 let account_page_entity = &self.nav.entity_at(0);
                 self.nav.activate(account_page_entity.unwrap());
@@ -475,6 +496,13 @@ impl Application for Cosmicding {
             }
             ApplicationAction::RemoveAccount(account) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    block_on(async {
+                        db::SqliteDatabase::delete_all_favicons_cache_of_account(
+                            database,
+                            account.id.unwrap(),
+                        )
+                        .await;
+                    });
                     block_on(async {
                         db::SqliteDatabase::delete_all_bookmarks_of_account(
                             database,
@@ -656,7 +684,7 @@ impl Application for Cosmicding {
                             failed_accounts.push(response.account.display_name.clone());
                         }
                         block_on(async {
-                            db::SqliteDatabase::aggregate_bookmarks_for_acount(
+                            db::SqliteDatabase::aggregate_bookmarks_for_account(
                                 database,
                                 &response.account,
                                 response.bookmarks.unwrap_or_else(Vec::new),
@@ -719,7 +747,7 @@ impl Application for Cosmicding {
                             failure_refreshing = true;
                         }
                         block_on(async {
-                            db::SqliteDatabase::aggregate_bookmarks_for_acount(
+                            db::SqliteDatabase::aggregate_bookmarks_for_account(
                                 database,
                                 &account,
                                 response.bookmarks.unwrap_or_else(Vec::new),
@@ -933,7 +961,7 @@ impl Application for Cosmicding {
                                 }
                             }
                             Err(e) => {
-                                log::error!("Error adding bookmark: {}", e);
+                                log::error!("Error adding bookmark: {e}");
                                 commands.push(
                                     self.toasts
                                         .push(widget::toaster::Toast::new(format!("{e}")))
@@ -954,7 +982,7 @@ impl Application for Cosmicding {
                         }
                         commands.push(self.update(ApplicationAction::LoadBookmarks));
                     }
-                };
+                }
                 self.core.window.show_context = false;
             }
             ApplicationAction::RemoveBookmark(account_id, bookmark) => {
@@ -982,7 +1010,7 @@ impl Application for Cosmicding {
                                 );
                             }
                             Err(e) => {
-                                log::error!("Error removing bookmark: {}", e);
+                                log::error!("Error removing bookmark: {e}");
                                 commands.push(
                                     self.toasts
                                         .push(widget::toaster::Toast::new(format!("{e}")))
@@ -1012,7 +1040,7 @@ impl Application for Cosmicding {
                         db::SqliteDatabase::select_single_account(database, account_id).await
                     });
                     self.placeholder_account = Some(account);
-                };
+                }
                 commands.push(self.update(ApplicationAction::ToggleContextPage(
                     ContextPage::EditBookmarkForm,
                 )));
@@ -1035,7 +1063,7 @@ impl Application for Cosmicding {
                                 );
                             }
                             Err(e) => {
-                                log::error!("Error patching bookmark: {}", e);
+                                log::error!("Error updating bookmark: {e}");
                                 commands.push(
                                     self.toasts
                                         .push(widget::toaster::Toast::new(format!("{e}")))
@@ -1054,7 +1082,8 @@ impl Application for Cosmicding {
                         block_on(async {
                             db::SqliteDatabase::update_bookmark(database, &bkmrk, &bkmrk).await;
                         });
-                        self.bookmarks_view.bookmarks[index] = bkmrk;
+                        self.bookmarks_view.bookmarks[index] =
+                            self.bookmarks_view.bookmarks[index].clone().merge(bkmrk);
                     }
                 }
                 self.core.window.show_context = false;
@@ -1072,7 +1101,7 @@ impl Application for Cosmicding {
             }
             ApplicationAction::OpenExternalUrl(ref url) => {
                 if let Err(err) = open::that_detached(url) {
-                    log::error!("Failed to open URL: {}", err);
+                    log::error!("Failed to open URL: {err}");
                 }
             }
             ApplicationAction::ViewBookmarkNotes(bookmark) => {
@@ -1108,6 +1137,12 @@ impl Application for Cosmicding {
                         .push_back(DialogPage::RemoveBookmark(account_id, bookmark));
                 }
             }
+            ApplicationAction::OpenPurgeFaviconsCache => {
+                if self.dialog_pages.pop_front().is_none() {
+                    self.dialog_pages
+                        .push_back(DialogPage::PurgeFaviconsCache());
+                }
+            }
             ApplicationAction::DialogUpdate(dialog_page) => {
                 self.dialog_pages[0] = dialog_page;
             }
@@ -1123,6 +1158,10 @@ impl Application for Cosmicding {
                                     account_id, bookmark,
                                 )),
                             );
+                        }
+                        DialogPage::PurgeFaviconsCache() => {
+                            commands.push(self.update(ApplicationAction::PurgeFaviconsCache));
+                            commands.push(self.update(ApplicationAction::LoadBookmarks));
                         }
                     }
                 }
@@ -1155,6 +1194,14 @@ impl Application for Cosmicding {
                     self.bookmarks_cursor.fetch_next_results().await;
                     self.bookmarks_cursor.refresh_count().await;
                 });
+                // TODO: (vkhitrin) Check favicon cached timestamp, and refresh periodically.
+                if self.config.enable_favicons {
+                    for bookmark in self.bookmarks_cursor.result.clone().unwrap() {
+                        commands.push(
+                            self.update(ApplicationAction::StartFetchFaviconForBookmark(bookmark)),
+                        );
+                    }
+                }
                 self.bookmarks_view.bookmarks = self.bookmarks_cursor.result.clone().unwrap();
             }
             ApplicationAction::IncrementPageIndex(cursor_type) => {
@@ -1187,6 +1234,61 @@ impl Application for Cosmicding {
                         self.accounts_cursor.current_page = current_page - 1;
                     }
                     commands.push(self.update(ApplicationAction::LoadAccounts));
+                }
+            }
+            ApplicationAction::StartFetchFaviconForBookmark(bookmark) => {
+                if !matches!(self.state, ApplicationState::Refreshing) {
+                    if let Some(favicon_url) = bookmark.favicon_url.clone() {
+                        if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                            let favicon_url_clone = favicon_url.clone();
+                            block_on(async {
+                                if !db::SqliteDatabase::check_if_favicon_cache_exists(
+                                    database,
+                                    &favicon_url_clone,
+                                )
+                                .await
+                                {
+                                    let message = move |b: Bytes| {
+                                        cosmic::Action::App(
+                                            ApplicationAction::DoneFetchFaviconForBookmark(
+                                                favicon_url.clone(),
+                                                b,
+                                            ),
+                                        )
+                                    };
+                                    commands.push(Task::perform(
+                                        http::fetch_bookmark_favicon(favicon_url_clone.clone()),
+                                        message,
+                                    ));
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            ApplicationAction::DoneFetchFaviconForBookmark(favicon_url, bytes) => {
+                if !bytes.is_empty() {
+                    let epoch_timestamp = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .expect("")
+                        .as_secs();
+                    if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                        block_on(async {
+                            db::SqliteDatabase::add_favicon_cache(
+                                database,
+                                Favicon::new(favicon_url, bytes.to_vec(), epoch_timestamp as i64),
+                            )
+                            .await;
+                        });
+                    }
+                }
+                return self.update(ApplicationAction::LoadBookmarks);
+            }
+            ApplicationAction::PurgeFaviconsCache => {
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    block_on(async {
+                        db::SqliteDatabase::purge_favicons_cache(database).await;
+                    });
                 }
             }
             ApplicationAction::StartupCompleted => {
@@ -1255,6 +1357,39 @@ impl Cosmicding {
                         ApplicationAction::SetItemsPerPage,
                     ))
                 })
+                // NOTE: (vkhitrin) it is possible to use the native implementation for settings
+                // toggler, 'widget::settings::item::builder().toggler()', but it doesn't
+                // implement tooltip.
+                .add(
+                    widget::row::with_capacity(2)
+                        .spacing(5)
+                        .push(widget::text::body(fl!("enable-favicons")))
+                        .push(widget::tooltip(
+                            widget::icon::icon(load_icon("dialog-information-symbolic")).size(18),
+                            widget::container(widget::text::body(fl!("enable-favicons-info"))),
+                            tooltip::Position::FollowCursor,
+                        ))
+                        .push(widget::horizontal_space())
+                        .push(
+                            widget::toggler(self.config.enable_favicons)
+                                .on_toggle(ApplicationAction::EnableFavicons),
+                        ),
+                )
+                .into(),
+            widget::settings::section()
+                .title(fl!("actions"))
+                .add(
+                    widget::row::with_capacity(2)
+                        .align_y(cosmic::iced::Alignment::Center)
+                        .spacing(5)
+                        .push(widget::text::body(fl!("purge-favicons-cache")))
+                        .push(widget::horizontal_space())
+                        .push(
+                            widget::button::icon(load_icon("user-trash-symbolic"))
+                                .on_press(ApplicationAction::OpenPurgeFaviconsCache)
+                                .class(cosmic::style::Button::Destructive),
+                        ),
+                )
                 .into(),
         ])
         .into()

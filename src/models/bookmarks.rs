@@ -1,6 +1,9 @@
 use crate::models::account::Account;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+
+use super::favicon_cache::Favicon;
+
 #[derive(Debug, Clone, Serialize, FromRow, Deserialize, Eq, PartialEq)]
 pub struct Bookmark {
     pub id: Option<i64>,
@@ -22,6 +25,7 @@ pub struct Bookmark {
     pub date_added: Option<String>,
     pub date_modified: Option<String>,
     pub is_owner: Option<bool>,
+    pub favicon_cached: Option<Favicon>,
 }
 
 // NOTE: (vkhitrin) as of March 1st, 2025, linkding doesn't expose the user which shared the
@@ -68,6 +72,31 @@ impl Bookmark {
             date_added: linkding_date_added,
             date_modified: linkding_date_modified,
             is_owner: internnal_workaround_is_owner,
+            favicon_cached: None,
+        }
+    }
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            id: self.id.or(other.id),
+            user_account_id: self.user_account_id.or(other.user_account_id),
+            linkding_internal_id: self.linkding_internal_id.or(other.linkding_internal_id),
+            url: other.url,
+            title: other.title,
+            description: other.description,
+            website_title: self.website_title.or(other.website_title),
+            website_description: self.website_description.or(other.website_description),
+            notes: other.notes,
+            web_archive_snapshot_url: other.web_archive_snapshot_url,
+            favicon_url: self.favicon_url.or(other.favicon_url),
+            preview_image_url: self.preview_image_url.or(other.preview_image_url),
+            is_archived: other.is_archived,
+            unread: other.unread,
+            shared: other.shared,
+            tag_names: other.tag_names,
+            date_added: self.date_added.or(other.date_added),
+            date_modified: self.date_modified.or(other.date_modified),
+            is_owner: self.is_owner,
+            favicon_cached: self.favicon_cached,
         }
     }
 }

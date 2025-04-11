@@ -21,7 +21,7 @@ Features:
 - Add/Edit/Remove bookmarks.
 - Search bookmarks based on title, URL, tags, description, and notes.
 
-cosmicding was tested against linkding releases `1.31.0`, and `1.36.0`.
+cosmicding has been tested with linkding releases >= `1.31.0`.
 
 ## Installation
 

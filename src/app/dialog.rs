@@ -5,4 +5,5 @@ use crate::models::bookmarks::Bookmark;
 pub enum DialogPage {
     RemoveAccount(Account),
     RemoveBookmark(i64, Bookmark),
+    PurgeFaviconsCache(),
 }

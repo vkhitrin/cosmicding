@@ -5,8 +5,11 @@ use crate::app::{
 };
 use crate::models::account::{Account, LinkdingAccountApiResponse};
 use crate::models::bookmarks::{Bookmark, DetailedResponse};
-use cosmic::iced::keyboard::{Key, Modifiers};
 use cosmic::widget::{self};
+use cosmic::{
+    iced::keyboard::{Key, Modifiers},
+    iced_core::image::Bytes,
+};
 
 #[derive(Debug, Clone)]
 pub enum ApplicationAction {
@@ -19,17 +22,19 @@ pub enum ApplicationAction {
     BookmarksView(BookmarksAction),
     CloseToast(widget::ToastId),
     CompleteAddAccount(Account),
-    CompleteRemoveDialog(i64, Option<Bookmark>),
+    CompleteRemoveDialog(Option<i64>, Option<Bookmark>),
     ContextClose,
     DecrementPageIndex(String),
     DialogCancel,
     DialogUpdate(DialogPage),
+    DoneFetchFaviconForBookmark(String, Bytes),
     DoneRefreshAccountProfile(Account, Option<LinkdingAccountApiResponse>),
     DoneRefreshBookmarksForAccount(Account, Vec<DetailedResponse>),
     DoneRefreshBookmarksForAllAccounts(Vec<DetailedResponse>),
     EditAccount(Account),
     EditBookmark(i64, Bookmark),
     Empty,
+    EnableFavicons(bool),
     IncrementPageIndex(String),
     InputBookmarkDescription(widget::text_editor::Action),
     InputBookmarkNotes(widget::text_editor::Action),
@@ -39,8 +44,10 @@ pub enum ApplicationAction {
     Modifiers(Modifiers),
     OpenAccountsPage,
     OpenExternalUrl(String),
+    OpenPurgeFaviconsCache,
     OpenRemoveAccountDialog(Account),
     OpenRemoveBookmarkDialog(i64, Bookmark),
+    PurgeFaviconsCache,
     RemoveAccount(Account),
     RemoveBookmark(i64, Bookmark),
     SearchBookmarks(String),
@@ -56,6 +63,7 @@ pub enum ApplicationAction {
     SetBookmarkUnread(bool),
     SetItemsPerPage(u8),
     SortOption(SortOption),
+    StartFetchFaviconForBookmark(Bookmark),
     StartRefreshAccountProfile(Account),
     StartRefreshBookmarksForAccount(Account),
     StartRefreshBookmarksForAllAccounts,
