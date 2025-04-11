@@ -3,15 +3,16 @@ use sqlx::FromRow;
 #[derive(Serialize, Deserialize, Debug, Clone, FromRow, Eq, PartialEq)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Account {
-    pub id: Option<i64>,
     pub api_token: String,
     pub display_name: String,
+    pub enable_public_sharing: bool,
+    pub enable_sharing: bool,
+    pub enabled: bool,
+    pub id: Option<i64>,
     pub instance: String,
     pub last_sync_status: bool,
     pub last_sync_timestamp: i64,
-    pub tls: bool,
-    pub enable_sharing: bool,
-    pub enable_public_sharing: bool,
+    pub trust_invalid_certs: bool,
 }
 
 impl AsRef<str> for Account {
@@ -23,15 +24,16 @@ impl AsRef<str> for Account {
 impl Account {
     pub fn new(name: String, token: String, url: String) -> Self {
         Self {
-            id: None,
             api_token: token,
             display_name: name,
+            enable_public_sharing: false,
+            enable_sharing: false,
+            enabled: true,
+            id: None,
             instance: url,
             last_sync_status: false,
             last_sync_timestamp: 0,
-            tls: true,
-            enable_sharing: false,
-            enable_public_sharing: false,
+            trust_invalid_certs: false,
         }
     }
 }

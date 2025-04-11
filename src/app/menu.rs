@@ -54,13 +54,13 @@ pub fn menu_bar<'a>(
                 key_binds,
                 vec![
                     Item::Button(fl!("add-account"), None, MenuAction::AddAccount),
-                    if accounts_present && matches!(app_state, ApplicationState::Normal) {
+                    if accounts_present && matches!(app_state, ApplicationState::Ready) {
                         Item::Button(fl!("add-bookmark"), None, MenuAction::AddBookmark)
                     } else {
                         Item::ButtonDisabled(fl!("add-bookmark"), None, MenuAction::AddBookmark)
                     },
                     Item::Divider,
-                    if bookmarks_present && matches!(app_state, ApplicationState::Normal) {
+                    if bookmarks_present && matches!(app_state, ApplicationState::Ready) {
                         Item::Button(fl!("refresh-bookmarks"), None, MenuAction::RefreshBookmarks)
                     } else {
                         Item::ButtonDisabled(fl!("refresh-bookmarks"), None, MenuAction::Empty)

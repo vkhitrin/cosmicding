@@ -88,9 +88,10 @@ pub struct Cosmicding {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ApplicationState {
-    Normal,
+    Loading,
+    NoEnabledAccounts,
+    Ready,
     Refreshing,
-    Startup,
 }
 
 impl Application for Cosmicding {
@@ -177,7 +178,7 @@ impl Application for Cosmicding {
             placeholder_bookmark_description: widget::text_editor::Content::new(),
             placeholder_bookmark_notes: widget::text_editor::Content::new(),
             placeholder_selected_account_index: 0,
-            state: ApplicationState::Startup,
+            state: ApplicationState::NoEnabledAccounts,
             toasts: widget::toaster::Toasts::new(ApplicationAction::CloseToast),
         };
 
@@ -628,9 +629,10 @@ impl Application for Cosmicding {
                             }
                         }
                     });
+                    let account_clone = account.clone();
                     if valid_account {
                         block_on(async {
-                            db::SqliteDatabase::update_account(database, &account).await;
+                            db::SqliteDatabase::update_account(database, &account_clone).await;
                         });
                         commands.push(
                             self.toasts
@@ -642,9 +644,7 @@ impl Application for Cosmicding {
                         );
                         commands.push(self.update(ApplicationAction::LoadAccounts));
                         commands.push(self.update(
-                            ApplicationAction::StartRefreshBookmarksForAccount(
-                                self.accounts_view.accounts.last().unwrap().clone(),
-                            ),
+                            ApplicationAction::StartRefreshBookmarksForAccount(account_clone),
                         ));
                     }
                 }
@@ -659,19 +659,24 @@ impl Application for Cosmicding {
                 if !self.accounts_view.accounts.is_empty() {
                     if let ApplicationState::Refreshing = self.state {
                     } else {
-                        self.state = ApplicationState::Refreshing;
-                        let message = |x: Vec<DetailedResponse>| {
-                            cosmic::Action::App(
-                                ApplicationAction::DoneRefreshBookmarksForAllAccounts(x),
-                            )
-                        };
-                        if !self.accounts_view.accounts.is_empty() {
-                            commands.push(Task::perform(
-                                http::fetch_bookmarks_from_all_accounts(
-                                    self.accounts_view.accounts.clone(),
-                                ),
-                                message,
-                            ));
+                        // NOTE: (vkhitrin) if all accounts disabled, do not attempt to refresh
+                        if self.accounts_view.accounts.iter().all(|item| !item.enabled) {
+                            self.state = ApplicationState::NoEnabledAccounts;
+                        } else {
+                            self.state = ApplicationState::Refreshing;
+                            let message = |x: Vec<DetailedResponse>| {
+                                cosmic::Action::App(
+                                    ApplicationAction::DoneRefreshBookmarksForAllAccounts(x),
+                                )
+                            };
+                            if !self.accounts_view.accounts.is_empty() {
+                                commands.push(Task::perform(
+                                    http::fetch_bookmarks_from_all_accounts(
+                                        self.accounts_view.accounts.clone(),
+                                    ),
+                                    message,
+                                ));
+                            }
                         }
                     }
                 }
@@ -696,7 +701,7 @@ impl Application for Cosmicding {
                     }
                     commands.push(self.update(ApplicationAction::LoadAccounts));
                     commands.push(self.update(ApplicationAction::LoadBookmarks));
-                    self.state = ApplicationState::Normal;
+                    self.state = ApplicationState::Ready;
                     if failed_accounts.is_empty() {
                         commands.push(
                             self.toasts
@@ -717,7 +722,7 @@ impl Application for Cosmicding {
             }
             ApplicationAction::StartRefreshBookmarksForAccount(account) => {
                 if let ApplicationState::Refreshing = self.state {
-                } else {
+                } else if account.enabled {
                     self.state = ApplicationState::Refreshing;
                     let mut acc_vec = self.accounts_view.accounts.clone();
                     acc_vec.retain(|acc| acc.id == account.id);
@@ -737,6 +742,11 @@ impl Application for Cosmicding {
                             message,
                         ));
                     }
+                } else {
+                    if self.accounts_view.accounts.iter().all(|item| !item.enabled) {
+                        self.state = ApplicationState::NoEnabledAccounts;
+                    }
+                    commands.push(self.update(ApplicationAction::LoadBookmarks));
                 }
             }
             ApplicationAction::DoneRefreshBookmarksForAccount(account, remote_responses) => {
@@ -759,7 +769,7 @@ impl Application for Cosmicding {
                     }
                     commands.push(self.update(ApplicationAction::LoadAccounts));
                     commands.push(self.update(ApplicationAction::LoadBookmarks));
-                    self.state = ApplicationState::Normal;
+                    self.state = ApplicationState::Ready;
                     if failure_refreshing {
                         commands.push(
                             self.toasts
@@ -810,50 +820,53 @@ impl Application for Cosmicding {
                             db::SqliteDatabase::update_account(database, &account).await;
                         });
                     }
-                    self.state = ApplicationState::Normal;
+                    self.state = ApplicationState::Loading;
                 }
             }
             ApplicationAction::AddBookmarkForm => {
-                // FIXME: (vkhitrin) this should not exist, "bypass" pagination to retrieve all
-                //        entries from database. Need to find a better approach to generate a list
-                //        of all accounts.
-                self.placeholder_accounts_list =
-                    tokio::runtime::Runtime::new().unwrap().block_on(async {
-                        db::SqliteDatabase::select_accounts(
-                            self.bookmarks_cursor.database.as_mut().unwrap(),
-                        )
-                        .await
-                    });
-                if !self.accounts_view.accounts.is_empty() {
-                    self.placeholder_bookmark = Some(Bookmark::new(
-                        None,
-                        None,
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        false,
-                        false,
-                        false,
-                        Vec::new(),
-                        None,
-                        None,
-                        Some(true),
-                    ));
-                    if !self.placeholder_bookmark_notes.text().is_empty() {
-                        self.placeholder_bookmark_notes = widget::text_editor::Content::new();
+                if matches!(self.state, ApplicationState::Ready) {
+                    // FIXME: (vkhitrin) this should not exist, "bypass" pagination to retrieve all
+                    //        entries from database. Need to find a better approach to generate a list
+                    //        of all accounts.
+                    self.placeholder_accounts_list =
+                        tokio::runtime::Runtime::new().unwrap().block_on(async {
+                            db::SqliteDatabase::select_accounts(
+                                self.bookmarks_cursor.database.as_mut().unwrap(),
+                            )
+                            .await
+                        });
+                    if !self.accounts_view.accounts.is_empty() {
+                        self.placeholder_bookmark = Some(Bookmark::new(
+                            None,
+                            None,
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            false,
+                            false,
+                            false,
+                            Vec::new(),
+                            None,
+                            None,
+                            Some(true),
+                        ));
+                        if !self.placeholder_bookmark_notes.text().is_empty() {
+                            self.placeholder_bookmark_notes = widget::text_editor::Content::new();
+                        }
+                        if !self.placeholder_bookmark_description.text().is_empty() {
+                            self.placeholder_bookmark_description =
+                                widget::text_editor::Content::new();
+                        }
+                        commands.push(self.update(ApplicationAction::ToggleContextPage(
+                            ContextPage::NewBookmarkForm,
+                        )));
                     }
-                    if !self.placeholder_bookmark_description.text().is_empty() {
-                        self.placeholder_bookmark_description = widget::text_editor::Content::new();
-                    }
-                    commands.push(self.update(ApplicationAction::ToggleContextPage(
-                        ContextPage::NewBookmarkForm,
-                    )));
                 }
             }
             ApplicationAction::SetAccountDisplayName(name) => {
@@ -871,9 +884,14 @@ impl Application for Cosmicding {
                     account_placeholder.api_token = key;
                 }
             }
-            ApplicationAction::SetAccountTLS(tls) => {
+            ApplicationAction::SetAccountStatus(enabled) => {
                 if let Some(ref mut account_placeholder) = &mut self.placeholder_account {
-                    account_placeholder.tls = tls;
+                    account_placeholder.enabled = enabled;
+                }
+            }
+            ApplicationAction::SetAccountTrustInvalidCertificates(trust) => {
+                if let Some(ref mut account_placeholder) = &mut self.placeholder_account {
+                    account_placeholder.trust_invalid_certs = trust;
                 }
             }
             ApplicationAction::AddBookmarkFormAccountIndex(idx) => {
@@ -1092,14 +1110,14 @@ impl Application for Cosmicding {
                 }
                 self.core.window.show_context = false;
             }
-            ApplicationAction::SearchBookmarks(query) => {
-                if query.is_empty() {
+            ApplicationAction::SearchBookmarks(search_query) => {
+                if search_query.is_empty() {
                     self.bookmarks_cursor.search_query = None;
                     tokio::runtime::Runtime::new().unwrap().block_on(async {
                         self.bookmarks_cursor.refresh_offset(0).await;
                     });
                 } else {
-                    self.bookmarks_cursor.search_query = Some(query);
+                    self.bookmarks_cursor.search_query = Some(search_query);
                 }
                 commands.push(self.update(ApplicationAction::LoadBookmarks));
             }
@@ -1242,29 +1260,31 @@ impl Application for Cosmicding {
             }
             ApplicationAction::StartFetchFaviconForBookmark(bookmark) => {
                 if let Some(favicon_url) = bookmark.favicon_url.clone() {
-                    if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                        let favicon_url_clone = favicon_url.clone();
-                        block_on(async {
-                            if !db::SqliteDatabase::check_if_favicon_cache_exists(
-                                database,
-                                &favicon_url_clone,
-                            )
-                            .await
-                            {
-                                let message = move |b: Bytes| {
-                                    cosmic::Action::App(
-                                        ApplicationAction::DoneFetchFaviconForBookmark(
-                                            favicon_url.clone(),
-                                            b,
-                                        ),
-                                    )
-                                };
-                                commands.push(Task::perform(
-                                    http::fetch_bookmark_favicon(favicon_url_clone.clone()),
-                                    message,
-                                ));
-                            }
-                        });
+                    if !favicon_url.is_empty() {
+                        if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                            let favicon_url_clone = favicon_url.clone();
+                            block_on(async {
+                                if !db::SqliteDatabase::check_if_favicon_cache_exists(
+                                    database,
+                                    &favicon_url_clone,
+                                )
+                                .await
+                                {
+                                    let message = move |b: Bytes| {
+                                        cosmic::Action::App(
+                                            ApplicationAction::DoneFetchFaviconForBookmark(
+                                                favicon_url.clone(),
+                                                b,
+                                            ),
+                                        )
+                                    };
+                                    commands.push(Task::perform(
+                                        http::fetch_bookmark_favicon(favicon_url_clone.clone()),
+                                        message,
+                                    ));
+                                }
+                            });
+                        }
                     }
                 }
             }
@@ -1306,7 +1326,6 @@ impl Application for Cosmicding {
                     },
                     cosmic::Action::App,
                 ));
-                self.state = ApplicationState::Normal;
             }
             ApplicationAction::Empty => {
                 commands.push(Task::none());
@@ -1364,6 +1383,7 @@ impl Cosmicding {
                 // implement tooltip.
                 .add(
                     widget::row::with_capacity(2)
+                        .align_y(cosmic::iced::Alignment::Center)
                         .spacing(5)
                         .push(widget::text::body(fl!("enable-favicons")))
                         .push(widget::tooltip(

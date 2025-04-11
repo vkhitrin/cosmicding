@@ -69,9 +69,17 @@ impl PageAccountsView {
                     ApplicationState::Refreshing => widget::button::link(fl!("refresh"))
                         .font_size(12)
                         .class(ButtonStyle::DisabledLink(false).into()),
-                    _ => widget::button::link(fl!("refresh"))
-                        .font_size(12)
-                        .on_press(AccountsAction::RefreshBookmarksForAccount(item.to_owned())),
+                    _ => {
+                        if item.enabled {
+                            widget::button::link(fl!("refresh")).font_size(12).on_press(
+                                AccountsAction::RefreshBookmarksForAccount(item.to_owned()),
+                            )
+                        } else {
+                            widget::button::link(fl!("refresh"))
+                                .font_size(12)
+                                .class(ButtonStyle::DisabledLink(false).into())
+                        }
+                    }
                 };
                 let edit_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("edit"))
@@ -96,7 +104,15 @@ impl PageAccountsView {
                     widget::row::with_capacity(2)
                         .spacing(spacing.space_xs)
                         .push(widget::icon::icon(load_icon("user-available-symbolic")))
-                        .push(widget::text(item.display_name.clone()))
+                        .push(widget::text::body(format!(
+                            "{} ({})",
+                            item.display_name.clone(),
+                            if item.enabled {
+                                fl!("enabled")
+                            } else {
+                                fl!("disabled")
+                            }
+                        )))
                         .padding([
                             spacing.space_xs,
                             spacing.space_xxs,
@@ -142,11 +158,6 @@ impl PageAccountsView {
                         ])
                         .push(widget::icon::icon(load_icon("dialog-information-symbolic")))
                         .push(widget::container(widget::column::with_children(vec![
-                            if item.tls {
-                                widget::text::body(fl!("tls-enabled")).into()
-                            } else {
-                                widget::text::body(fl!("tls-disabled")).into()
-                            },
                             if item.enable_sharing {
                                 widget::text::body(fl!("enabled-sharing")).into()
                             } else {
@@ -329,10 +340,14 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
     let api_key_widget_text_input = widget::text_input(fl!("token"), account.api_token.clone())
         .on_input(ApplicationAction::SetAccountAPIKey)
         .password();
-    let tls_widget_toggler = widget::toggler(account.tls)
-        .on_toggle(ApplicationAction::SetAccountTLS)
+    let trust_invalid_certs_widget_toggler = widget::toggler(account.trust_invalid_certs)
+        .on_toggle(ApplicationAction::SetAccountTrustInvalidCertificates)
         .spacing(10)
-        .label(fl!("tls"));
+        .label(fl!("trust-invalid-certificates"));
+    let account_status_toggler = widget::toggler(account.enabled)
+        .on_toggle(ApplicationAction::SetAccountStatus)
+        .spacing(10)
+        .label(fl!("enabled"));
     let buttons_widget_container = widget::container(
         widget::button::standard(fl!("save"))
             .on_press(ApplicationAction::CompleteAddAccount(account)),
@@ -386,9 +401,19 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(api_key_widget_text_input)
         .push(
             widget::row::with_capacity(1)
-                .push(tls_widget_toggler)
+                .push(trust_invalid_certs_widget_toggler)
                 .padding([
                     spacing.space_s,
+                    spacing.space_none,
+                    spacing.space_none,
+                    spacing.space_none,
+                ]),
+        )
+        .push(
+            widget::row::with_capacity(1)
+                .push(account_status_toggler)
+                .padding([
+                    spacing.space_xxxs,
                     spacing.space_none,
                     spacing.space_xs,
                     spacing.space_none,
@@ -412,10 +437,14 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
     let api_key_widget_text_input = widget::text_input(fl!("token"), account.api_token.clone())
         .on_input(ApplicationAction::SetAccountAPIKey)
         .password();
-    let tls_widget_toggler = widget::toggler(account.tls)
-        .on_toggle(ApplicationAction::SetAccountTLS)
+    let trust_invalid_certs_widget_toggler = widget::toggler(account.trust_invalid_certs)
+        .on_toggle(ApplicationAction::SetAccountTrustInvalidCertificates)
         .spacing(10)
-        .label(fl!("tls"));
+        .label(fl!("trust-invalid-certificates"));
+    let account_status_toggler = widget::toggler(account.enabled)
+        .on_toggle(ApplicationAction::SetAccountStatus)
+        .spacing(10)
+        .label(fl!("enabled"));
     let enable_shared_widget_text = if account.enable_sharing {
         widget::tooltip(
             widget::row::with_capacity(2)
@@ -510,9 +539,19 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(api_key_widget_text_input)
         .push(
             widget::row::with_capacity(1)
-                .push(tls_widget_toggler)
+                .push(trust_invalid_certs_widget_toggler)
                 .padding([
                     spacing.space_s,
+                    spacing.space_none,
+                    spacing.space_none,
+                    spacing.space_none,
+                ]),
+        )
+        .push(
+            widget::row::with_capacity(1)
+                .push(account_status_toggler)
+                .padding([
+                    spacing.space_xxxs,
                     spacing.space_none,
                     spacing.space_xs,
                     spacing.space_none,

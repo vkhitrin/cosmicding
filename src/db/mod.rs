@@ -68,7 +68,7 @@ impl SqliteDatabase {
         result as usize
     }
     pub async fn select_accounts(&mut self) -> Vec<Account> {
-        let query: &str = "SELECT * FROM UserAccounts;";
+        let query: &str = "SELECT * FROM UserAccounts WHERE enabled = 1;";
         let result: Vec<Account> = sqlx::query_as(query).fetch_all(&self.conn).await.unwrap();
 
         result
@@ -85,15 +85,16 @@ impl SqliteDatabase {
         let data: Vec<Account> = result
             .iter()
             .map(|row| Account {
-                id: row.get("id"),
-                display_name: row.get("display_name"),
                 api_token: row.get("api_token"),
+                display_name: row.get("display_name"),
+                enable_public_sharing: row.get("enable_public_sharing"),
+                enable_sharing: row.get("enable_sharing"),
+                enabled: row.get("enabled"),
+                id: row.get("id"),
                 instance: row.get("instance"),
                 last_sync_status: row.get("last_sync_status"),
                 last_sync_timestamp: row.get("last_sync_timestamp"),
-                tls: row.get("tls"),
-                enable_sharing: row.get("enable_sharing"),
-                enable_public_sharing: row.get("enable_public_sharing"),
+                trust_invalid_certs: row.get("trust_invalid_certs"),
             })
             .collect();
         data
@@ -107,13 +108,14 @@ impl SqliteDatabase {
             .unwrap();
     }
     pub async fn update_account(&mut self, account: &Account) {
-        let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, tls=$5, enable_sharing=$6, enable_public_sharing=$7 WHERE id=$1;";
+        let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, trust_invalid_certs=$5, enabled=$6, enable_sharing=$7, enable_public_sharing=$8 WHERE id=$1;";
         sqlx::query(query)
             .bind(account.id)
             .bind(&account.display_name)
             .bind(&account.instance)
             .bind(&account.api_token)
-            .bind(account.tls)
+            .bind(account.trust_invalid_certs)
+            .bind(account.enabled)
             .bind(account.enable_sharing)
             .bind(account.enable_public_sharing)
             .execute(&self.conn)
@@ -121,12 +123,13 @@ impl SqliteDatabase {
             .unwrap();
     }
     pub async fn create_account(&mut self, account: &Account) {
-        let query: &str = "INSERT INTO UserAccounts (display_name, instance, api_token, last_sync_status, last_sync_timestamp, tls, enable_sharing, enable_public_sharing) VALUES ($1, $2, $3, 0, 0, $4, $5, $6);";
+        let query: &str = "INSERT INTO UserAccounts (display_name, instance, api_token, last_sync_status, last_sync_timestamp, trust_invalid_certs, enabled, enable_sharing, enable_public_sharing) VALUES ($1, $2, $3, 0, 0, $4, $5, $6, $7);";
         sqlx::query(query)
             .bind(&account.display_name)
             .bind(&account.instance)
             .bind(&account.api_token)
-            .bind(account.tls)
+            .bind(account.trust_invalid_certs)
+            .bind(account.enabled)
             .bind(account.enable_sharing)
             .bind(account.enable_public_sharing)
             .execute(&self.conn)
@@ -232,7 +235,12 @@ impl SqliteDatabase {
     }
 
     pub async fn count_bookmarks_entries(&mut self) -> usize {
-        let query: &str = "SELECT COUNT(*) FROM Bookmarks;";
+        let query: &str = r"
+        SELECT COUNT(*)
+        FROM Bookmarks
+        INNER JOIN UserAccounts ON Bookmarks.user_account_id = UserAccounts.id
+        WHERE UserAccounts.enabled = 1;
+        ";
         let result: u64 = sqlx::query_scalar(query)
             .fetch_one(&self.conn)
             .await
@@ -253,15 +261,24 @@ impl SqliteDatabase {
         };
         let query: String = format!(
             r"
-            SELECT Bookmarks.favicon_url AS bookmark_favicon_url,
-                   Bookmarks.*,
-                   FaviconCache.last_sync_timestamp AS favicon_cache_last_sync_timestamp,
-                   FaviconCache.favicon_url as favicon_cache_favicon_url,
-                   FaviconCache.*
+            SELECT 
+                Bookmarks.favicon_url AS bookmark_favicon_url,
+                Bookmarks.*,
+                FaviconCache.last_sync_timestamp AS favicon_cache_last_sync_timestamp,
+                FaviconCache.favicon_url AS favicon_cache_favicon_url,
+                FaviconCache.*
             FROM 
-                Bookmarks 
-            LEFT JOIN FaviconCache ON Bookmarks.favicon_url = FaviconCache.favicon_url
-            ORDER BY {order_by_string} LIMIT $1 OFFSET $2;
+                Bookmarks
+            LEFT JOIN 
+                FaviconCache ON Bookmarks.favicon_url = FaviconCache.favicon_url
+            INNER JOIN 
+                UserAccounts ON Bookmarks.user_account_id = UserAccounts.id
+            WHERE 
+                UserAccounts.enabled = 1
+            ORDER BY 
+                {order_by_string}
+            LIMIT 
+                $1 OFFSET $2;
             "
         );
 
@@ -384,28 +401,41 @@ impl SqliteDatabase {
         };
         let query = format!(
             r"
-        WITH bookmark_count AS (
-            SELECT COUNT(*) AS count FROM Bookmarks
-            WHERE (
-                coalesce(url, '') || ' ' ||
-                coalesce(title, '') || ' ' ||
-                coalesce(description, '') || ' ' ||
-                coalesce(notes, '') || ' ' ||
-                coalesce(tag_names, '')
+            WITH bookmark_count AS (
+                SELECT COUNT(*) AS count FROM Bookmarks
+                INNER JOIN UserAccounts ON Bookmarks.user_account_id = UserAccounts.id
+                WHERE UserAccounts.enabled = 1 AND (
+                    coalesce(Bookmarks.url, '') || ' ' ||
+                    coalesce(Bookmarks.title, '') || ' ' ||
+                    coalesce(Bookmarks.description, '') || ' ' ||
+                    coalesce(Bookmarks.notes, '') || ' ' ||
+                    coalesce(Bookmarks.tag_names, '')
+                ) LIKE '%' || $1 || '%'
             )
-            LIKE '%' || $1 || '%'
-        )
-        SELECT * FROM Bookmarks, bookmark_count
-        WHERE (
-            coalesce(url, '') || ' ' ||
-            coalesce(title, '') || ' ' ||
-            coalesce(description, '') || ' ' ||
-            coalesce(notes, '') || ' ' ||
-            coalesce(tag_names, '')
-        )
-        LIKE '%' || $1 || '%'
-        ORDER BY {order_by_string}
-        LIMIT $2 OFFSET $3;"
+            SELECT 
+                Bookmarks.*,
+                FaviconCache.favicon_url AS favicon_cache_favicon_url,
+                FaviconCache.favicon_data,
+                FaviconCache.last_sync_timestamp AS favicon_cache_last_sync_timestamp,
+                bookmark_count.count
+            FROM 
+                Bookmarks
+            INNER JOIN 
+                UserAccounts ON Bookmarks.user_account_id = UserAccounts.id
+            LEFT JOIN 
+                FaviconCache ON Bookmarks.favicon_url = FaviconCache.favicon_url,
+                bookmark_count
+            WHERE 
+                UserAccounts.enabled = 1 AND (
+                    coalesce(Bookmarks.url, '') || ' ' ||
+                    coalesce(Bookmarks.title, '') || ' ' ||
+                    coalesce(Bookmarks.description, '') || ' ' ||
+                    coalesce(Bookmarks.notes, '') || ' ' ||
+                    coalesce(Bookmarks.tag_names, '')
+                ) LIKE '%' || $1 || '%'
+            ORDER BY {order_by_string}
+            LIMIT $2 OFFSET $3;
+            "
         );
 
         let result = sqlx::query(&query)
