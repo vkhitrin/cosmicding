@@ -267,11 +267,17 @@ impl PageBookmarksView {
             } else {
                 widget::button::standard(fl!("refresh")).on_press(BookmarksAction::RefreshBookmarks)
             };
-            let new_bookmark_button = match app_state {
-                ApplicationState::Normal => widget::button::standard(fl!("add-bookmark"))
-                    .on_press(BookmarksAction::AddBookmark),
-                _ => widget::button::standard(fl!("add-bookmark")),
-            };
+            let mut new_bookmark_button = widget::button::standard(fl!("add-bookmark"));
+
+            let mut search_input_widget =
+                widget::text_input::search_input(fl!("search"), self.query_placeholder.clone());
+
+            if matches!(app_state, ApplicationState::Ready) {
+                new_bookmark_button = new_bookmark_button.on_press(BookmarksAction::AddBookmark);
+                search_input_widget = search_input_widget
+                    .on_input(BookmarksAction::SearchBookmarks)
+                    .on_clear(BookmarksAction::ClearSearch);
+            }
 
             let bookmarks_widget = Some(
                 widget::column::with_capacity(1)
@@ -338,11 +344,7 @@ impl PageBookmarksView {
                         spacing.space_s,
                         spacing.space_none,
                     ])
-                    .push(
-                        widget::search_input(fl!("search"), self.query_placeholder.clone())
-                            .on_input(BookmarksAction::SearchBookmarks)
-                            .on_clear(BookmarksAction::ClearSearch),
-                    )
+                    .push(search_input_widget)
                     .push(refresh_button)
                     .push(new_bookmark_button)
                     .width(Length::Fill)

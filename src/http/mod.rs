@@ -21,20 +21,22 @@ use urlencoding::encode;
 pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<DetailedResponse> {
     let mut all_responses: Vec<DetailedResponse> = Vec::new();
     for account in accounts {
-        match fetch_bookmarks_for_account(&account).await {
-            Ok(new_response) => {
-                all_responses.push(new_response);
-            }
-            Err(e) => {
-                let epoch_timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("")
-                    .as_secs();
-                #[allow(clippy::cast_possible_wrap)]
-                let error_response =
-                    DetailedResponse::new(account, epoch_timestamp as i64, false, None);
-                all_responses.push(error_response);
-                log::error!("Error fetching bookmarks: {e}");
+        if account.enabled {
+            match fetch_bookmarks_for_account(&account).await {
+                Ok(new_response) => {
+                    all_responses.push(new_response);
+                }
+                Err(e) => {
+                    let epoch_timestamp = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .expect("")
+                        .as_secs();
+                    #[allow(clippy::cast_possible_wrap)]
+                    let error_response =
+                        DetailedResponse::new(account, epoch_timestamp as i64, false, None);
+                    all_responses.push(error_response);
+                    log::error!("Error fetching bookmarks: {e}");
+                }
             }
         }
     }
@@ -56,7 +58,7 @@ pub async fn fetch_bookmarks_for_account(
         account.instance.clone() + "/api/bookmarks/archived/";
     let rest_api_shared_bookmarks_url: String = account.instance.clone() + "/api/bookmarks/shared/";
     let http_client = ClientBuilder::new()
-        .danger_accept_invalid_certs(account.tls)
+        .danger_accept_invalid_certs(account.trust_invalid_certs)
         .build()
         .unwrap();
     headers.insert(
@@ -266,7 +268,7 @@ pub async fn add_bookmark(
     let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
-        .danger_accept_invalid_certs(account.tls)
+        .danger_accept_invalid_certs(account.trust_invalid_certs)
         .build()
         .unwrap();
     headers.insert(
@@ -394,7 +396,7 @@ pub async fn remove_bookmark(
     .unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
-        .danger_accept_invalid_certs(account.tls)
+        .danger_accept_invalid_certs(account.trust_invalid_certs)
         .build()
         .unwrap();
     headers.insert(
@@ -433,7 +435,7 @@ pub async fn edit_bookmark(
     .unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
-        .danger_accept_invalid_certs(account.tls)
+        .danger_accept_invalid_certs(account.trust_invalid_certs)
         .build()
         .unwrap();
     headers.insert(
@@ -509,7 +511,7 @@ pub async fn check_account_on_instance(
     write!(&mut rest_api_url, "{}/api/user/profile/", account.instance).unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
-        .danger_accept_invalid_certs(account.tls)
+        .danger_accept_invalid_certs(account.trust_invalid_certs)
         .build()?;
     headers.insert(
         AUTHORIZATION,
@@ -556,7 +558,7 @@ pub async fn check_bookmark_on_instance(
     .unwrap();
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
-        .danger_accept_invalid_certs(account.tls)
+        .danger_accept_invalid_certs(account.trust_invalid_certs)
         .build()?;
     headers.insert(
         AUTHORIZATION,
