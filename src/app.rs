@@ -1288,8 +1288,12 @@ impl Application for Cosmicding {
                     }
                 }
             }
+            // FIXME: (vkhitrin) currently, if favicon was not fetched successfully,
+            //        it will be attempt to be re-fetched on next bookmarks reload.
             ApplicationAction::DoneFetchFaviconForBookmark(favicon_url, bytes) => {
-                if !bytes.is_empty() {
+                if bytes.is_empty() {
+                    log::warn!("Failed to fetch favicon from {favicon_url:?}");
+                } else {
                     let epoch_timestamp = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .expect("")
@@ -1303,8 +1307,8 @@ impl Application for Cosmicding {
                             .await;
                         });
                     }
+                    commands.push(self.update(ApplicationAction::LoadBookmarks));
                 }
-                commands.push(self.update(ApplicationAction::LoadBookmarks));
             }
             ApplicationAction::PurgeFaviconsCache => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
