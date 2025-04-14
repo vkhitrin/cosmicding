@@ -8,6 +8,8 @@ on:
     paths:
       - "src/**"
       - "res/icons/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
 
 env:
   CARGO_TERM_COLOR: always
