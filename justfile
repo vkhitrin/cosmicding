@@ -17,18 +17,17 @@ desktop-dst := clean(rootdir / prefix) / 'share' / 'applications' / desktop
 icons-src := 'res' / 'linux' / 'icons' / 'hicolor'
 icons-dst := clean(rootdir / prefix) / 'share' / 'icons' / 'hicolor'
 
-# NOTE: macOS related, should be consolidated
-assets-dir := 'res' / 'macOS'
-release-dir := 'target' / 'release'
-app-name := name + '.app'
-app-template := assets-dir / app-name
-app-template-plist := app-template / 'Contents' / 'Info.plist'
-app-dir := release-dir / 'macos'
-app-binary := release-dir / name
-app-binary-dir := app-dir / app-name / 'Contents' / 'MacOS'
-app-extras-dir := app-dir / app-name / 'Contents' / 'Resources'
-dmg-name := name + '.dmg'
-dmg-release := release-dir / 'macos'
+macos-assets-dir := 'res' / 'macOS'
+macos-release-dir := 'target' / 'release'
+macos-app-name := name + '.app'
+macos-app-template := macos-assets-dir / app-name
+macos-app-template-plist := macos-app-template / 'Contents' / 'Info.plist'
+macos-app-dir := macos-release-dir / 'macos'
+macos-app-binary := macos-release-dir / name
+macos-app-binary-dir := macos-app-dir / macos-app-name / 'Contents' / 'MacOS'
+macos-app-extras-dir := macos-app-dir / macos-app-name / 'Contents' / 'Resources'
+macos-dmg-name := name + '.dmg'
+macos-dmg-release := macos-release-dir / 'macos'
 
 default: build-release
 
@@ -56,18 +55,18 @@ build-release-macos *args:
     cargo build --release --target=aarch64-apple-darwin {{args}}
 
     # Using native macOS' sed
-    /usr/bin/sed -i '' -e "s/__VERSION__/$(cargo pkgid | cut -d "#" -f2)/g" {{app-template-plist}}
-    /usr/bin/sed -i '' -e "s/__BUILD__/$(git describe --always --exclude='*')/g" {{app-template-plist}}
+    /usr/bin/sed -i '' -e "s/__VERSION__/$(cargo pkgid | cut -d "#" -f2)/g" {{macos-app-template-plist}}
+    /usr/bin/sed -i '' -e "s/__BUILD__/$(git describe --always --exclude='*')/g" {{macos-app-template-plist}}
 
-    lipo "target/aarch64-apple-darwin/release/{{name}}" -create -output "{{app-binary}}"
+    lipo "target/aarch64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
 
-    mkdir -p "{{app-binary-dir}}"
-    mkdir -p "{{app-extras-dir}}/icons/"
-    cp -fRp "{{app-template}}" "{{app-dir}}"
-    cp -fp "{{app-binary}}" "{{app-binary-dir}}"
-    cp ./res/icons/* "{{app-extras-dir}}/icons/"
-    touch -r "{{app-binary}}" "{{app-dir}}/{{app-name}}"
-    echo "Created '{{app-name}}' in '{{app-dir}}'"
+    mkdir -p "{{macos-app-binary-dir}}"
+    mkdir -p "{{macos-app-extras-dir}}/icons/"
+    cp -fRp "{{macos-app-template}}" "{{macos-app-dir}}"
+    cp -fp "{{macos-app-binary}}" "{{macos-app-binary-dir}}"
+    cp ./res/icons/* "{{macos-app-extras-dir}}/icons/"
+    touch -r "{{macos-app-binary}}" "{{macos-app-dir}}/{{macos-app-name}}"
+    echo "Created '{{macos-app-name}}' in '{{macos-app-dir}}'"
     git stash -- {{app-template-plist}}
 
 build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
