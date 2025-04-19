@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+    <id>com.vkhitrin.cosmicding</id>
+    <developer id="com.vkhitrin">
+        <name>Vadim Khitrin</name>
+    </developer>
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-3.0-only</project_license>
+    <content_rating type="oars-1.1" />
+    <update_contact>me@vkhitrin.com</update_contact>
+    <url type="bugtracker">https://github.com/vkhitrin/cosmicding/issues</url>
+    <url type="vcs-browser">https://github.com/vkhitrin/cosmicding</url>
+    <url type="contact">https://vkhitrin.com</url>
+    <url type="contribute">https://github.com/vkhitrin/cosmicding</url>
+    <url type="translate">https://github.com/vkhitrin/cosmicding/tree/main/i18n</url>
+    <name>cosmicding</name>
+    <summary>linkding companion app</summary>
+    <description>
+        <p>cosmicding is a linkding companion which provides an alternative frontend based on
+            libcosmic</p>
+        <ul>
+            <li>Support multiple linkding instances (or multiple users on the same instance).</li>
+            <li>Aggregate bookmarks locally.</li>
+            <li>Add/Edit/Remove bookmarks.</li>
+            <li>Search bookmarks based on title, URL, tags, description, and notes.</li>
+        </ul>
+    </description>
+    <branding>
+        <color type="primary" scheme_preference="light">#eaeaff</color>
+        <color type="primary" scheme_preference="dark">#280c4b</color>
+    </branding>
+    <icon type="remote" height="256" width="256">
+        https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/linux/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png</icon>
+    <launchable type="desktop-id">com.vkhitrin.cosmicding</launchable>
+    <releases>
+        <release version="0.1.0" date="2025-01-01">
+            <description>
+                <p>TO FILL</p>
+                <ul>
+                    <li>TO FILL</li>
+                </ul>
+            </description>
+        </release>
+    </releases>
+    <screenshots>
+        <screenshot type="default">
+            <image>
+                https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/screenshots/bookmarks.png</image>
+            <caption>Bookmarks View</caption>
+        </screenshot>
+        <screenshot>
+            <image>
+                https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/screenshots/accounts.png</image>
+            <caption>Accounts View</caption>
+        </screenshot>
+    </screenshots>
+    <categories>
+        <category>Utility</category>
+    </categories>
+    <keywords>
+        COSMIC
+    </keywords>
+    <requires>
+        <display_length compare="ge">768</display_length>
+        <internet>first-run</internet>
+        <control>keyboard</control>
+        <control>pointing</control>
+    </requires>
+    <recommends>
+        <internet>always</internet>
+    </recommends>
+    <provides>
+        <id>com.system76.CosmicApplication</id>
+        <binary>cosmicding</binary>
+    </provides>
+</component>

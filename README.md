@@ -30,7 +30,7 @@ cosmicding has been tested with linkding releases >= `1.31.0`.
 
 cosmicding is not distributed at the moment, and has to be built manually.
 
-### Local Install
+### Local Install (compiled binary)
 
 Dependencies (Linux)
 
@@ -63,6 +63,20 @@ just build-release
 # Install
 sudo just install
 ```
+
+### Local Install (flatpak)
+
+```shell
+flatpak-builder --force-clean \
+                --sandbox \
+                --user \
+                --install \
+                --install-deps-from=flathub \
+                --ccache \
+                --mirror-screenshots-url=https://dl.flathub.org/media/ \
+                --repo=flatpak-repo builddir \
+                res/flatpak/com.vkhitrin.cosmicding
+````
 
 ## Roadmap
 
