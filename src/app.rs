@@ -603,34 +603,36 @@ impl Application for Cosmicding {
             ApplicationAction::UpdateAccount(mut account) => {
                 let mut valid_account = false;
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    block_on(async {
-                        match http::check_account_on_instance(&account).await {
-                            Ok(value) => {
-                                account.enable_sharing = value.enable_sharing;
-                                account.enable_public_sharing = value.enable_public_sharing;
-                                valid_account = true;
-                            }
-                            Err(e) => {
-                                if e.to_string().contains("builder error") {
-                                    commands.push(
-                                        self.toasts
-                                            .push(widget::toaster::Toast::new(fl!(
-                                                "provided-url-is-not-valid"
-                                            )))
-                                            .map(cosmic::Action::App),
-                                    );
-                                } else {
-                                    commands.push(
-                                        self.toasts
-                                            .push(widget::toaster::Toast::new(format!("{e}")))
-                                            .map(cosmic::Action::App),
-                                    );
+                    if account.enabled {
+                        block_on(async {
+                            match http::check_account_on_instance(&account).await {
+                                Ok(value) => {
+                                    account.enable_sharing = value.enable_sharing;
+                                    account.enable_public_sharing = value.enable_public_sharing;
+                                    valid_account = true;
+                                }
+                                Err(e) => {
+                                    if e.to_string().contains("builder error") {
+                                        commands.push(
+                                            self.toasts
+                                                .push(widget::toaster::Toast::new(fl!(
+                                                    "provided-url-is-not-valid"
+                                                )))
+                                                .map(cosmic::Action::App),
+                                        );
+                                    } else {
+                                        commands.push(
+                                            self.toasts
+                                                .push(widget::toaster::Toast::new(format!("{e}")))
+                                                .map(cosmic::Action::App),
+                                        );
+                                    }
                                 }
                             }
-                        }
-                    });
+                        });
+                    }
                     let account_clone = account.clone();
-                    if valid_account {
+                    if valid_account || !account.enabled {
                         block_on(async {
                             db::SqliteDatabase::update_account(database, &account_clone).await;
                         });
