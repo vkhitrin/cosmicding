@@ -1,6 +1,6 @@
 use crate::app::{
     actions::{AccountsAction, ApplicationAction},
-    icons::load_icon,
+    icons::{load_icon_from_path, load_xdg_icon},
     ApplicationState,
 };
 use crate::fl;
@@ -14,7 +14,7 @@ use cosmic::{
     app::Task,
     cosmic_theme,
     iced::Alignment,
-    theme,
+    style, theme,
     widget::{self},
     Apply, Element,
 };
@@ -36,7 +36,7 @@ impl PageAccountsView {
         if self.accounts.is_empty() {
             let container = widget::container(
                 widget::column::with_children(vec![
-                    widget::icon::icon(load_icon("contact-new-symbolic"))
+                    widget::icon::icon(load_xdg_icon("contact-new-symbolic"))
                         .size(64)
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
@@ -56,13 +56,16 @@ impl PageAccountsView {
                 .push(container)
                 .into()
         } else {
-            let mut items = widget::list::list_column()
+            let mut accounts = widget::list::list_column()
+                .style(style::Container::Background)
+                .list_item_padding(spacing.space_none)
+                .divider_padding(spacing.space_none)
                 .spacing(spacing.space_xxxs)
-                .padding([spacing.space_none, spacing.space_xxs]);
+                .padding(spacing.space_none);
 
-            for item in &self.accounts {
+            for account in &self.accounts {
                 let local_time: DateTime<Local> = DateTime::from(
-                    DateTime::from_timestamp(item.last_sync_timestamp, 0).expect(""),
+                    DateTime::from_timestamp(account.last_sync_timestamp, 0).expect(""),
                 );
 
                 let refresh_button = match app_state {
@@ -70,9 +73,9 @@ impl PageAccountsView {
                         .font_size(12)
                         .class(ButtonStyle::DisabledLink(false).into()),
                     _ => {
-                        if item.enabled {
+                        if account.enabled {
                             widget::button::link(fl!("refresh")).font_size(12).on_press(
-                                AccountsAction::RefreshBookmarksForAccount(item.to_owned()),
+                                AccountsAction::RefreshBookmarksForAccount(account.to_owned()),
                             )
                         } else {
                             widget::button::link(fl!("refresh"))
@@ -87,7 +90,7 @@ impl PageAccountsView {
                         .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("edit"))
                         .font_size(12)
-                        .on_press(AccountsAction::EditAccount(item.to_owned())),
+                        .on_press(AccountsAction::EditAccount(account.to_owned())),
                 };
                 let remove_button = match app_state {
                     ApplicationState::Refreshing => widget::button::link(fl!("remove"))
@@ -95,34 +98,41 @@ impl PageAccountsView {
                         .class(ButtonStyle::DisabledLink(false).into()),
                     _ => widget::button::link(fl!("remove"))
                         .font_size(12)
-                        .on_press(AccountsAction::DeleteAccount(item.to_owned())),
+                        .on_press(AccountsAction::DeleteAccount(account.to_owned())),
                 };
 
                 // Mandatory first row - details
                 let mut columns = Vec::new();
                 columns.push(
                     widget::row::with_capacity(2)
-                        .spacing(spacing.space_xs)
-                        .push(widget::icon::icon(load_icon("user-available-symbolic")))
-                        .push(widget::text::body(format!(
-                            "{} ({})",
-                            item.display_name.clone(),
-                            if item.enabled {
-                                fl!("enabled")
-                            } else {
-                                fl!("disabled")
-                            }
-                        )))
+                        .push(widget::icon::icon(load_icon_from_path("linkding-logo")))
+                        .push(
+                            widget::button::link(format!(
+                                "{} ({})",
+                                account.display_name.clone(),
+                                if account.enabled {
+                                    fl!("enabled")
+                                } else {
+                                    fl!("disabled")
+                                }
+                            ))
+                            .spacing(spacing.space_xxxs)
+                            .trailing_icon(true)
+                            .icon_size(11)
+                            .tooltip(account.instance.clone())
+                            .on_press(AccountsAction::OpenExternalURL(account.instance.clone())),
+                        )
+                        .spacing(spacing.space_xxs)
                         .padding([
-                            spacing.space_xs,
                             spacing.space_xxs,
-                            spacing.space_xxxs,
+                            spacing.space_xxs,
+                            spacing.space_none,
                             spacing.space_xxxs,
                         ])
                         .align_y(Alignment::Center)
                         .into(),
                 );
-                // Mandatory second row - sync timestamp + status
+                // Mandatory second row - details
                 columns.push(
                     widget::row::with_capacity(2)
                         .spacing(spacing.space_xs)
@@ -132,38 +142,13 @@ impl PageAccountsView {
                             spacing.space_xxxs,
                             spacing.space_xxxs,
                         ])
-                        .push(widget::icon::icon(load_icon("accessories-clock-symbolic")))
-                        .push(widget::text::body(format!(
-                            "{}: {} ({})",
-                            fl!("last-sync-time"),
-                            local_time.format("%a, %d %b %Y %H:%M:%S"),
-                            if item.last_sync_status {
-                                fl!("successful")
-                            } else {
-                                fl!("failed")
-                            }
-                        )))
-                        .align_y(Alignment::Center)
-                        .into(),
-                );
-                // Mandatory third row - details
-                columns.push(
-                    widget::row::with_capacity(2)
-                        .spacing(spacing.space_xs)
-                        .padding([
-                            spacing.space_xxxs,
-                            spacing.space_xxs,
-                            spacing.space_xxxs,
-                            spacing.space_xxxs,
-                        ])
-                        .push(widget::icon::icon(load_icon("dialog-information-symbolic")))
                         .push(widget::container(widget::column::with_children(vec![
-                            if item.enable_sharing {
+                            if account.enable_sharing {
                                 widget::text::body(fl!("enabled-sharing")).into()
                             } else {
                                 widget::text::body(fl!("disabled-sharing")).into()
                             },
-                            if item.enable_public_sharing {
+                            if account.enable_public_sharing {
                                 widget::text::body(fl!("enabled-public-sharing")).into()
                             } else {
                                 widget::text::body(fl!("disabled-public-sharing")).into()
@@ -172,39 +157,57 @@ impl PageAccountsView {
                         .align_y(Alignment::Center)
                         .into(),
                 );
-                // Mandatory forth row - actions
+                // Mandatory third row - actions
                 let actions_row = widget::row::with_capacity(3)
                     .spacing(spacing.space_xs)
                     .push(refresh_button)
                     .push(edit_button)
-                    .push(remove_button)
-                    .push(
-                        widget::button::link(fl!("open-instance"))
-                            .spacing(spacing.space_xxxs)
-                            .trailing_icon(true)
-                            .icon_size(10)
-                            .font_size(12)
-                            .on_press(AccountsAction::OpenExternalURL(item.instance.clone()))
-                            .tooltip(item.instance.clone()),
-                    );
+                    .push(remove_button);
                 columns.push(
                     actions_row
                         .padding([
-                            spacing.space_xxxs,
+                            spacing.space_none,
                             spacing.space_xxs,
-                            spacing.space_xxs,
+                            spacing.space_none,
                             spacing.space_none,
                         ])
                         .into(),
                 );
-                let account_container = widget::container(widget::column::with_children(columns));
+                // Mandatory fourth row - sync timestamp + status
+                columns.push(
+                    widget::row::with_capacity(2)
+                        .spacing(spacing.space_xs)
+                        .padding([
+                            spacing.space_xxxs,
+                            spacing.space_xxs,
+                            spacing.space_xxxs,
+                            spacing.space_xxxs,
+                        ])
+                        .push(
+                            widget::text::body(format!(
+                                "{}: {} ({})",
+                                fl!("last-sync-time"),
+                                local_time.format("%a, %d %b %Y %H:%M:%S"),
+                                if account.last_sync_status {
+                                    fl!("successful")
+                                } else {
+                                    fl!("failed")
+                                }
+                            ))
+                            .size(12),
+                        )
+                        .align_y(Alignment::Center)
+                        .into(),
+                );
+                let account_container = widget::container(widget::column::with_children(columns))
+                    .class(theme::Container::Background);
 
-                items = items.add(account_container);
+                accounts = accounts.add(account_container);
             }
 
-            let accounts_widget = widget::column::with_capacity(2)
+            let accounts_widget = widget::column::with_capacity(1)
                 .spacing(spacing.space_xxs)
-                .push(items)
+                .push(accounts)
                 .apply(widget::container)
                 .height(Length::Shrink)
                 .apply(widget::scrollable)
@@ -216,7 +219,7 @@ impl PageAccountsView {
                 } else {
                     None
                 })
-                .leading_icon(load_icon("go-previous-symbolic"));
+                .leading_icon(load_xdg_icon("go-previous-symbolic"));
             let navigation_next_button = widget::button::standard(fl!("next"))
                 .on_press_maybe(
                     if accounts_cursor.current_page < accounts_cursor.total_pages {
@@ -225,7 +228,7 @@ impl PageAccountsView {
                         None
                     },
                 )
-                .trailing_icon(load_icon("go-next-symbolic"));
+                .trailing_icon(load_xdg_icon("go-next-symbolic"));
             let page_navigation_widget = widget::container(widget::column::with_children(vec![
                 widget::row::with_capacity(2)
                     .align_y(Alignment::Center)
@@ -260,7 +263,7 @@ impl PageAccountsView {
                     .padding([
                         spacing.space_none,
                         spacing.space_none,
-                        spacing.space_s,
+                        spacing.space_xxs,
                         spacing.space_none,
                     ])
                     .push(widget::horizontal_space())
@@ -360,7 +363,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_icon("user-available-symbolic")))
+                .push(widget::icon::icon(load_xdg_icon("user-available-symbolic")))
                 .push(display_name_widget_title)
                 .padding([
                     spacing.space_none,
@@ -374,7 +377,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_icon("network-server-symbolic")))
+                .push(widget::icon::icon(load_xdg_icon("network-server-symbolic")))
                 .push(instance_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -388,7 +391,9 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_icon("system-lock-screen-symbolic")))
+                .push(widget::icon::icon(load_xdg_icon(
+                    "system-lock-screen-symbolic",
+                )))
                 .push(api_key_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -450,7 +455,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("enabled-sharing")))
-                .push(widget::icon::icon(load_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -460,7 +465,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("disabled-sharing")))
-                .push(widget::icon::icon(load_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -471,7 +476,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("enabled-public-sharing")))
-                .push(widget::icon::icon(load_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -481,7 +486,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("disabled-public-sharing")))
-                .push(widget::icon::icon(load_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -498,7 +503,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_icon("user-available-symbolic")))
+                .push(widget::icon::icon(load_xdg_icon("user-available-symbolic")))
                 .push(display_name_widget_title)
                 .padding([
                     spacing.space_none,
@@ -512,7 +517,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_icon("network-server-symbolic")))
+                .push(widget::icon::icon(load_xdg_icon("network-server-symbolic")))
                 .push(instance_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -526,7 +531,9 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_icon("system-lock-screen-symbolic")))
+                .push(widget::icon::icon(load_xdg_icon(
+                    "system-lock-screen-symbolic",
+                )))
                 .push(api_key_widget_title)
                 .padding([
                     spacing.space_xxxs,

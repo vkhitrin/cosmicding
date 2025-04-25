@@ -53,7 +53,6 @@ no-bookmarks = Inga bokmärken
 no-bookmarks-found-for-account = Inga bokmärken hittades för kontot {$acc}
 notes = Anteckningar
 open-accounts-page = Öppna kontosidan
-open-instance = Öppna instans
 previous = Föregående
 provided-url-is-not-valid = Den angivna webbadressen är inte giltig
 purge-favicons-cache = Rensa Cacheminnet För Favicons
