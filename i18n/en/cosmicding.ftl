@@ -53,7 +53,6 @@ no-bookmarks = No bookmarks
 no-bookmarks-found-for-account = No bookmarks found for account {$acc}
 notes = Notes
 open-accounts-page = Open Accounts Page
-open-instance = Open Instance
 previous = Previous
 provided-url-is-not-valid = Provided URL is not valid
 purge-favicons-cache = Purge Favicons Cache

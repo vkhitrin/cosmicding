@@ -29,9 +29,8 @@ impl From<ButtonStyle> for cosmic::style::Button {
                         ));
                         appearance.text_color = Some(cosmic.accent.on.into());
                     } else {
-                        appearance.background = Some(iced::Background::Color(
-                            cosmic.background.component.base.into(),
-                        ));
+                        appearance.background =
+                            Some(iced::Background::Color(cosmic.background.base.into()));
                         appearance.text_color = Some(cosmic.button.on_disabled.into());
                     }
 

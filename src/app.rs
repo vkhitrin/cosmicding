@@ -12,7 +12,7 @@ use crate::{
         config::{AppTheme, CosmicConfig, SortOption},
         context::ContextPage,
         dialog::DialogPage,
-        icons::load_icon,
+        icons::load_xdg_icon,
         menu as app_menu,
         nav::AppNavPage,
     },
@@ -295,7 +295,7 @@ impl Application for Cosmicding {
         let dialog = match dialog_page {
             DialogPage::RemoveAccount(account) => widget::dialog()
                 .title(fl!("remove") + " " + { &account.display_name })
-                .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
+                .icon(icon::icon(load_xdg_icon("dialog-warning-symbolic")).size(58))
                 .body(fl!("remove-account-confirm"))
                 .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
                     ApplicationAction::CompleteRemoveDialog(account.id, None),
@@ -305,7 +305,7 @@ impl Application for Cosmicding {
                         .on_press(ApplicationAction::DialogCancel),
                 ),
             DialogPage::RemoveBookmark(account, bookmark) => widget::dialog()
-                .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
+                .icon(icon::icon(load_xdg_icon("dialog-warning-symbolic")).size(58))
                 .title(fl!("remove") + " " + { &bookmark.title })
                 .body(fl!("remove-bookmark-confirm"))
                 .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
@@ -316,7 +316,7 @@ impl Application for Cosmicding {
                         .on_press(ApplicationAction::DialogCancel),
                 ),
             DialogPage::PurgeFaviconsCache() => widget::dialog()
-                .icon(icon::icon(load_icon("dialog-warning-symbolic")).size(58))
+                .icon(icon::icon(load_xdg_icon("dialog-warning-symbolic")).size(58))
                 .title(fl!("purge-favicons-cache"))
                 .body(fl!("purge-favicons-cache-confirm"))
                 .primary_action(
@@ -1393,7 +1393,8 @@ impl Cosmicding {
                         .spacing(5)
                         .push(widget::text::body(fl!("enable-favicons")))
                         .push(widget::tooltip(
-                            widget::icon::icon(load_icon("dialog-information-symbolic")).size(18),
+                            widget::icon::icon(load_xdg_icon("dialog-information-symbolic"))
+                                .size(18),
                             widget::container(widget::text::body(fl!("enable-favicons-info"))),
                             tooltip::Position::FollowCursor,
                         ))
@@ -1413,7 +1414,7 @@ impl Cosmicding {
                         .push(widget::text::body(fl!("purge-favicons-cache")))
                         .push(widget::horizontal_space())
                         .push(
-                            widget::button::icon(load_icon("user-trash-symbolic"))
+                            widget::button::icon(load_xdg_icon("user-trash-symbolic"))
                                 .on_press(ApplicationAction::OpenPurgeFaviconsCache)
                                 .class(cosmic::style::Button::Destructive),
                         ),
