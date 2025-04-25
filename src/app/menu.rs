@@ -30,7 +30,7 @@ impl _MenuAction for MenuAction {
         match self {
             MenuAction::About => ApplicationAction::ToggleContextPage(ContextPage::About),
             MenuAction::Empty => ApplicationAction::Empty,
-            MenuAction::AddAccount => ApplicationAction::AddAccount,
+            MenuAction::AddAccount => ApplicationAction::AddAccountForm,
             MenuAction::Settings => ApplicationAction::ToggleContextPage(ContextPage::Settings),
             MenuAction::AddBookmark => ApplicationAction::AddBookmarkForm,
             MenuAction::RefreshBookmarks => ApplicationAction::StartRefreshBookmarksForAllAccounts,

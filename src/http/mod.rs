@@ -1,8 +1,8 @@
 use crate::fl;
 use crate::models::account::{Account, LinkdingAccountApiResponse};
 use crate::models::bookmarks::{
-    Bookmark, CheckDetailsResponse, DetailedResponse, LinkdingBookmarksApiCheckResponse,
-    LinkdingBookmarksApiResponse,
+    Bookmark, BookmarkCheckDetailsResponse, BookmarkRemoveResponse, DetailedResponse,
+    LinkdingBookmarksApiCheckResponse, LinkdingBookmarksApiResponse,
 };
 use crate::utils::json::parse_serde_json_value_to_raw_string;
 use anyhow::Result;
@@ -43,8 +43,10 @@ pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<De
     all_responses
 }
 
-//  NOTE: (vkhitrin) perhaps this method should be split into two:
-//        (1) fetch bookmarks (2) fetch archived bookmarks
+//  NOTE: (vkhitrin) perhaps this method should be split into three:
+//        (1) fetch bookmarks
+//        (2) fetch archived bookmarks
+//        (3) fetch shared
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::if_same_then_else)]
 pub async fn fetch_bookmarks_for_account(
@@ -261,10 +263,12 @@ pub async fn fetch_bookmarks_for_account(
 }
 
 #[allow(clippy::too_many_lines)]
-pub async fn add_bookmark(
-    account: &Account,
-    bookmark: &Bookmark,
-) -> Result<CheckDetailsResponse, Box<dyn std::error::Error>> {
+// NOTE: (vkhitrin) A single method that checks for existence, adds, or updates the bookmark.
+pub async fn populate_bookmark(
+    account: Account,
+    bookmark: Bookmark,
+    check_remote: bool,
+) -> Option<BookmarkCheckDetailsResponse> {
     let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
@@ -275,7 +279,8 @@ pub async fn add_bookmark(
         AUTHORIZATION,
         HeaderValue::from_str(&format!("Token {}", account.api_token)).unwrap(),
     );
-    let mut transformed_json_value: Value = serde_json::to_value(bookmark)?;
+    let mut api_response = BookmarkCheckDetailsResponse::default();
+    let mut transformed_json_value: Value = serde_json::to_value(bookmark.clone()).unwrap();
     if let Some(obj) = transformed_json_value.as_object_mut() {
         obj.remove("id");
         obj.remove("user_account_id");
@@ -293,99 +298,105 @@ pub async fn add_bookmark(
     //let bookmark_url = transformed_json_value["url"].to_string().replace('"', "");
     let bookmark_url =
         parse_serde_json_value_to_raw_string(transformed_json_value.get("url").unwrap());
-    match check_bookmark_on_instance(account, bookmark_url.to_string()).await {
-        Ok(check) => {
-            let metadata = check.metadata;
-            if check.bookmark.is_some() {
-                let mut bkmrk = check.bookmark.unwrap();
-                bkmrk.linkding_internal_id = bkmrk.id;
-                bkmrk.user_account_id = account.id;
-                bkmrk.id = None;
-                if let Some(obj) = transformed_json_value.as_object() {
-                    bkmrk.title = match parse_serde_json_value_to_raw_string(
-                        transformed_json_value.get("title").unwrap(),
-                    ) {
-                        ref s if !s.is_empty() => s.to_string(),
-                        _ => metadata.title.unwrap(),
-                    };
-                    bkmrk.description = match parse_serde_json_value_to_raw_string(
-                        transformed_json_value.get("description").unwrap(),
-                    ) {
-                        ref s if !s.is_empty() => s.to_string(),
-                        _ => metadata.description.unwrap_or_default(),
-                    };
-                    bkmrk.notes = match parse_serde_json_value_to_raw_string(
-                        transformed_json_value.get("notes").unwrap(),
-                    ) {
-                        ref s if !s.is_empty() => s.to_string(),
-                        _ => String::new(),
-                    };
-                    bkmrk.tag_names = if let Value::Array(arr) = &obj["tag_names"] {
-                        let tags: Vec<String> = arr
-                            .iter()
-                            .filter_map(|item| item.as_str().map(std::string::ToString::to_string))
-                            .collect();
-                        tags
-                    } else {
-                        Vec::new()
-                    }
-                }
-                match edit_bookmark(account, &bkmrk).await {
-                    Ok(value) => Ok(CheckDetailsResponse {
-                        bookmark: value,
-                        is_new: false,
-                    }),
-                    Err(_e) => Err(Box::new(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        fl!("failed-to-parse-response"),
-                    ))),
-                }
-            } else {
-                let response: reqwest::Response = http_client
-                    .post(rest_api_url)
-                    .headers(headers)
-                    .json(&transformed_json_value)
-                    .send()
-                    .await?;
-
-                match response.status() {
-                    StatusCode::CREATED => match response.json::<Bookmark>().await {
-                        Ok(mut value) => {
-                            value.linkding_internal_id = value.id;
-                            value.user_account_id = account.id;
-                            value.id = None;
-                            Ok(CheckDetailsResponse {
-                                bookmark: value,
-                                is_new: true,
-                            })
+    if check_remote {
+        match check_bookmark_on_instance(&account, bookmark_url.to_string()).await {
+            Ok(check) => {
+                let metadata = check.metadata;
+                if check.bookmark.is_some() {
+                    let mut bkmrk = check.bookmark.unwrap();
+                    bkmrk.linkding_internal_id = bkmrk.id;
+                    bkmrk.user_account_id = account.id;
+                    bkmrk.id = None;
+                    if let Some(obj) = transformed_json_value.as_object() {
+                        bkmrk.title = match parse_serde_json_value_to_raw_string(
+                            transformed_json_value.get("title").unwrap(),
+                        ) {
+                            ref s if !s.is_empty() => s.to_string(),
+                            _ => metadata.title.unwrap(),
+                        };
+                        bkmrk.description = match parse_serde_json_value_to_raw_string(
+                            transformed_json_value.get("description").unwrap(),
+                        ) {
+                            ref s if !s.is_empty() => s.to_string(),
+                            _ => metadata.description.unwrap_or_default(),
+                        };
+                        bkmrk.notes = match parse_serde_json_value_to_raw_string(
+                            transformed_json_value.get("notes").unwrap(),
+                        ) {
+                            ref s if !s.is_empty() => s.to_string(),
+                            _ => String::new(),
+                        };
+                        bkmrk.tag_names = if let Value::Array(arr) = &obj["tag_names"] {
+                            let tags: Vec<String> = arr
+                                .iter()
+                                .filter_map(|item| {
+                                    item.as_str().map(std::string::ToString::to_string)
+                                })
+                                .collect();
+                            tags
+                        } else {
+                            Vec::new()
                         }
-                        Err(_e) => Err(Box::new(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            fl!("failed-to-parse-response"),
-                        ))),
-                    },
-                    status => Err(Box::new(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        fl!(
-                            "http-error",
-                            http_rc = status.to_string(),
-                            http_err = response.text().await.unwrap()
-                        ),
-                    ))),
+                    }
+                    api_response.bookmark = Some(bkmrk);
+                } else {
+                    api_response.is_new = true;
                 }
             }
+            Err(_e) => api_response.error = Some(fl!("failed-to-parse-response")),
         }
-        Err(_e) => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            fl!("failed-to-parse-response"),
-        ))),
+    } else {
+        api_response.bookmark = Some(bookmark);
     }
+    if api_response.is_new {
+        let response: reqwest::Response = http_client
+            .post(rest_api_url)
+            .headers(headers)
+            .json(&transformed_json_value)
+            .send()
+            .await
+            .unwrap();
+
+        match response.status() {
+            StatusCode::CREATED => match response.json::<Bookmark>().await {
+                Ok(mut value) => {
+                    value.linkding_internal_id = value.id;
+                    value.user_account_id = account.id;
+                    value.id = None;
+                    api_response.bookmark = Some(value);
+                    api_response.successful = true;
+                }
+                Err(_e) => api_response.error = Some(fl!("failed-to-parse-response")),
+            },
+            status => {
+                api_response.error = Some(fl!(
+                    "http-error",
+                    http_rc = status.to_string(),
+                    http_err = response.text().await.unwrap()
+                ));
+                log::error!(
+                    "Error adding bookmark: {}",
+                    api_response.error.as_ref().unwrap()
+                );
+            }
+        }
+    } else {
+        match edit_bookmark(&account, &api_response.bookmark.clone().unwrap().clone()).await {
+            Ok(value) => {
+                api_response.bookmark = Some(value);
+                api_response.successful = true;
+            }
+            Err(_e) => api_response.error = Some(fl!("failed-to-parse-response")),
+        }
+    }
+    Some(api_response)
 }
 
 pub async fn remove_bookmark(
-    account: &Account,
-    bookmark: &Bookmark,
-) -> Result<(), Box<dyn std::error::Error>> {
+    account: Account,
+    bookmark: Bookmark,
+) -> Option<BookmarkRemoveResponse> {
+    let mut api_response: BookmarkRemoveResponse = BookmarkRemoveResponse::default();
     let mut rest_api_url: String = String::new();
     write!(
         &mut rest_api_url,
@@ -407,18 +418,25 @@ pub async fn remove_bookmark(
         .delete(rest_api_url)
         .headers(headers)
         .send()
-        .await?;
+        .await
+        .unwrap();
     match response.status() {
-        StatusCode::NO_CONTENT => Ok(()),
-        status => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            fl!(
+        StatusCode::NO_CONTENT => {
+            api_response.successful = true;
+        }
+        status => {
+            api_response.error = Some(fl!(
                 "http-error",
                 http_rc = status.to_string(),
                 http_err = response.text().await.unwrap()
-            ),
-        ))),
+            ));
+            log::error!(
+                "Error removing bookmark: {}",
+                api_response.error.as_ref().unwrap()
+            );
+        }
     }
+    Some(api_response)
 }
 
 pub async fn edit_bookmark(
@@ -471,29 +489,42 @@ pub async fn edit_bookmark(
                 value.is_owner = Some(true);
                 Ok(value)
             }
-            Err(_e) => Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                fl!("failed-to-parse-response"),
-            ))),
+            Err(_e) => {
+                log::error!("Failed to parse response");
+                Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    fl!("failed-to-parse-response"),
+                )))
+            }
         },
-        status => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            fl!(
-                "http-error",
-                http_rc = status.to_string(),
-                http_err = response.text().await.unwrap()
-            ),
-        ))),
+        status => {
+            let http_rc = status.to_string();
+            let http_err = response.text().await.unwrap();
+            log::error!("HTTP Error: {http_rc} {http_err}");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                fl!("http-error", http_rc = http_rc, http_err = http_err),
+            )))
+        }
     }
 }
 
 pub async fn fetch_account_details(account: Account) -> Option<LinkdingAccountApiResponse> {
-    let mut account_details: Option<LinkdingAccountApiResponse> = None;
+    let mut account_details: Option<LinkdingAccountApiResponse> =
+        Some(LinkdingAccountApiResponse::default());
     match check_account_on_instance(&account).await {
-        Ok(details) => {
+        Ok(mut details) => {
+            details.successful = Some(true);
             account_details = Some(details);
         }
         Err(e) => {
+            account_details.as_mut().unwrap().successful = Some(false);
+            if e.to_string().contains("builder error") {
+                account_details.as_mut().unwrap().error = Some(fl!("provided-url-is-not-valid"));
+            } else {
+                account_details.as_mut().unwrap().error = Some(e.to_string());
+            }
+
             log::error!(
                 "Error fetching account {} details: {}",
                 account.display_name,

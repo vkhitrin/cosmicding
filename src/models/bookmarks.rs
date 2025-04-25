@@ -50,7 +50,7 @@ impl Bookmark {
         linkding_tag_names: Vec<String>,
         linkding_date_added: Option<String>,
         linkding_date_modified: Option<String>,
-        internnal_workaround_is_owner: Option<bool>,
+        internal_workaround_is_owner: Option<bool>,
     ) -> Self {
         Self {
             id: None,
@@ -71,7 +71,7 @@ impl Bookmark {
             tag_names: linkding_tag_names,
             date_added: linkding_date_added,
             date_modified: linkding_date_modified,
-            is_owner: internnal_workaround_is_owner,
+            is_owner: internal_workaround_is_owner,
             favicon_cached: None,
         }
     }
@@ -148,8 +148,16 @@ pub struct LinkdingBookmarksApiCheckResponse {
     pub auto_tags: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CheckDetailsResponse {
-    pub bookmark: Bookmark,
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BookmarkCheckDetailsResponse {
+    pub bookmark: Option<Bookmark>,
+    pub error: Option<String>,
     pub is_new: bool,
+    pub successful: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BookmarkRemoveResponse {
+    pub error: Option<String>,
+    pub successful: bool,
 }

@@ -389,7 +389,7 @@ impl PageBookmarksView {
             BookmarksAction::EditBookmark(account_id, bookmark) => {
                 self.bookmark_placeholder = Some(bookmark.clone());
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::Action::App(ApplicationAction::EditBookmark(
+                    cosmic::Action::App(ApplicationAction::EditBookmarkForm(
                         account_id,
                         bookmark.clone(),
                     ))
@@ -511,7 +511,7 @@ where
         });
     let buttons_widget_container =
         widget::container(widget::button::standard(fl!("save")).on_press(
-            ApplicationAction::AddBookmark(accounts[selected_account_index].clone(), bookmark),
+            ApplicationAction::StartAddBookmark(accounts[selected_account_index].clone(), bookmark),
         ))
         .width(Length::Fill)
         .align_x(Alignment::Center);
@@ -679,12 +679,12 @@ where
         } else {
             fl!("shared-disabled")
         });
-    let buttons_widget_container = widget::container(
-        widget::button::standard(fl!("save"))
-            .on_press(ApplicationAction::UpdateBookmark(account.clone(), bookmark)),
-    )
-    .width(Length::Fill)
-    .align_x(Alignment::Center);
+    let buttons_widget_container =
+        widget::container(widget::button::standard(fl!("save")).on_press(
+            ApplicationAction::StartEditBookmark(account.clone(), bookmark),
+        ))
+        .width(Length::Fill)
+        .align_x(Alignment::Center);
 
     widget::column()
         .spacing(space_xxs)
