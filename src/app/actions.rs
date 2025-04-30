@@ -1,10 +1,13 @@
-use crate::app::{
-    config::{AppTheme, CosmicConfig, SortOption},
-    context::ContextPage,
-    dialog::DialogPage,
-};
 use crate::models::account::{Account, LinkdingAccountApiResponse};
-use crate::models::bookmarks::{Bookmark, DetailedResponse};
+use crate::models::bookmarks::{Bookmark, BookmarkRemoveResponse, DetailedResponse};
+use crate::{
+    app::{
+        config::{AppTheme, CosmicConfig, SortOption},
+        context::ContextPage,
+        dialog::DialogPage,
+    },
+    models::bookmarks::BookmarkCheckDetailsResponse,
+};
 use cosmic::widget::{self};
 use cosmic::{
     iced::keyboard::{Key, Modifiers},
@@ -14,25 +17,28 @@ use cosmic::{
 #[derive(Debug, Clone)]
 pub enum ApplicationAction {
     AccountsView(AccountsAction),
-    AddAccount,
-    AddBookmark(Account, Bookmark),
+    AddAccountForm,
     AddBookmarkForm,
     AddBookmarkFormAccountIndex(usize),
     AppTheme(AppTheme),
     BookmarksView(BookmarksAction),
     CloseToast(widget::ToastId),
-    CompleteAddAccount(Account),
     CompleteRemoveDialog(Option<i64>, Option<Bookmark>),
     ContextClose,
     DecrementPageIndex(String),
     DialogCancel,
     DialogUpdate(DialogPage),
+    DoneAddAccount(Account, Option<LinkdingAccountApiResponse>),
+    DoneAddBookmark(Account, Option<BookmarkCheckDetailsResponse>),
+    DoneEditAccount(Account, Option<LinkdingAccountApiResponse>),
+    DoneEditBookmark(Account, Option<BookmarkCheckDetailsResponse>),
     DoneFetchFaviconForBookmark(String, Bytes),
     DoneRefreshAccountProfile(Account, Option<LinkdingAccountApiResponse>),
     DoneRefreshBookmarksForAccount(Account, Vec<DetailedResponse>),
     DoneRefreshBookmarksForAllAccounts(Vec<DetailedResponse>),
-    EditAccount(Account),
-    EditBookmark(i64, Bookmark),
+    DoneRemoveBookmark(Account, Bookmark, Option<BookmarkRemoveResponse>),
+    EditAccountForm(Account),
+    EditBookmarkForm(i64, Bookmark),
     Empty,
     EnableFavicons(bool),
     IncrementPageIndex(String),
@@ -49,7 +55,6 @@ pub enum ApplicationAction {
     OpenRemoveBookmarkDialog(i64, Bookmark),
     PurgeFaviconsCache,
     RemoveAccount(Account),
-    RemoveBookmark(i64, Bookmark),
     SearchBookmarks(String),
     SetAccountAPIKey(String),
     SetAccountDisplayName(String),
@@ -64,15 +69,18 @@ pub enum ApplicationAction {
     SetBookmarkUnread(bool),
     SetItemsPerPage(u8),
     SortOption(SortOption),
+    StartAddAccount(Account),
+    StartAddBookmark(Account, Bookmark),
+    StartEditAccount(Account),
+    StartEditBookmark(Account, Bookmark),
     StartFetchFaviconForBookmark(Bookmark),
     StartRefreshAccountProfile(Account),
     StartRefreshBookmarksForAccount(Account),
     StartRefreshBookmarksForAllAccounts,
+    StartRemoveBookmark(i64, Bookmark),
     StartupCompleted,
     SystemThemeModeChange,
     ToggleContextPage(ContextPage),
-    UpdateAccount(Account),
-    UpdateBookmark(Account, Bookmark),
     UpdateConfig(CosmicConfig),
     ViewBookmarkNotes(Bookmark),
 }

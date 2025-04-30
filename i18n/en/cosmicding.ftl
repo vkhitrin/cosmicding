@@ -1,6 +1,6 @@
 about = About
 account = Account
-account-exists =Account already exists
+account-exists = Account already exists
 accounts = Accounts
 accounts-with-count = Accounts ({$count})
 actions = Actions
@@ -34,6 +34,7 @@ enabled = Enabled
 enabled-public-sharing = Public bookmarks sharing enabled
 enabled-sharing = Bookmarks sharing enabled
 failed = failed
+failed-to-add-account = Failed to add account {$acc}: {$err}
 failed-refreshing-accounts = Failed refreshing some accounts ({$accounts})
 failed-refreshing-bookmarks-for-account = Failed refreshing account {$account}
 failed-to-find-linkding-api-endpoint = Failed to find linkding API endpoint

@@ -36,6 +36,7 @@ enabled-sharing = Bokmärkesdelning har aktiverats
 failed = misslyckades
 failed-refreshing-accounts = Misslyckades att uppdatera vissa konton ({$accounts})
 failed-refreshing-bookmarks-for-account = Misslyckades att uppdatera konto {$account}
+failed-to-add-account = Misslyckades med att lägga till konto {$acc}: {$err}
 failed-to-find-linkding-api-endpoint = Det gick inte att hitta linkding API-slutpunkt
 failed-to-parse-response = Misslyckades att tolka svar
 file = Fil

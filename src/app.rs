@@ -2,7 +2,9 @@ use crate::db::{self};
 use crate::fl;
 use crate::http::{self};
 use crate::models::account::{Account, LinkdingAccountApiResponse};
-use crate::models::bookmarks::{Bookmark, DetailedResponse};
+use crate::models::bookmarks::{
+    Bookmark, BookmarkCheckDetailsResponse, BookmarkRemoveResponse, DetailedResponse,
+};
 use crate::models::db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination};
 use crate::pages::accounts::{add_account, edit_account, PageAccountsView};
 use crate::pages::bookmarks::{edit_bookmark, new_bookmark, view_notes, PageBookmarksView};
@@ -482,14 +484,14 @@ impl Application for Cosmicding {
                         .cloned();
                 }
             }
-            ApplicationAction::AddAccount => {
+            ApplicationAction::AddAccountForm => {
                 self.placeholder_account =
                     Some(Account::new(String::new(), String::new(), String::new()));
                 commands.push(self.update(ApplicationAction::ToggleContextPage(
                     ContextPage::AddAccountForm,
                 )));
             }
-            ApplicationAction::EditAccount(account) => {
+            ApplicationAction::EditAccountForm(account) => {
                 self.placeholder_account = Some(account.clone());
                 commands.push(self.update(ApplicationAction::ToggleContextPage(
                     ContextPage::EditAccountForm,
@@ -533,8 +535,7 @@ impl Application for Cosmicding {
                     commands.push(self.update(ApplicationAction::LoadBookmarks));
                 }
             }
-            ApplicationAction::CompleteAddAccount(mut account) => {
-                let mut valid_account = false;
+            ApplicationAction::StartAddAccount(account) => {
                 if let Some(ref mut database) = &mut self.accounts_cursor.database {
                     let account_exists = block_on(async {
                         db::SqliteDatabase::check_if_account_exists(
@@ -551,33 +552,21 @@ impl Application for Cosmicding {
                                 .map(cosmic::Action::App),
                         );
                     } else {
-                        block_on(async {
-                            match http::check_account_on_instance(&account).await {
-                                Ok(value) => {
-                                    account.enable_sharing = value.enable_sharing;
-                                    account.enable_public_sharing = value.enable_public_sharing;
-                                    valid_account = true;
-                                }
-                                Err(e) => {
-                                    if e.to_string().contains("builder error") {
-                                        commands.push(
-                                            self.toasts
-                                                .push(widget::toaster::Toast::new(fl!(
-                                                    "provided-url-is-not-valid"
-                                                )))
-                                                .map(cosmic::Action::App),
-                                        );
-                                    } else {
-                                        commands.push(
-                                            self.toasts
-                                                .push(widget::toaster::Toast::new(format!("{e}")))
-                                                .map(cosmic::Action::App),
-                                        );
-                                    }
-                                }
-                            }
-                        });
-                        if valid_account {
+                        let cloned_acc = account.clone();
+                        let message = move |api_response: Option<LinkdingAccountApiResponse>| {
+                            cosmic::Action::App(ApplicationAction::DoneAddAccount(
+                                cloned_acc.clone(),
+                                api_response,
+                            ))
+                        };
+                        commands.push(Task::perform(http::fetch_account_details(account), message));
+                    }
+                }
+            }
+            ApplicationAction::DoneAddAccount(account, api_response) => {
+                if let Some(response) = api_response {
+                    if response.error.is_none() {
+                        if let Some(ref mut database) = &mut self.accounts_cursor.database {
                             block_on(async {
                                 db::SqliteDatabase::create_account(database, &account).await;
                             });
@@ -596,63 +585,65 @@ impl Application for Cosmicding {
                                     .map(cosmic::Action::App),
                             );
                         }
+                    } else {
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "failed-to-add-account",
+                                    acc = account.display_name,
+                                    err = response.error
+                                )))
+                                .map(cosmic::Action::App),
+                        );
                     }
                 }
                 self.core.window.show_context = false;
             }
-            ApplicationAction::UpdateAccount(mut account) => {
-                let mut valid_account = false;
-                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    if account.enabled {
-                        block_on(async {
-                            match http::check_account_on_instance(&account).await {
-                                Ok(value) => {
-                                    account.enable_sharing = value.enable_sharing;
-                                    account.enable_public_sharing = value.enable_public_sharing;
-                                    valid_account = true;
-                                }
-                                Err(e) => {
-                                    if e.to_string().contains("builder error") {
-                                        commands.push(
-                                            self.toasts
-                                                .push(widget::toaster::Toast::new(fl!(
-                                                    "provided-url-is-not-valid"
-                                                )))
-                                                .map(cosmic::Action::App),
-                                        );
-                                    } else {
-                                        commands.push(
-                                            self.toasts
-                                                .push(widget::toaster::Toast::new(format!("{e}")))
-                                                .map(cosmic::Action::App),
-                                        );
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    let account_clone = account.clone();
-                    if valid_account || !account.enabled {
-                        block_on(async {
-                            db::SqliteDatabase::update_account(database, &account_clone).await;
-                        });
-                        commands.push(
-                            self.toasts
-                                .push(widget::toaster::Toast::new(fl!(
-                                    "updated-account",
-                                    acc = account.display_name
-                                )))
-                                .map(cosmic::Action::App),
-                        );
-                        commands.push(self.update(ApplicationAction::LoadAccounts));
-                        commands.push(self.update(
-                            ApplicationAction::StartRefreshBookmarksForAccount(account_clone),
-                        ));
-                    }
+            ApplicationAction::StartEditAccount(account) => {
+                let cloned_acc = account.clone();
+                if account.enabled {
+                    let message = move |api_response: Option<LinkdingAccountApiResponse>| {
+                        cosmic::Action::App(ApplicationAction::DoneEditAccount(
+                            cloned_acc.clone(),
+                            api_response,
+                        ))
+                    };
+                    commands.push(Task::perform(http::fetch_account_details(account), message));
+                } else {
+                    commands.push(self.update(ApplicationAction::DoneEditAccount(account, None)));
                 }
                 self.core.window.show_context = false;
+            }
+            ApplicationAction::DoneEditAccount(mut account, api_response) => {
+                if let Some(response) = api_response {
+                    if response.error.is_none() {
+                        account.enable_public_sharing = response.enable_public_sharing;
+                        account.enable_sharing = response.enable_sharing;
+                    }
+                }
+                let account_clone = account.clone();
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    block_on(async {
+                        db::SqliteDatabase::update_account(database, &account).await;
+                    });
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(fl!(
+                                "updated-account",
+                                acc = account.display_name
+                            )))
+                            .map(cosmic::Action::App),
+                    );
+                }
                 commands.push(self.update(ApplicationAction::LoadAccounts));
-                self.core.window.show_context = false;
+                if account.enabled {
+                    commands.push(self.update(ApplicationAction::LoadBookmarks));
+                }
+                commands.push(
+                    self.update(ApplicationAction::StartRefreshBookmarksForAccount(
+                        account_clone,
+                    )),
+                );
             }
             ApplicationAction::BookmarksView(message) => {
                 commands.push(self.bookmarks_view.update(message));
@@ -728,10 +719,10 @@ impl Application for Cosmicding {
                     self.state = ApplicationState::Refreshing;
                     let mut acc_vec = self.accounts_view.accounts.clone();
                     acc_vec.retain(|acc| acc.id == account.id);
-                    let borrowed_acc = acc_vec[0].clone();
+                    let cloned_acc = acc_vec[0].clone();
                     let message = move |bookmarks: Vec<DetailedResponse>| {
                         cosmic::Action::App(ApplicationAction::DoneRefreshBookmarksForAccount(
-                            borrowed_acc.clone(),
+                            cloned_acc.clone(),
                             bookmarks,
                         ))
                     };
@@ -795,32 +786,29 @@ impl Application for Cosmicding {
             }
             ApplicationAction::StartRefreshAccountProfile(account) => {
                 if let ApplicationState::Refreshing = self.state {
-                } else {
+                } else if account.enabled {
                     self.state = ApplicationState::Refreshing;
-                    let borrowed_acc = account.clone();
+                    let cloned_acc = account.clone();
                     let message = move |api_response: Option<LinkdingAccountApiResponse>| {
                         cosmic::Action::App(ApplicationAction::DoneRefreshAccountProfile(
-                            borrowed_acc.clone(),
+                            cloned_acc.clone(),
                             api_response,
                         ))
                     };
                     commands.push(Task::perform(http::fetch_account_details(account), message));
                 }
             }
-            ApplicationAction::DoneRefreshAccountProfile(mut account, account_details) => {
+            ApplicationAction::DoneRefreshAccountProfile(mut account, api_response) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    if account_details.is_some() {
-                        let details = account_details.unwrap();
-                        account.enable_sharing = details.enable_sharing;
-                        account.enable_public_sharing = details.enable_public_sharing;
-                        block_on(async {
-                            db::SqliteDatabase::update_account(database, &account).await;
-                        });
-                        commands.push(self.update(ApplicationAction::LoadAccounts));
-                    } else {
-                        block_on(async {
-                            db::SqliteDatabase::update_account(database, &account).await;
-                        });
+                    if let Some(response) = api_response {
+                        if response.successful.expect("") {
+                            account.enable_sharing = response.enable_sharing;
+                            account.enable_public_sharing = response.enable_public_sharing;
+                            block_on(async {
+                                db::SqliteDatabase::update_account(database, &account).await;
+                            });
+                            commands.push(self.update(ApplicationAction::LoadAccounts));
+                        }
                     }
                     self.state = ApplicationState::Loading;
                 }
@@ -949,109 +937,129 @@ impl Application for Cosmicding {
                     bookmark_placeholder.shared = shared;
                 }
             }
-            ApplicationAction::AddBookmark(account, bookmark) => {
-                let mut new_bkmrk: Option<Bookmark> = None;
-                let mut bookmark_exists = false;
+            // NOTE: (vkhitrin) during creation, linkding doesn't populate 'favicon_url'.
+            //       In order to display the new favicon, users are required to wait a
+            //       bit, and then perform a manual refresh.
+            ApplicationAction::StartAddBookmark(account, bookmark) => {
+                let cloned_acc = account.clone();
+                let message = move |api_response: Option<BookmarkCheckDetailsResponse>| {
+                    cosmic::Action::App(ApplicationAction::DoneAddBookmark(
+                        cloned_acc.clone(),
+                        api_response,
+                    ))
+                };
+                commands.push(Task::perform(
+                    http::populate_bookmark(account, bookmark, true),
+                    message,
+                ));
+                self.core.window.show_context = false;
+            }
+            ApplicationAction::DoneAddBookmark(account, api_response) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    block_on(async {
-                        match http::add_bookmark(&account, &bookmark).await {
-                            Ok(value) => {
-                                new_bkmrk = Some(value.bookmark);
-                                if value.is_new {
+                    if let Some(response) = api_response {
+                        if response.error.is_none() {
+                            if let Some(mut bkmrk) = response.bookmark {
+                                bkmrk.is_owner = Some(true);
+                                if response.is_new {
+                                    block_on(async {
+                                        db::SqliteDatabase::add_bookmark(database, &bkmrk).await;
+                                    });
                                     commands.push(
                                         self.toasts
                                             .push(widget::toaster::Toast::new(fl!(
                                                 "added-bookmark-to-account",
-                                                bkmrk = bookmark.url.clone(),
-                                                acc = account.display_name.clone()
+                                                bkmrk = bkmrk.url.clone(),
+                                                acc = account.display_name
                                             )))
                                             .map(cosmic::Action::App),
                                     );
                                 } else {
-                                    bookmark_exists = true;
+                                    block_on(async {
+                                        db::SqliteDatabase::update_bookmark(
+                                            database, &bkmrk, &bkmrk,
+                                        )
+                                        .await;
+                                    });
                                     commands.push(
                                         self.toasts
                                             .push(widget::toaster::Toast::new(fl!(
                                                 "updated-bookmark-in-account",
-                                                bkmrk = bookmark.url,
+                                                bkmrk = bkmrk.url,
                                                 acc = account.display_name.clone()
                                             )))
                                             .map(cosmic::Action::App),
                                     );
                                 }
+                                commands.push(self.update(ApplicationAction::LoadBookmarks));
                             }
-                            Err(e) => {
-                                log::error!("Error adding bookmark: {e}");
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::Action::App),
-                                );
-                            }
-                        }
-                    });
-                    // NOTE: (vkhitrin) during creation, linkding doesn't populate 'favicon_url'.
-                    //       In order to display the new favicon, users are required to wait a
-                    //       a bit, and then perform a manual refresh.
-                    if let Some(mut bkmrk) = new_bkmrk {
-                        bkmrk.is_owner = Some(true);
-                        if bookmark_exists {
-                            block_on(async {
-                                db::SqliteDatabase::update_bookmark(database, &bkmrk, &bkmrk).await;
-                            });
                         } else {
-                            block_on(async {
-                                db::SqliteDatabase::add_bookmark(database, &bkmrk).await;
-                            });
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(response.error.unwrap()))
+                                    .map(cosmic::Action::App),
+                            );
                         }
-                        commands.push(self.update(ApplicationAction::LoadBookmarks));
                     }
                 }
-                self.core.window.show_context = false;
             }
-            ApplicationAction::RemoveBookmark(account_id, bookmark) => {
+            ApplicationAction::StartRemoveBookmark(account_id, bookmark) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                     let account: Account = block_on(async {
                         db::SqliteDatabase::select_single_account(database, account_id).await
                     });
-                    block_on(async {
-                        match http::remove_bookmark(&account, &bookmark).await {
-                            Ok(()) => {
-                                let index = self
-                                    .bookmarks_view
-                                    .bookmarks
-                                    .iter()
-                                    .position(|x| *x == bookmark)
-                                    .unwrap();
-                                self.bookmarks_view.bookmarks.remove(index);
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(fl!(
-                                            "removed-bookmark-from-account",
-                                            acc = account.display_name.clone()
-                                        )))
-                                        .map(cosmic::Action::App),
-                                );
-                            }
-                            Err(e) => {
-                                log::error!("Error removing bookmark: {e}");
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::Action::App),
-                                );
-                            }
-                        }
-                    });
-                    block_on(async {
-                        db::SqliteDatabase::delete_bookmark(database, &bookmark).await;
-                    });
+                    let cloned_account = account.clone();
+                    let cloned_bookmark = bookmark.clone();
+                    let message = move |api_response: Option<BookmarkRemoveResponse>| {
+                        cosmic::Action::App(ApplicationAction::DoneRemoveBookmark(
+                            cloned_account.clone(),
+                            cloned_bookmark.clone(),
+                            api_response,
+                        ))
+                    };
+                    commands.push(Task::perform(
+                        http::remove_bookmark(account, bookmark),
+                        message,
+                    ));
                 }
-                commands.push(self.update(ApplicationAction::LoadBookmarks));
-                self.bookmarks_view.bookmarks = self.bookmarks_cursor.result.clone().unwrap();
                 self.core.window.show_context = false;
             }
-            ApplicationAction::EditBookmark(account_id, bookmark) => {
+            ApplicationAction::DoneRemoveBookmark(account, bookmark, api_response) => {
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    if let Some(response) = api_response {
+                        if response.error.is_none() {
+                            block_on(async {
+                                db::SqliteDatabase::delete_bookmark(database, &bookmark).await;
+                            });
+                            let index = self
+                                .bookmarks_view
+                                .bookmarks
+                                .iter()
+                                .position(|x| *x == bookmark)
+                                .unwrap();
+                            self.bookmarks_view.bookmarks.remove(index);
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "removed-bookmark-from-account",
+                                        acc = account.display_name.clone()
+                                    )))
+                                    .map(cosmic::Action::App),
+                            );
+
+                            commands.push(self.update(ApplicationAction::LoadBookmarks));
+                            self.bookmarks_view.bookmarks =
+                                self.bookmarks_cursor.result.clone().unwrap();
+                        } else {
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(response.error.unwrap()))
+                                    .map(cosmic::Action::App),
+                            );
+                        }
+                    }
+                }
+            }
+            ApplicationAction::EditBookmarkForm(account_id, bookmark) => {
                 self.placeholder_bookmark = Some(bookmark.clone());
                 self.placeholder_bookmark_notes = widget::text_editor::Content::with_text(
                     &self.placeholder_bookmark.as_ref().unwrap().notes,
@@ -1069,48 +1077,50 @@ impl Application for Cosmicding {
                     ContextPage::EditBookmarkForm,
                 )));
             }
-            ApplicationAction::UpdateBookmark(account, bookmark) => {
-                let mut updated_bkmrk: Option<Bookmark> = None;
+            ApplicationAction::StartEditBookmark(account, bookmark) => {
+                let cloned_acc = account.clone();
+                let message = move |api_response: Option<BookmarkCheckDetailsResponse>| {
+                    cosmic::Action::App(ApplicationAction::DoneAddBookmark(
+                        cloned_acc.clone(),
+                        api_response,
+                    ))
+                };
+                commands.push(Task::perform(
+                    http::populate_bookmark(account, bookmark, false),
+                    message,
+                ));
+                self.core.window.show_context = false;
+            }
+            ApplicationAction::DoneEditBookmark(account, api_response) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    block_on(async {
-                        match http::edit_bookmark(&account, &bookmark).await {
-                            Ok(value) => {
-                                updated_bkmrk = Some(value);
+                    if let Some(response) = api_response {
+                        if response.error.is_none() {
+                            if let Some(mut bkmrk) = response.bookmark {
+                                bkmrk.is_owner = Some(true);
+                                block_on(async {
+                                    db::SqliteDatabase::update_bookmark(database, &bkmrk, &bkmrk)
+                                        .await;
+                                });
                                 commands.push(
                                     self.toasts
                                         .push(widget::toaster::Toast::new(fl!(
                                             "updated-bookmark-in-account",
-                                            bkmrk = bookmark.url.clone(),
+                                            bkmrk = bkmrk.url,
                                             acc = account.display_name.clone()
                                         )))
                                         .map(cosmic::Action::App),
                                 );
+                                commands.push(self.update(ApplicationAction::LoadBookmarks));
                             }
-                            Err(e) => {
-                                log::error!("Error updating bookmark: {e}");
-                                commands.push(
-                                    self.toasts
-                                        .push(widget::toaster::Toast::new(format!("{e}")))
-                                        .map(cosmic::Action::App),
-                                );
-                            }
+                        } else {
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(response.error.unwrap()))
+                                    .map(cosmic::Action::App),
+                            );
                         }
-                    });
-                    if let Some(bkmrk) = updated_bkmrk {
-                        let index = self
-                            .bookmarks_view
-                            .bookmarks
-                            .iter()
-                            .position(|x| x.id == bookmark.id)
-                            .unwrap();
-                        block_on(async {
-                            db::SqliteDatabase::update_bookmark(database, &bkmrk, &bkmrk).await;
-                        });
-                        self.bookmarks_view.bookmarks[index] =
-                            self.bookmarks_view.bookmarks[index].clone().merge(bkmrk);
                     }
                 }
-                self.core.window.show_context = false;
             }
             ApplicationAction::SearchBookmarks(search_query) => {
                 if search_query.is_empty() {
@@ -1177,11 +1187,9 @@ impl Application for Cosmicding {
                             commands.push(self.update(ApplicationAction::RemoveAccount(account)));
                         }
                         DialogPage::RemoveBookmark(account_id, bookmark) => {
-                            commands.push(
-                                self.update(ApplicationAction::RemoveBookmark(
-                                    account_id, bookmark,
-                                )),
-                            );
+                            commands.push(self.update(ApplicationAction::StartRemoveBookmark(
+                                account_id, bookmark,
+                            )));
                         }
                         DialogPage::PurgeFaviconsCache() => {
                             commands.push(self.update(ApplicationAction::PurgeFaviconsCache));

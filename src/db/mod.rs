@@ -348,7 +348,7 @@ impl SqliteDatabase {
                 date_modified=$13,
                 website_title=$14,
                 website_description=$15
-            WHERE id=$16;";
+            WHERE linkding_internal_id=$16 AND user_account_id=$17;";
         sqlx::query(query)
             .bind(&new_bookmark.url)
             .bind(&new_bookmark.title)
@@ -365,7 +365,8 @@ impl SqliteDatabase {
             .bind(&new_bookmark.date_modified)
             .bind(&new_bookmark.website_title)
             .bind(&new_bookmark.website_description)
-            .bind(old_bookmark.id)
+            .bind(old_bookmark.linkding_internal_id)
+            .bind(old_bookmark.user_account_id)
             .execute(&self.conn)
             .await
             .unwrap();

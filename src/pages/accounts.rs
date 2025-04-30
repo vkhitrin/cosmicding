@@ -285,13 +285,13 @@ impl PageAccountsView {
         match message {
             AccountsAction::AddAccount => {
                 commands.push(Task::perform(async {}, |()| {
-                    cosmic::Action::App(ApplicationAction::AddAccount)
+                    cosmic::Action::App(ApplicationAction::AddAccountForm)
                 }));
             }
             AccountsAction::EditAccount(account) => {
                 self.account_placeholder = Some(account.clone());
                 commands.push(Task::perform(async {}, move |()| {
-                    cosmic::Action::App(ApplicationAction::EditAccount(account.clone()))
+                    cosmic::Action::App(ApplicationAction::EditAccountForm(account.clone()))
                 }));
             }
             AccountsAction::DeleteAccount(account) => {
@@ -352,8 +352,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .spacing(10)
         .label(fl!("enabled"));
     let buttons_widget_container = widget::container(
-        widget::button::standard(fl!("save"))
-            .on_press(ApplicationAction::CompleteAddAccount(account)),
+        widget::button::standard(fl!("save")).on_press(ApplicationAction::StartAddAccount(account)),
     )
     .width(Length::Fill)
     .align_x(Alignment::Center);
@@ -493,7 +492,8 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .padding(10)
     };
     let buttons_widget_container = widget::container(
-        widget::button::standard(fl!("save")).on_press(ApplicationAction::UpdateAccount(account)),
+        widget::button::standard(fl!("save"))
+            .on_press(ApplicationAction::StartEditAccount(account)),
     )
     .width(Length::Fill)
     .align_x(Alignment::Center);
