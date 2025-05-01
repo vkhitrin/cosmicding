@@ -1,6 +1,6 @@
 use crate::app::{
     actions::{AccountsAction, ApplicationAction},
-    icons::{load_icon_from_path, load_xdg_icon},
+    icons::load_xdg_icon,
     ApplicationState,
 };
 use crate::fl;
@@ -100,12 +100,13 @@ impl PageAccountsView {
                         .font_size(12)
                         .on_press(AccountsAction::DeleteAccount(account.to_owned())),
                 };
-
                 // Mandatory first row - details
                 let mut columns = Vec::new();
                 columns.push(
                     widget::row::with_capacity(2)
-                        .push(widget::icon::icon(load_icon_from_path("linkding-logo")))
+                        .push(widget::icon(widget::icon::from_svg_bytes(include_bytes!(
+                            "../../res/icons/linkding-logo.svg"
+                        ))))
                         .push(
                             widget::button::link(format!(
                                 "{} ({})",

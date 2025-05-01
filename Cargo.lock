@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "cosmicding"
-version = "0.1.0"
+version = "2025.5.0"
 dependencies = [
  "anyhow",
  "chrono",
