@@ -11,6 +11,7 @@
     <url type="bugtracker">https://github.com/vkhitrin/cosmicding/issues</url>
     <url type="vcs-browser">https://github.com/vkhitrin/cosmicding</url>
     <url type="contact">https://vkhitrin.com</url>
+    <url type="homepage">https://github.com/vkhitrin/cosmicding</url>
     <url type="contribute">https://github.com/vkhitrin/cosmicding</url>
     <url type="translate">https://github.com/vkhitrin/cosmicding/tree/main/i18n</url>
     <name>cosmicding</name>
@@ -29,16 +30,18 @@
         <color type="primary" scheme_preference="light">#eaeaff</color>
         <color type="primary" scheme_preference="dark">#280c4b</color>
     </branding>
+    <icon type="stock">com.vkhitrin.cosmicding</icon>
     <icon type="remote" height="256" width="256">
         https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/linux/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png</icon>
-    <launchable type="desktop-id">com.vkhitrin.cosmicding</launchable>
+    <launchable type="desktop-id">com.vkhitrin.cosmicding.desktop</launchable>
     <releases>
-        <release version="0.1.0" date="2025-01-01">
+        <release version="2025.5.0" date="2025-05-01">
             <description>
-                <p>TO FILL</p>
-                <ul>
-                    <li>TO FILL</li>
-                </ul>
+                <p>
+                    Initial release!
+
+                    This is the first public release of cosmicding.
+                </p>
             </description>
         </release>
     </releases>
@@ -58,7 +61,8 @@
         <category>Utility</category>
     </categories>
     <keywords>
-        COSMIC
+        <keyword>COSMIC</keyword>
+        <keyword>linkding</keyword>
     </keywords>
     <requires>
         <display_length compare="ge">768</display_length>

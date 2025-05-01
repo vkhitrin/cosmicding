@@ -9,6 +9,9 @@
 
 # cosmicding
 
+> [!NOTE]
+> macOS status <https://github.com/vkhitrin/cosmicding/discussions/96>
+
 cosmicding is a [linkding](https://github.com/sissbruecker/linkding) companion app for COSMIC™ Desktop Environment.  
 It provides an alternative frontend to linkding based on [libcosmic](https://github.com/pop-os/libcosmic).
 
@@ -25,14 +28,28 @@ cosmicding has been tested with linkding releases >= `1.31.0`.
 
 ## Installation
 
-> [!NOTE]
-> Currently cosmicding is hard-codded to build Apple Silicon releases for macOS.
+### Remote
 
-cosmicding is not distributed at the moment, and has to be built manually.
+cosmicding can be installed from remote sources in several ways:
+
+#### Linux
+
+- Download compiled binaries from GitHub release.
+- Flatpak (**not yet published**).
+
+#### macOS
+
+- Download DMG from GitHub release.
+- Using brew:
+
+  ```shell
+  brew tap vkhitrin/tap
+  brew install --cask vkhitrin/tap/cosmicding
+  ```
 
 ### Local Install (compiled binary)
 
-Dependencies (Linux)
+Dependencies (Linux):
 
 - `cargo`
 - `just`
@@ -41,12 +58,13 @@ Dependencies (Linux)
 - `libsqlite3-dev`
 - `cosmic-icons`
 
-Dependencies (macOS)
+Dependencies (macOS):
 
 - `cargo`
 - `just`
 - `libxkbcommon`
 - `sqlite3`
+- `cosmic-icons` (can be fetched using brew `brew install --HEAD vkhitrin/tap/cosmic-icons-theme`)
 
 Installation:
 
@@ -76,13 +94,7 @@ flatpak-builder --force-clean \
                 --mirror-screenshots-url=https://dl.flathub.org/media/ \
                 --repo=flatpak-repo builddir \
                 res/flatpak/com.vkhitrin.cosmicding
-````
-
-## Roadmap
-
-cosmicding is currently under heavy development, and is not distributed outside of source code.
-
-The initial release is expected to support Linux platforms, and macOS partially.
+```
 
 ## Thanks
 

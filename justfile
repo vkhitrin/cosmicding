@@ -1,6 +1,5 @@
 name := 'cosmicding'
 appid := 'com.vkhitrin.cosmicding'
-migrations_folder := clean(rootdir / prefix) / 'share' / appid / 'migrations'
 
 rootdir := ''
 prefix := '/usr'
@@ -13,6 +12,8 @@ bin-dst := base-dir / 'bin' / name
 desktop := appid + '.desktop'
 desktop-src := 'res' / 'linux' / desktop
 desktop-dst := clean(rootdir / prefix) / 'share' / 'applications' / desktop
+
+metainfo-dst := clean(rootdir / prefix) / 'share' / 'metainfo' / 'com.vkhitrin.cosmicding.metainfo.xml'
 
 icons-src := 'res' / 'linux' / 'icons' / 'hicolor'
 icons-dst := clean(rootdir / prefix) / 'share' / 'icons' / 'hicolor'
@@ -47,19 +48,54 @@ build-release *args:
   if [ "$(uname)" = "Linux" ]; then
     just build-release-linux
   elif [ "$(uname)" = "Darwin" ]; then
-    just build-release-macos
+    if [ "$(uname -m)" = "arm64" ]; then
+        just build-release-macos-aarch64
+    elif [ "$(uname -m)" = "x86_64" ]; then
+        just build-release-macos-x86_64
+    fi
   fi
+
 build-release-linux *args: (build-debug '--release' args)
 
-build-release-macos *args:
-    cargo build --release --target=aarch64-apple-darwin {{args}}
+build-release-macos-aarch64 *args:
+    #!/usr/bin/env sh
+    if [ ! -z $COSMICDING_UNIVERAL_BUILD ]; then
+        SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+        CFLAGS="-isysroot $SDKROOT"
+        rustup run stable cargo build --release --target aarch64-apple-darwin {{args}}
+    else
+        cargo build --release --target=aarch64-apple-darwin {{args}}
+        lipo "target/aarch64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
+        just bundle-macos
+    fi
 
+build-release-macos-x86_64 *args:
+    #!/usr/bin/env sh
+    echo $COSMICDING_UNIVERAL_BUILD
+    if [ ! -z $COSMICDING_UNIVERAL_BUILD ]; then
+        SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+        CFLAGS="-isysroot $SDKROOT"
+        rustup run stable cargo build --release --target x86_64-apple-darwin {{args}}
+    else
+        cargo build --release --target x86_64-apple-darwin {{args}}
+        lipo "target/x86_64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
+        just bundle-macos
+    fi
+
+build-release-macos-universal *args:
+    which rustup || exit 1
+    rustup toolchain install stable
+    rustup target add aarch64-apple-darwin
+    rustup target add x86_64-apple-darwin
+    env COSMICDING_UNIVERAL_BUILD=true just build-release-macos-aarch64
+    env COSMICDING_UNIVERAL_BUILD=true just build-release-macos-x86_64
+    lipo "target/aarch64-apple-darwin/release/{{name}}" "target/x86_64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
+    just bundle-macos
+
+bundle-macos:
     # Using native macOS' sed
     /usr/bin/sed -i '' -e "s/__VERSION__/$(cargo pkgid | cut -d "#" -f2)/g" {{macos-app-template-plist}}
     /usr/bin/sed -i '' -e "s/__BUILD__/$(git describe --always --exclude='*')/g" {{macos-app-template-plist}}
-
-    lipo "target/aarch64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
-
     mkdir -p "{{macos-app-binary-dir}}"
     mkdir -p "{{macos-app-extras-dir}}/icons/"
     cp -fRp "{{macos-app-template}}" "{{macos-app-dir}}"
@@ -68,6 +104,31 @@ build-release-macos *args:
     touch -r "{{macos-app-binary}}" "{{macos-app-dir}}/{{macos-app-name}}"
     echo "Created '{{macos-app-name}}' in '{{macos-app-dir}}'"
     git stash -- {{macos-app-template-plist}}
+
+distribute-macos-dmg:
+    which create-dmg || exit 1
+    create-dmg \
+      --volname "cosmicding Installer" \
+      --window-pos 200 120 \
+      --window-size 800 400 \
+      --icon-size 100 \
+      --hide-extension "cosmicding.app" \
+      --icon {{macos-app-name}} 200 160 \
+      --app-drop-link 600 155 \
+      {{macos-app-dir}}/{{macos-dmg-name}} \
+      {{macos-app-dir}}/{{macos-app-name}}
+
+build-release-linux-flatpak:
+    which flatpak-builder || exit 1
+    flatpak-builder --force-clean \
+                    --sandbox \
+                    --user \
+                    --install \
+                    --install-deps-from=flathub \
+                    --ccache \
+                    --mirror-screenshots-url=https://dl.flathub.org/media/ \
+                    --repo=flatpak-repo builddir \
+                    res/flatpak/com.vkhitrin.cosmicding.yaml
 
 build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
 
@@ -94,22 +155,15 @@ run *args:
 install:
     #!/usr/bin/env sh
     if [ "$(uname)" = "Linux" ]; then
-        just install-migrations
         install -Dm0755 {{bin-src}} {{bin-dst}}
-        install -Dm0644 res/linux/app.desktop {{desktop-dst}}
         for size in `ls {{icons-src}}`; do \
             install -Dm0644 "{{icons-src}}/$size/apps/{{appid}}.png" "{{icons-dst}}/$size/apps/{{appid}}.png"; \
         done
+        install -Dm0644 res/linux/app.desktop {{desktop-dst}}
+        install -Dm0644 res/flatpak/com.vkhitrin.cosmicding.metainfo.xml {{metainfo-dst}}
     elif [ "$(uname)" = "Darwin" ]; then
         cp -r {{macos-app-dir}}/{{name}}.app /Applications/
     fi
-
-install-migrations:
-  #!/usr/bin/env sh
-  set -ex
-  for file in ./migrations/*; do
-    install -Dm0644 $file "{{migrations_folder}}/$(basename "$file")"
-  done
 
 uninstall:
     #!/usr/bin/env sh
