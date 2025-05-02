@@ -36,6 +36,15 @@ impl Account {
             trust_invalid_certs: false,
         }
     }
+    pub fn requires_remote_sync(&self, other: &Account) -> bool {
+        self.api_token != other.api_token
+            || self.enable_public_sharing != other.enable_public_sharing
+            || self.enable_sharing != other.enable_sharing
+            || self.enabled != other.enabled
+            || self.id != other.id
+            || self.instance != other.instance
+            || self.trust_invalid_certs != other.trust_invalid_certs
+    }
 }
 
 // NOTE: (vkhitrin) we do not use these preferences as part of the application.
