@@ -20,7 +20,7 @@ icons-dst := clean(rootdir / prefix) / 'share' / 'icons' / 'hicolor'
 
 macos-assets-dir := 'res' / 'macOS'
 macos-release-dir := 'target' / 'release'
-macos-app-name := name + '.app'
+macos-app-name := 'Cosmicding' + '.app'
 macos-app-template := macos-assets-dir / macos-app-name
 macos-app-template-plist := macos-app-template / 'Contents' / 'Info.plist'
 macos-app-dir := macos-release-dir / 'macos'
@@ -108,11 +108,11 @@ bundle-macos:
 distribute-macos-dmg:
     which create-dmg || exit 1
     create-dmg \
-      --volname "cosmicding Installer" \
+      --volname "Cosmicding Installer" \
       --window-pos 200 120 \
       --window-size 800 400 \
       --icon-size 100 \
-      --hide-extension "cosmicding.app" \
+      --hide-extension "Cosmicding.app" \
       --icon {{macos-app-name}} 200 160 \
       --app-drop-link 600 155 \
       {{macos-app-dir}}/{{macos-dmg-name}} \

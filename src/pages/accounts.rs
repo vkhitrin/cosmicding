@@ -1,6 +1,5 @@
 use crate::app::{
     actions::{AccountsAction, ApplicationAction},
-    icons::load_xdg_icon,
     ApplicationState,
 };
 use crate::fl;
@@ -36,7 +35,7 @@ impl PageAccountsView {
         if self.accounts.is_empty() {
             let container = widget::container(
                 widget::column::with_children(vec![
-                    widget::icon::icon(load_xdg_icon("contact-new-symbolic"))
+                    widget::icon::from_name("contact-new-symbolic")
                         .size(64)
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
@@ -220,7 +219,7 @@ impl PageAccountsView {
                 } else {
                     None
                 })
-                .leading_icon(load_xdg_icon("go-previous-symbolic"));
+                .leading_icon(widget::icon::from_name("go-previous-symbolic"));
             let navigation_next_button = widget::button::standard(fl!("next"))
                 .on_press_maybe(
                     if accounts_cursor.current_page < accounts_cursor.total_pages {
@@ -229,7 +228,7 @@ impl PageAccountsView {
                         None
                     },
                 )
-                .trailing_icon(load_xdg_icon("go-next-symbolic"));
+                .trailing_icon(widget::icon::from_name("go-next-symbolic"));
             let page_navigation_widget = widget::container(widget::column::with_children(vec![
                 widget::row::with_capacity(2)
                     .align_y(Alignment::Center)
@@ -363,7 +362,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("user-available-symbolic")))
+                .push(widget::icon::from_name("user-available-symbolic"))
                 .push(display_name_widget_title)
                 .padding([
                     spacing.space_none,
@@ -377,7 +376,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("network-server-symbolic")))
+                .push(widget::icon::from_name("network-server-symbolic"))
                 .push(instance_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -391,9 +390,7 @@ pub fn add_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon(
-                    "system-lock-screen-symbolic",
-                )))
+                .push(widget::icon::from_name("system-lock-screen-symbolic"))
                 .push(api_key_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -455,7 +452,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("enabled-sharing")))
-                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -465,7 +462,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("disabled-sharing")))
-                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -476,7 +473,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("enabled-public-sharing")))
-                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -486,7 +483,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
                 .push(widget::text::body(fl!("disabled-public-sharing")))
-                .push(widget::icon::icon(load_xdg_icon("dialog-information-symbolic")).size(18)),
+                .push(widget::icon::from_name("dialog-information-symbolic").size(18)),
             widget::container(widget::text::body(fl!("setting-managed-externally"))),
             tooltip::Position::FollowCursor,
         )
@@ -504,7 +501,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("user-available-symbolic")))
+                .push(widget::icon::from_name("user-available-symbolic"))
                 .push(display_name_widget_title)
                 .padding([
                     spacing.space_none,
@@ -518,7 +515,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("network-server-symbolic")))
+                .push(widget::icon::from_name("network-server-symbolic"))
                 .push(instance_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -532,9 +529,7 @@ pub fn edit_account<'a>(account: Account) -> Element<'a, ApplicationAction> {
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon(
-                    "system-lock-screen-symbolic",
-                )))
+                .push(widget::icon::from_name("system-lock-screen-symbolic"))
                 .push(api_key_widget_title)
                 .padding([
                     spacing.space_xxxs,

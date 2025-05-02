@@ -14,7 +14,6 @@ use crate::{
         config::{AppTheme, CosmicConfig, SortOption},
         context::ContextPage,
         dialog::DialogPage,
-        icons::load_xdg_icon,
         menu as app_menu,
         nav::AppNavPage,
     },
@@ -46,7 +45,6 @@ pub mod actions;
 pub mod config;
 pub mod context;
 pub mod dialog;
-pub mod icons;
 mod key_bind;
 pub mod menu;
 pub mod nav;
@@ -297,7 +295,7 @@ impl Application for Cosmicding {
         let dialog = match dialog_page {
             DialogPage::RemoveAccount(account) => widget::dialog()
                 .title(fl!("remove") + " " + { &account.display_name })
-                .icon(icon::icon(load_xdg_icon("dialog-warning-symbolic")).size(58))
+                .icon(icon::from_name("dialog-warning-symbolic").size(58))
                 .body(fl!("remove-account-confirm"))
                 .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
                     ApplicationAction::CompleteRemoveDialog(account.id, None),
@@ -307,7 +305,7 @@ impl Application for Cosmicding {
                         .on_press(ApplicationAction::DialogCancel),
                 ),
             DialogPage::RemoveBookmark(account, bookmark) => widget::dialog()
-                .icon(icon::icon(load_xdg_icon("dialog-warning-symbolic")).size(58))
+                .icon(icon::from_name("dialog-warning-symbolic").size(58))
                 .title(fl!("remove") + " " + { &bookmark.title })
                 .body(fl!("remove-bookmark-confirm"))
                 .primary_action(widget::button::destructive(fl!("yes")).on_press_maybe(Some(
@@ -318,7 +316,7 @@ impl Application for Cosmicding {
                         .on_press(ApplicationAction::DialogCancel),
                 ),
             DialogPage::PurgeFaviconsCache() => widget::dialog()
-                .icon(icon::icon(load_xdg_icon("dialog-warning-symbolic")).size(58))
+                .icon(icon::from_name("dialog-warning-symbolic").size(58))
                 .title(fl!("purge-favicons-cache"))
                 .body(fl!("purge-favicons-cache-confirm"))
                 .primary_action(
@@ -615,35 +613,66 @@ impl Application for Cosmicding {
                 self.core.window.show_context = false;
             }
             ApplicationAction::DoneEditAccount(mut account, api_response) => {
-                if let Some(response) = api_response {
-                    if response.error.is_none() {
-                        account.enable_public_sharing = response.enable_public_sharing;
-                        account.enable_sharing = response.enable_sharing;
-                    }
-                }
                 let account_clone = account.clone();
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    block_on(async {
-                        db::SqliteDatabase::update_account(database, &account).await;
+                    let current_account: Account = block_on(async {
+                        db::SqliteDatabase::select_single_account(database, account.id.unwrap())
+                            .await
                     });
-                    commands.push(
-                        self.toasts
-                            .push(widget::toaster::Toast::new(fl!(
-                                "updated-account",
-                                acc = account.display_name
-                            )))
-                            .map(cosmic::Action::App),
-                    );
+                    if let Some(response) = api_response {
+                        if response.error.is_none() {
+                            account.enable_public_sharing = response.enable_public_sharing;
+                            account.enable_sharing = response.enable_sharing;
+                            if current_account != account {
+                                block_on(async {
+                                    db::SqliteDatabase::update_account(database, &account).await;
+                                });
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(fl!(
+                                            "updated-account",
+                                            acc = account_clone.display_name
+                                        )))
+                                        .map(cosmic::Action::App),
+                                );
+                                commands.push(self.update(ApplicationAction::LoadAccounts));
+                                if account.requires_remote_sync(&current_account) {
+                                    commands.push(self.update(
+                                        ApplicationAction::StartRefreshBookmarksForAccount(
+                                            account.clone(),
+                                        ),
+                                    ));
+                                }
+                            }
+                        } else {
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "failed-to-edit-account",
+                                        acc = account.display_name,
+                                        err = response.error
+                                    )))
+                                    .map(cosmic::Action::App),
+                            );
+                        }
+                    } else if current_account != account {
+                        block_on(async {
+                            db::SqliteDatabase::update_account(database, &account).await;
+                        });
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "disabled-account",
+                                    acc = account_clone.display_name
+                                )))
+                                .map(cosmic::Action::App),
+                        );
+                        commands.push(self.update(ApplicationAction::LoadAccounts));
+                        commands.push(self.update(
+                            ApplicationAction::StartRefreshBookmarksForAccount(account.clone()),
+                        ));
+                    }
                 }
-                commands.push(self.update(ApplicationAction::LoadAccounts));
-                if account.enabled {
-                    commands.push(self.update(ApplicationAction::LoadBookmarks));
-                }
-                commands.push(
-                    self.update(ApplicationAction::StartRefreshBookmarksForAccount(
-                        account_clone,
-                    )),
-                );
             }
             ApplicationAction::BookmarksView(message) => {
                 commands.push(self.bookmarks_view.update(message));
@@ -1401,8 +1430,7 @@ impl Cosmicding {
                         .spacing(5)
                         .push(widget::text::body(fl!("enable-favicons")))
                         .push(widget::tooltip(
-                            widget::icon::icon(load_xdg_icon("dialog-information-symbolic"))
-                                .size(18),
+                            widget::icon::from_name("dialog-information-symbolic").size(18),
                             widget::container(widget::text::body(fl!("enable-favicons-info"))),
                             tooltip::Position::FollowCursor,
                         ))
@@ -1422,7 +1450,7 @@ impl Cosmicding {
                         .push(widget::text::body(fl!("purge-favicons-cache")))
                         .push(widget::horizontal_space())
                         .push(
-                            widget::button::icon(load_xdg_icon("user-trash-symbolic"))
+                            widget::button::icon(widget::icon::from_name("user-trash-symbolic"))
                                 .on_press(ApplicationAction::OpenPurgeFaviconsCache)
                                 .class(cosmic::style::Button::Destructive),
                         ),

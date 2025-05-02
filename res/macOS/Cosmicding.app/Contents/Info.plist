@@ -11,7 +11,7 @@
         <key>CFBundleInfoDictionaryVersion</key>
         <string>6.0</string>
         <key>CFBundleName</key>
-        <string>cosmicding</string>
+        <string>Cosmicding</string>
         <key>CFBundlePackageType</key>
         <string>APPL</string>
         <key>CFBundleShortVersionString</key>
@@ -31,7 +31,7 @@
         <key>NSSupportsAutomaticGraphicsSwitching</key>
         <true />
         <key>CFBundleDisplayName</key>
-        <string>cosmicding</string>
+        <string>Cosmicding</string>
         <key>NSRequiresAquaSystemAppearance</key>
         <string>NO</string>
     </dict>

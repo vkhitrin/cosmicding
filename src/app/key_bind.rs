@@ -30,7 +30,6 @@ pub fn key_binds() -> HashMap<KeyBind, MenuAction> {
     let secondary_modifier = Modifier::Shift;
 
     bind!([primary_modifier], Key::Character(",".into()), Settings);
-    bind!([primary_modifier], Key::Character("i".into()), About);
     bind!(
         [primary_modifier, secondary_modifier],
         Key::Character("n".into()),

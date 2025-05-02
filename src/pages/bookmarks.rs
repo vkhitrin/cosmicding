@@ -1,6 +1,5 @@
 use crate::app::{
     actions::{ApplicationAction, BookmarksAction},
-    icons::load_xdg_icon,
     ApplicationState,
 };
 use crate::fl;
@@ -39,7 +38,7 @@ impl PageBookmarksView {
         if no_accounts {
             let container = widget::container(
                 widget::column::with_children(vec![
-                    widget::icon::icon(load_xdg_icon("web-browser-symbolic"))
+                    widget::icon::from_name("web-browser-symbolic")
                         .size(64)
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
@@ -226,20 +225,17 @@ impl PageBookmarksView {
                 );
                 if bookmark.is_archived {
                     details_row = details_row
-                        .push(widget::icon::icon(load_xdg_icon("mail-archive-symbolic")).size(12))
+                        .push(widget::icon::from_name("mail-archive-symbolic").size(12))
                         .push(widget::text(fl!("archived")).size(12));
                 }
                 if bookmark.unread {
                     details_row = details_row
-                        .push(
-                            widget::icon::icon(load_xdg_icon("x-office-spreadsheet-symbolic"))
-                                .size(12),
-                        )
+                        .push(widget::icon::from_name("x-office-spreadsheet-symbolic").size(12))
                         .push(widget::text(fl!("unread")).size(12));
                 }
                 if bookmark.shared {
                     details_row = details_row
-                        .push(widget::icon::icon(load_xdg_icon("emblem-shared-symbolic")).size(12))
+                        .push(widget::icon::from_name("emblem-shared-symbolic").size(12))
                         .push(if bookmark.is_owner == Some(true) {
                             widget::text(fl!("sharing")).size(12)
                         } else {
@@ -300,7 +296,7 @@ impl PageBookmarksView {
                 } else {
                     None
                 })
-                .leading_icon(load_xdg_icon("go-previous-symbolic"));
+                .leading_icon(widget::icon::from_name("go-previous-symbolic"));
             let navigation_next_button = widget::button::standard(fl!("next"))
                 .on_press_maybe(
                     if bookmarks_cursor.current_page < bookmarks_cursor.total_pages {
@@ -309,7 +305,7 @@ impl PageBookmarksView {
                         None
                     },
                 )
-                .trailing_icon(load_xdg_icon("go-next-symbolic"));
+                .trailing_icon(widget::icon::from_name("go-next-symbolic"));
 
             let page_navigation_widget = widget::container(widget::column::with_children(vec![
                 widget::row::with_capacity(2)
@@ -521,7 +517,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("user-available-symbolic")))
+                .push(widget::icon::from_name("user-available-symbolic"))
                 .push(account_widget_title)
                 .padding([
                     spacing.space_none,
@@ -535,7 +531,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("web-browser-symbolic")))
+                .push(widget::icon::from_name("web-browser-symbolic"))
                 .push(url_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -549,7 +545,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("insert-text-symbolic")))
+                .push(widget::icon::from_name("insert-text-symbolic"))
                 .push(title_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -563,7 +559,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("text-x-generic-symbolic")))
+                .push(widget::icon::from_name("text-x-generic-symbolic"))
                 .push(description_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -577,9 +573,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon(
-                    "x-office-document-symbolic",
-                )))
+                .push(widget::icon::from_name("x-office-document-symbolic"))
                 .push(notes_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -593,9 +587,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon(
-                    "mail-mark-important-symbolic",
-                )))
+                .push(widget::icon::from_name("mail-mark-important-symbolic"))
                 .push(tags_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -691,7 +683,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("user-available-symbolic")))
+                .push(widget::icon::from_name("user-available-symbolic"))
                 .push(account_widget_title)
                 .padding([
                     spacing.space_none,
@@ -705,7 +697,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("web-browser-symbolic")))
+                .push(widget::icon::from_name("web-browser-symbolic"))
                 .push(url_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -719,7 +711,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("insert-text-symbolic")))
+                .push(widget::icon::from_name("insert-text-symbolic"))
                 .push(title_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -733,7 +725,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon("text-x-generic-symbolic")))
+                .push(widget::icon::from_name("text-x-generic-symbolic"))
                 .push(description_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -747,9 +739,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon(
-                    "x-office-document-symbolic",
-                )))
+                .push(widget::icon::from_name("x-office-document-symbolic"))
                 .push(notes_widget_title)
                 .padding([
                     spacing.space_xxxs,
@@ -763,9 +753,7 @@ where
         .push(
             widget::row::with_capacity(2)
                 .spacing(spacing.space_xxs)
-                .push(widget::icon::icon(load_xdg_icon(
-                    "mail-mark-important-symbolic",
-                )))
+                .push(widget::icon::from_name("mail-mark-important-symbolic"))
                 .push(tags_widget_title)
                 .padding([
                     spacing.space_xxxs,
