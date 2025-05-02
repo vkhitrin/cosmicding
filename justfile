@@ -15,7 +15,7 @@ desktop-dst := clean(rootdir / prefix) / 'share' / 'applications' / desktop
 
 metainfo-dst := clean(rootdir / prefix) / 'share' / 'metainfo' / 'com.vkhitrin.cosmicding.metainfo.xml'
 
-icons-src := 'res' / 'linux' / 'icons' / 'hicolor'
+icons-src := 'res' / 'icons' / 'hicolor'
 icons-dst := clean(rootdir / prefix) / 'share' / 'icons' / 'hicolor'
 
 macos-assets-dir := 'res' / 'macOS'
@@ -97,10 +97,10 @@ bundle-macos:
     /usr/bin/sed -i '' -e "s/__VERSION__/$(cargo pkgid | cut -d "#" -f2)/g" {{macos-app-template-plist}}
     /usr/bin/sed -i '' -e "s/__BUILD__/$(git describe --always --exclude='*')/g" {{macos-app-template-plist}}
     mkdir -p "{{macos-app-binary-dir}}"
-    mkdir -p "{{macos-app-extras-dir}}/icons/"
+    mkdir -p "{{macos-app-extras-dir}}/icons/hicolor"
     cp -fRp "{{macos-app-template}}" "{{macos-app-dir}}"
     cp -fp "{{macos-app-binary}}" "{{macos-app-binary-dir}}"
-    cp ./res/icons/* "{{macos-app-extras-dir}}/icons/"
+    cp -r ./res/icons/hicolor "{{macos-app-extras-dir}}/icons/hicolor"
     touch -r "{{macos-app-binary}}" "{{macos-app-dir}}/{{macos-app-name}}"
     echo "Created '{{macos-app-name}}' in '{{macos-app-dir}}'"
     git stash -- {{macos-app-template-plist}}
@@ -156,9 +156,13 @@ install:
     #!/usr/bin/env sh
     if [ "$(uname)" = "Linux" ]; then
         install -Dm0755 {{bin-src}} {{bin-dst}}
-        for size in `ls {{icons-src}}`; do \
-            install -Dm0644 "{{icons-src}}/$size/apps/{{appid}}.png" "{{icons-dst}}/$size/apps/{{appid}}.png"; \
-        done
+        find {{icons-src}} -type f -path "*/apps/*.svg" -exec bash -c '
+            for src; do
+                rel_path="${src#{{icons-src}}/}"
+                dst="{{icons-dst}}/$rel_path"
+                install -Dm0644 "$src" "$dst"
+            done
+        ' bash {} +
         install -Dm0644 res/linux/app.desktop {{desktop-dst}}
         install -Dm0644 res/flatpak/com.vkhitrin.cosmicding.metainfo.xml {{metainfo-dst}}
     elif [ "$(uname)" = "Darwin" ]; then
@@ -169,9 +173,15 @@ uninstall:
     #!/usr/bin/env sh
     if [ "$(uname)" = "Linux" ]; then
         rm {{bin-dst}} {{desktop-dst}}
-        for size in `ls {{icons-src}}`; do \
-            rm "{{icons-dst}}/$size/apps/{{appid}}.png"; \
-        done
+        find {{icons-src}} -type f -path "*/apps/*.svg" -exec bash -c '
+            for src; do
+                rel_path="${src#{{icons-src}}/}"
+                dst="{{icons-dst}}/$rel_path"
+                if [ -f "$dst" ]; then
+                    rm "$dst"
+                fi
+            done
+        ' bash {} +
     elif [ "$(uname)" = "Darwin" ]; then
         rm -rf /Applications/{{name}}.app
     fi

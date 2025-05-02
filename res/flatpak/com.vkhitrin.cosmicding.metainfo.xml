@@ -15,10 +15,10 @@
     <url type="contribute">https://github.com/vkhitrin/cosmicding</url>
     <url type="translate">https://github.com/vkhitrin/cosmicding/tree/main/i18n</url>
     <name>Cosmicding</name>
-    <summary>linkding companion app</summary>
+    <summary>Manage your bookmarks</summary>
     <description>
-        <p>cosmicding is a linkding companion which provides an alternative frontend based on
-            libcosmic</p>
+        <p>A client to manage your linkding bookmarks.</p>
+        <p>Features:</p>
         <ul>
             <li>Support multiple linkding instances (or multiple users on the same instance).</li>
             <li>Aggregate bookmarks locally.</li>
@@ -32,7 +32,7 @@
     </branding>
     <icon type="stock">com.vkhitrin.cosmicding</icon>
     <icon type="remote" height="256" width="256">
-        https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/linux/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png</icon>
+        https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/icons/hicolor/scalable/apps/com.vkhitrin.cosmicding.svg</icon>
     <launchable type="desktop-id">com.vkhitrin.cosmicding.desktop</launchable>
     <releases>
         <release version="2025.5.0" date="2025-05-01">

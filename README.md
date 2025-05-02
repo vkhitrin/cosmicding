@@ -1,21 +1,23 @@
 <p align="center">
-  <img alt="cosmicding logo" src="./res/linux/icons/hicolor/256x256/apps/com.vkhitrin.cosmicding.png" alt="Logo" height="192px" width="192px">
+  <img alt="cosmicding logo" src="./res/icons/hicolor/scalable/apps/com.vkhitrin.cosmicding.svg" alt="Logo" height="192px" width="192px">
 </p>
-
-<p align="center">
-    <img alt="cosmicding accounts page" src="./res/screenshots/accounts.png" width="192">
-    <img alt="cosmicding bookmarks page" src="./res/screenshots/bookmarks.png" width="192">
-</p>
-
-# cosmicding
 
 > [!NOTE]
 > macOS status <https://github.com/vkhitrin/cosmicding/discussions/96>
 
+|                  Accounts View                   |                   Bookmarks View                   |
+| :----------------------------------------------: | :------------------------------------------------: |
+| ![Accounts View](./res/screenshots/accounts.png) | ![Bookmarks View](./res/screenshots/bookmarks.png) |
+
+<p align="center"><a href='https://flathub.org/apps/com.vkhitrin.cosmicding'><img width='190' alt='Download on Flathub' src='https://flathub.org/api/badge?locale=en'/></a></p>
+
+# cosmicding
+
 cosmicding is a [linkding](https://github.com/sissbruecker/linkding) companion app for COSMIC™ Desktop Environment.  
 It provides an alternative frontend to linkding based on [libcosmic](https://github.com/pop-os/libcosmic).
 
-While cosmicding was designed for COSMIC™ Desktop Environment, it may "run" cross-platform ([#24](https://github.com/vkhitrin/cosmicding/issues/24)).
+While cosmicding was designed for COSMIC™ Desktop Environment, it may run cross-platform ([#24](https://github.com/vkhitrin/cosmicding/issues/24),
+tested on Linux, and macOS).
 
 Features:
 
@@ -35,7 +37,11 @@ cosmicding can be installed from remote sources in several ways:
 #### Linux
 
 - Download compiled binaries from GitHub release.
-- Flatpak (**not yet published**).
+- Flatpak:
+
+  ```shell
+  flatpak install flathub com.vkhitrin.cosmicding
+  ```
 
 #### macOS
 
@@ -65,6 +71,8 @@ Dependencies (macOS):
 - `libxkbcommon`
 - `sqlite3`
 - `cosmic-icons` (can be fetched using brew `brew install --HEAD vkhitrin/tap/cosmic-icons-theme`)
+
+A workaround is required for macOS to display icons correctly, refer to <https://github.com/vkhitrin/cosmicding/discussions/96>.
 
 Installation:
 
@@ -96,12 +104,16 @@ flatpak-builder --force-clean \
                 res/flatpak/com.vkhitrin.cosmicding
 ```
 
-## Thanks
+## Acknowledgments
 
-- [cosmic-utils](https://github.com/cosmic-utils) organization for their code examples.
-- [@sissbruecker](https://github.com/sissbruecker) for creating linkding.
-- [system76](https://system76.com) for creating COSMIC, and making it fun to develop for.
+[cosmic-utils](https://github.com/cosmic-utils) organization for their code examples.
+[@sissbruecker](https://github.com/sissbruecker) for creating linkding.
+[system76](https://system76.com) for creating COSMIC, and making it fun to develop for.
 
 Translations:
 
 - Swedish - [@bittin](https://github.com/bittin)
+
+Icon:
+
+- Link logo from <https://iconoir.com/>.
