@@ -19,8 +19,9 @@ pub enum MenuAction {
     AddBookmark,
     Empty,
     RefreshBookmarks,
-    Settings,
+    SearchActivate,
     SetSortBookmarks(SortOption),
+    Settings,
 }
 
 impl _MenuAction for MenuAction {
@@ -29,12 +30,15 @@ impl _MenuAction for MenuAction {
     fn message(&self) -> Self::Message {
         match self {
             MenuAction::About => ApplicationAction::ToggleContextPage(ContextPage::About),
-            MenuAction::Empty => ApplicationAction::Empty,
             MenuAction::AddAccount => ApplicationAction::AddAccountForm,
-            MenuAction::Settings => ApplicationAction::ToggleContextPage(ContextPage::Settings),
             MenuAction::AddBookmark => ApplicationAction::AddBookmarkForm,
+            MenuAction::Empty => ApplicationAction::Empty,
             MenuAction::RefreshBookmarks => ApplicationAction::StartRefreshBookmarksForAllAccounts,
+            // NOTE: (vkhitrin) this is a workaround for the time being, it shouldn't be a
+            //                  'MenuAction'.
+            MenuAction::SearchActivate => ApplicationAction::SearchActivate,
             MenuAction::SetSortBookmarks(option) => ApplicationAction::SortOption(*option),
+            MenuAction::Settings => ApplicationAction::ToggleContextPage(ContextPage::Settings),
         }
     }
 }

@@ -83,6 +83,7 @@ pub struct Cosmicding {
     pub bookmarks_view: PageBookmarksView,
     pub config: CosmicConfig,
     pub state: ApplicationState,
+    search_id: widget::Id,
     toasts: widget::toaster::Toasts<ApplicationAction>,
 }
 
@@ -179,11 +180,14 @@ impl Application for Cosmicding {
             placeholder_bookmark_notes: widget::text_editor::Content::new(),
             placeholder_selected_account_index: 0,
             state: ApplicationState::NoEnabledAccounts,
+            search_id: widget::Id::unique(),
             toasts: widget::toaster::Toasts::new(ApplicationAction::CloseToast),
         };
 
         app.bookmarks_cursor.items_per_page = app.config.items_per_page;
         app.accounts_cursor.items_per_page = app.config.items_per_page;
+        // NOTE: (vkhitrin) probably wiser to initiate this field in the constructor above
+        app.bookmarks_view.search_id = Some(app.search_id.clone());
 
         let commands = vec![
             app.update_title(),
@@ -1369,6 +1373,12 @@ impl Application for Cosmicding {
                     },
                     cosmic::Action::App,
                 ));
+            }
+            ApplicationAction::SearchActivate => {
+                if let ApplicationState::NoEnabledAccounts = self.state {
+                } else {
+                    return widget::text_input::focus(self.search_id.clone());
+                }
             }
             ApplicationAction::Empty => {
                 commands.push(Task::none());

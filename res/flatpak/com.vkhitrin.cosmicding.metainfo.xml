@@ -27,8 +27,8 @@
         </ul>
     </description>
     <branding>
-        <color type="primary" scheme_preference="light">#eaeaff</color>
-        <color type="primary" scheme_preference="dark">#280c4b</color>
+        <color type="primary" scheme_preference="light">#a78de2</color>
+        <color type="primary" scheme_preference="dark">#301b41</color>
     </branding>
     <icon type="stock">com.vkhitrin.cosmicding</icon>
     <icon type="remote" height="256" width="256">
