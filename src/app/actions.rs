@@ -55,6 +55,7 @@ pub enum ApplicationAction {
     OpenRemoveBookmarkDialog(i64, Bookmark),
     PurgeFaviconsCache,
     RemoveAccount(Account),
+    SearchActivate,
     SearchBookmarks(String),
     SetAccountAPIKey(String),
     SetAccountDisplayName(String),

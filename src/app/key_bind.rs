@@ -41,6 +41,11 @@ pub fn key_binds() -> HashMap<KeyBind, MenuAction> {
         Key::Character("r".into()),
         RefreshBookmarks
     );
+    bind!(
+        [primary_modifier],
+        Key::Character("f".into()),
+        SearchActivate
+    );
 
     key_binds
 }

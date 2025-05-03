@@ -100,7 +100,7 @@ bundle-macos:
     mkdir -p "{{macos-app-extras-dir}}/icons/hicolor"
     cp -fRp "{{macos-app-template}}" "{{macos-app-dir}}"
     cp -fp "{{macos-app-binary}}" "{{macos-app-binary-dir}}"
-    cp -r ./res/icons/hicolor "{{macos-app-extras-dir}}/icons/hicolor"
+    cp -r ./res/icons/hicolor/* "{{macos-app-extras-dir}}/icons/hicolor"
     touch -r "{{macos-app-binary}}" "{{macos-app-dir}}/{{macos-app-name}}"
     echo "Created '{{macos-app-name}}' in '{{macos-app-dir}}'"
     git stash -- {{macos-app-template-plist}}

@@ -106,9 +106,9 @@ flatpak-builder --force-clean \
 
 ## Acknowledgments
 
-[cosmic-utils](https://github.com/cosmic-utils) organization for their code examples.
-[@sissbruecker](https://github.com/sissbruecker) for creating linkding.
-[system76](https://system76.com) for creating COSMIC, and making it fun to develop for.
+[cosmic-utils](https://github.com/cosmic-utils) organization for their code examples.  
+[@sissbruecker](https://github.com/sissbruecker) for creating linkding.  
+[system76](https://system76.com) for creating COSMIC, and making it fun to develop for.  
 
 Translations:
 

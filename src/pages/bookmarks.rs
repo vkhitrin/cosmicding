@@ -21,8 +21,9 @@ use cosmic::{cosmic_theme, theme};
 
 #[derive(Debug, Default, Clone)]
 pub struct PageBookmarksView {
-    pub bookmarks: Vec<Bookmark>,
     bookmark_placeholder: Option<Bookmark>,
+    pub bookmarks: Vec<Bookmark>,
+    pub search_id: Option<widget::Id>,
     query_placeholder: String,
 }
 
@@ -274,10 +275,13 @@ impl PageBookmarksView {
             let mut new_bookmark_button = widget::button::standard(fl!("add-bookmark"));
 
             let mut search_input_widget =
-                widget::text_input::search_input(fl!("search"), self.query_placeholder.clone());
+                widget::text_input::search_input(fl!("search"), self.query_placeholder.clone())
+                    .id(self.search_id.clone().unwrap());
 
             if matches!(app_state, ApplicationState::Ready) {
                 new_bookmark_button = new_bookmark_button.on_press(BookmarksAction::AddBookmark);
+            }
+            if !matches!(app_state, ApplicationState::NoEnabledAccounts) {
                 search_input_widget = search_input_widget
                     .on_input(BookmarksAction::SearchBookmarks)
                     .on_clear(BookmarksAction::ClearSearch);
