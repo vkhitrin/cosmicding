@@ -93,6 +93,8 @@ sudo just install
 ### Local Install (flatpak)
 
 ```shell
+# Ensure flathub remote is added to user
+flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 flatpak-builder --force-clean \
                 --sandbox \
                 --user \
