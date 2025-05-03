@@ -35,6 +35,18 @@
         https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/icons/hicolor/scalable/apps/com.vkhitrin.cosmicding.svg</icon>
     <launchable type="desktop-id">com.vkhitrin.cosmicding.desktop</launchable>
     <releases>
+        <release version="2025.5.1" date="2025-05-03">
+            <description>
+                <p>New Features:</p>
+                <ul>
+                    <li>Focus on search field using a keybinding (CTRL+F).</li>
+                </ul>
+                <p>Fixes:</p>
+                <ul>
+                    <li>Reduce calls to remote instance when updating accounts.</li>
+                </ul>
+            </description>
+        </release>
         <release version="2025.5.0" date="2025-05-01">
             <description>
                 <p>
