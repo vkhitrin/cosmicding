@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use crate::app::config::SortOption;
-use cosmic::widget::menu::{action::MenuAction as _MenuAction, key_bind::KeyBind};
+use cosmic::widget::RcElementWrapper;
 use cosmic::{
-    widget::menu::{items, root, Item, ItemHeight, ItemWidth, MenuBar, Tree},
+    widget::menu::{
+        self, action::MenuAction as _MenuAction, key_bind::KeyBind, Item, ItemHeight, ItemWidth,
+    },
     Element,
 };
 
@@ -51,10 +53,10 @@ pub fn menu_bar<'a>(
     sort_option: SortOption,
     app_state: ApplicationState,
 ) -> Element<'a, ApplicationAction> {
-    MenuBar::new(vec![
-        Tree::with_children(
-            root(fl!("file")),
-            items(
+    menu::bar(vec![
+        menu::Tree::with_children(
+            RcElementWrapper::new(Element::from(menu::root(fl!("file")))),
+            menu::items(
                 key_binds,
                 vec![
                     Item::Button(fl!("add-account"), None, MenuAction::AddAccount),
@@ -72,9 +74,9 @@ pub fn menu_bar<'a>(
                 ],
             ),
         ),
-        Tree::with_children(
-            root(fl!("view")),
-            items(
+        menu::Tree::with_children(
+            RcElementWrapper::new(Element::from(menu::root(fl!("view")))),
+            menu::items(
                 key_binds,
                 vec![
                     Item::Button(fl!("about"), None, MenuAction::About),
@@ -82,11 +84,9 @@ pub fn menu_bar<'a>(
                 ],
             ),
         ),
-        // TODO: (vkhitrin) dynamically generate enabled/disabled entries
-        //       instead of writing manual code
-        Tree::with_children(
-            root(fl!("sort")),
-            items(
+        menu::Tree::with_children(
+            RcElementWrapper::new(Element::from(menu::root(fl!("sort")))),
+            menu::items(
                 key_binds,
                 if bookmarks_present {
                     vec![
