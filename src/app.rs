@@ -46,7 +46,7 @@ use cosmic::{
     },
     Application, ApplicationExt, Element,
 };
-use cosmic_time::{chain, once_cell::sync::Lazy, Timeline};
+use cosmic_time::{chain, Timeline};
 use key_bind::key_binds;
 use std::{
     any::TypeId,
@@ -69,7 +69,8 @@ pub const APPID: &str = constcat::concat!(QUALIFIER, ".", ORG, ".", APP);
 
 const REPOSITORY: &str = "https://github.com/vkhitrin/cosmicding";
 
-pub static REFRESH_ICON: Lazy<refresh::Id> = Lazy::new(refresh::Id::unique);
+pub static REFRESH_ICON: std::sync::LazyLock<refresh::Id> =
+    std::sync::LazyLock::new(refresh::Id::unique);
 
 pub struct Flags {
     pub config_handler: Option<cosmic_config::Config>,

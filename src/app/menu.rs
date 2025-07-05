@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use crate::app::config::SortOption;
-use cosmic::widget::RcElementWrapper;
 use cosmic::{
-    widget::menu::{
-        self, action::MenuAction as _MenuAction, key_bind::KeyBind, Item, ItemHeight, ItemWidth,
+    widget::{
+        menu::{
+            self, action::MenuAction as _MenuAction, key_bind::KeyBind, Item, ItemHeight, ItemWidth,
+        },
+        RcElementWrapper,
     },
     Element,
 };

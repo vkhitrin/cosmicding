@@ -1,7 +1,6 @@
 use crate::app::config::SortOption;
 use crate::db::SqliteDatabase;
-use crate::models::account::Account;
-use crate::models::bookmarks::Bookmark;
+use crate::models::{account::Account, bookmarks::Bookmark};
 
 pub trait Pagination {
     async fn refresh_count(&mut self);

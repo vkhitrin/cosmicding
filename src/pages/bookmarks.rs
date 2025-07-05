@@ -1,5 +1,3 @@
-use core::sync;
-
 use crate::{
     app::{
         actions::{ApplicationAction, BookmarksAction},

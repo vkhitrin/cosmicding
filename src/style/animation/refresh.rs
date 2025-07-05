@@ -1,19 +1,15 @@
-use std::rc::Rc;
 use std::time::Duration;
 
-use cosmic::iced::{ContentFit, Rotation};
-use cosmic::iced_widget::svg::Style as SvgStyle;
-use cosmic::theme::{Svg, Theme};
+use cosmic::iced::Rotation;
 use cosmic::widget::Icon;
 use cosmic::widget::Id as CosmicId;
 use cosmic::widget::{icon, icon::Handle};
-use cosmic_time::once_cell::sync::Lazy;
 use cosmic_time::timeline::{self, Interped};
-use cosmic_time::*;
 use cosmic_time::{timeline::Frame, Timeline};
+use cosmic_time::{Cubic, Ease, MovementType, Repeat};
 
-static REFRESH_ICON_HANDLE: Lazy<Handle> =
-    Lazy::new(|| icon::from_name("view-refresh-symbolic").into());
+static REFRESH_ICON_HANDLE: std::sync::LazyLock<Handle> =
+    std::sync::LazyLock::new(|| icon::from_name("view-refresh-symbolic").into());
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Id(CosmicId);
@@ -32,7 +28,7 @@ impl Id {
     }
 
     pub fn as_widget(self, timeline: &Timeline, size: u16) -> Icon {
-        RefreshIcon::as_widget(self, timeline, size)
+        RefreshIcon::as_widget(&self, timeline, size)
     }
 }
 
@@ -98,7 +94,7 @@ impl RefreshIcon {
         self
     }
 
-    pub fn as_widget(id: Id, timeline: &Timeline, size: u16) -> Icon {
+    pub fn as_widget(id: &Id, timeline: &Timeline, size: u16) -> Icon {
         let angle = if let Some(Interped { value, .. }) = timeline.get(&id.0, 0) {
             value
         } else {

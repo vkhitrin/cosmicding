@@ -1112,7 +1112,7 @@ dependencies = [
 [[package]]
 name = "cosmic-settings-config"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/cosmic-settings-daemon#54b4418e1e7757d965166ae9dc00c522aebf4451"
+source = "git+https://github.com/pop-os/cosmic-settings-daemon#a36683fd5b7dea4011da278c91d0645117dc39f8"
 dependencies = [
  "cosmic-config",
  "ron",
@@ -6325,7 +6325,7 @@ checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap 2.10.0",
  "toml_datetime",
- "winnow 0.7.11",
+ "winnow 0.7.12",
 ]
 
 [[package]]
@@ -7580,9 +7580,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.7.11"
+version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74c7b26e3480b707944fc872477815d29a8e429d2f93a1ce000f5fa84a15cbcd"
+checksum = "f3edebf492c8125044983378ecb5766203ad3b4c2f7a922bd7dd207f6d443e95"
 dependencies = [
  "memchr",
 ]
@@ -7801,7 +7801,7 @@ dependencies = [
  "tracing",
  "uds_windows",
  "windows-sys 0.59.0",
- "winnow 0.7.11",
+ "winnow 0.7.12",
  "zbus_macros 5.8.0",
  "zbus_names 4.2.0",
  "zvariant 5.6.0",
@@ -7855,7 +7855,7 @@ checksum = "7be68e64bf6ce8db94f63e72f0c7eb9a60d733f7e0499e628dfab0f84d6bcb97"
 dependencies = [
  "serde",
  "static_assertions",
- "winnow 0.7.11",
+ "winnow 0.7.12",
  "zvariant 5.6.0",
 ]
 
@@ -7984,7 +7984,7 @@ dependencies = [
  "enumflags2",
  "serde",
  "url",
- "winnow 0.7.11",
+ "winnow 0.7.12",
  "zvariant_derive 5.6.0",
  "zvariant_utils 3.2.0",
 ]
@@ -8037,5 +8037,5 @@ dependencies = [
  "serde",
  "static_assertions",
  "syn 2.0.104",
- "winnow 0.7.11",
+ "winnow 0.7.12",
 ]

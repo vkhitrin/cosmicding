@@ -36,7 +36,12 @@ impl AppNavPage {
         match self {
             AppNavPage::AccountsView => app
                 .accounts_view
-                .view(app.state, app.sync_status, &app.accounts_cursor, &app.timeline)
+                .view(
+                    app.state,
+                    app.sync_status,
+                    &app.accounts_cursor,
+                    &app.timeline,
+                )
                 .map(ApplicationAction::AccountsView),
             AppNavPage::BookmarksView => app
                 .bookmarks_view
