@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0.89"
 chrono = "0.4.38"
 constcat = "0.5.1"
+cosmic-time = { git = "https://github.com/D-Brox/cosmic-time.git", version = "0.4.0", features = ["once_cell"] }
 directories = "5.0.1"
 env_logger = "0.11.5"
 futures = "0.3.31"

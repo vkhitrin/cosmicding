@@ -1,13 +1,3 @@
-use crate::db::{self};
-use crate::fl;
-use crate::http::{self};
-use crate::models::account::{Account, LinkdingAccountApiResponse};
-use crate::models::bookmarks::{
-    Bookmark, BookmarkCheckDetailsResponse, BookmarkRemoveResponse, DetailedResponse,
-};
-use crate::models::db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination};
-use crate::pages::accounts::{add_account, edit_account, PageAccountsView};
-use crate::pages::bookmarks::{edit_bookmark, new_bookmark, view_notes, PageBookmarksView};
 use crate::{
     app::{
         actions::ApplicationAction,
@@ -17,29 +7,51 @@ use crate::{
         menu as app_menu,
         nav::AppNavPage,
     },
-    models::favicon_cache::Favicon,
+    db::{self},
+    fl,
+    http::{self},
+    models::{
+        account::{Account, LinkdingAccountApiResponse},
+        bookmarks::{
+            Bookmark, BookmarkCheckDetailsResponse, BookmarkRemoveResponse, DetailedResponse,
+        },
+        db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination},
+        favicon_cache::Favicon,
+    },
+    pages::{
+        accounts::{add_account, edit_account, PageAccountsView},
+        bookmarks::{edit_bookmark, new_bookmark, view_notes, PageBookmarksView},
+    },
+    style::animation::refresh,
 };
-use cosmic::cosmic_config::{self, Update};
-use cosmic::cosmic_theme::{self, ThemeMode};
-use cosmic::iced::{
-    event,
-    futures::executor::block_on,
-    keyboard::{Event as KeyEvent, Modifiers},
-    Event, Length, Subscription,
-};
-use cosmic::iced_core::image::Bytes;
-use cosmic::iced_widget::tooltip;
-use cosmic::widget::menu::key_bind::KeyBind;
-use cosmic::widget::{self, about::About, icon, nav_bar};
 use cosmic::{
     app::{context_drawer, Core, Task},
-    widget::menu::Action,
+    cosmic_config::{self, Update},
+    cosmic_theme::{self, ThemeMode},
+    iced::{
+        event,
+        futures::executor::block_on,
+        keyboard::{Event as KeyEvent, Modifiers},
+        Event, Length, Subscription,
+    },
+    iced_core::image::Bytes,
+    iced_widget::tooltip,
+    widget::{
+        self,
+        about::About,
+        icon,
+        menu::{key_bind::KeyBind, Action},
+        nav_bar, Id,
+    },
+    Application, ApplicationExt, Element,
 };
-use cosmic::{Application, ApplicationExt, Element};
+use cosmic_time::{anim, chain, once_cell::sync::Lazy, Timeline};
 use key_bind::key_binds;
-use std::any::TypeId;
-use std::collections::{HashMap, VecDeque};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    any::TypeId,
+    collections::{HashMap, VecDeque},
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 pub mod actions;
 pub mod config;
@@ -55,6 +67,8 @@ pub const APP: &str = "cosmicding";
 pub const APPID: &str = constcat::concat!(QUALIFIER, ".", ORG, ".", APP);
 
 const REPOSITORY: &str = "https://github.com/vkhitrin/cosmicding";
+
+pub static REFRESH_ICON: Lazy<refresh::Id> = Lazy::new(refresh::Id::unique);
 
 pub struct Flags {
     pub config_handler: Option<cosmic_config::Config>,
@@ -84,6 +98,7 @@ pub struct Cosmicding {
     pub config: CosmicConfig,
     pub state: ApplicationState,
     search_id: widget::Id,
+    timeline: Timeline,
     toasts: widget::toaster::Toasts<ApplicationAction>,
 }
 
@@ -113,6 +128,7 @@ impl Application for Cosmicding {
     }
 
     fn init(core: Core, flags: Self::Flags) -> (Self, Task<Self::Message>) {
+        let timeline = Timeline::new();
         let db_pool = Some(block_on(async {
             db::SqliteDatabase::create().await.unwrap()
         }));
@@ -181,6 +197,7 @@ impl Application for Cosmicding {
             placeholder_selected_account_index: 0,
             state: ApplicationState::NoEnabledAccounts,
             search_id: widget::Id::unique(),
+            timeline,
             toasts: widget::toaster::Toasts::new(ApplicationAction::CloseToast),
         };
 
@@ -360,6 +377,9 @@ impl Application for Cosmicding {
         struct ThemeSubscription;
 
         let subscriptions = vec![
+            self.timeline
+                .as_subscription()
+                .map(|(_id, instant)| ApplicationAction::Tick(instant)),
             event::listen_with(|event, status, _| match event {
                 Event::Keyboard(KeyEvent::KeyPressed { key, modifiers, .. }) => match status {
                     event::Status::Ignored => Some(ApplicationAction::Key(modifiers, key)),
@@ -386,7 +406,6 @@ impl Application for Cosmicding {
                 ApplicationAction::SystemThemeModeChange
             }),
         ];
-
         Subscription::batch(subscriptions)
     }
 
@@ -453,7 +472,10 @@ impl Application for Cosmicding {
                 let account_page_entity = &self.nav.entity_at(0);
                 self.nav.activate(account_page_entity.unwrap());
             }
-
+            ApplicationAction::Tick(now) => {
+                println!("WTF");
+                self.timeline.now(now);
+            }
             ApplicationAction::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
                     self.core.window.show_context = !self.core.window.show_context;
@@ -461,7 +483,6 @@ impl Application for Cosmicding {
                     self.context_page = context_page;
                     self.core.window.show_context = true;
                 }
-                //self.set_context_title(context_page.title());
             }
             ApplicationAction::ContextClose => self.core.window.show_context = false,
             ApplicationAction::AccountsView(message) => {
@@ -747,6 +768,7 @@ impl Application for Cosmicding {
                 }
             }
             ApplicationAction::StartRefreshBookmarksForAccount(account) => {
+                self.timeline.set_chain(chain![REFRESH_ICON]).start();
                 if let ApplicationState::Refreshing = self.state {
                 } else if account.enabled {
                     self.state = ApplicationState::Refreshing;

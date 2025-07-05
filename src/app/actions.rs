@@ -1,5 +1,7 @@
-use crate::models::account::{Account, LinkdingAccountApiResponse};
-use crate::models::bookmarks::{Bookmark, BookmarkRemoveResponse, DetailedResponse};
+use crate::models::{
+    account::{Account, LinkdingAccountApiResponse},
+    bookmarks::{Bookmark, BookmarkRemoveResponse, DetailedResponse},
+};
 use crate::{
     app::{
         config::{AppTheme, CosmicConfig, SortOption},
@@ -8,11 +10,13 @@ use crate::{
     },
     models::bookmarks::BookmarkCheckDetailsResponse,
 };
-use cosmic::widget::{self};
 use cosmic::{
     iced::keyboard::{Key, Modifiers},
     iced_core::image::Bytes,
+    widget::{self},
 };
+
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub enum ApplicationAction {
@@ -81,6 +85,7 @@ pub enum ApplicationAction {
     StartRemoveBookmark(i64, Bookmark),
     StartupCompleted,
     SystemThemeModeChange,
+    Tick(Instant),
     ToggleContextPage(ContextPage),
     UpdateConfig(CosmicConfig),
     ViewBookmarkNotes(Bookmark),
