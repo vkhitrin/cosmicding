@@ -512,20 +512,28 @@ impl SqliteDatabase {
             .unwrap();
         result
     }
-    pub async fn check_if_favicon_cache_exists(&mut self, favicon_url: &String) -> bool {
-        let query: &str = "SELECT COUNT(*) FROM FaviconCache WHERE favicon_url = $1;";
-        let result: bool = sqlx::query_scalar(query)
+    pub async fn check_if_favicon_cache_exists(
+        &mut self,
+        favicon_url: &String,
+    ) -> Result<Favicon, sqlx::Error> {
+        let query: &str = "SELECT * FROM FaviconCache WHERE favicon_url = $1;";
+        let result: Favicon = sqlx::query_as(query)
             .bind(favicon_url)
             .fetch_one(&self.conn)
-            .await
-            .unwrap();
-        result
+            .await?;
+        Ok(result)
     }
     pub async fn add_favicon_cache(&mut self, favicon: Favicon) {
-        let query: &str = "INSERT OR IGNORE INTO FaviconCache (favicon_url, favicon_data, last_sync_timestamp) VALUES ($1, $2 ,$3);";
+        let query: &str = r"
+        INSERT INTO FaviconCache (favicon_url, favicon_data, last_sync_timestamp)
+        VALUES (?, ?, ?)
+        ON CONFLICT(favicon_url) DO UPDATE SET
+            favicon_data = excluded.favicon_data,
+            last_sync_timestamp = excluded.last_sync_timestamp;
+        ";
         sqlx::query(query)
-            .bind(favicon.url)
-            .bind(favicon.data)
+            .bind(favicon.favicon_url)
+            .bind(favicon.favicon_data)
             .bind(favicon.last_sync_timestamp)
             .execute(&self.conn)
             .await
