@@ -491,20 +491,20 @@ pub async fn edit_bookmark(
             }
             Err(_e) => {
                 log::error!("Failed to parse response");
-                Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    fl!("failed-to-parse-response"),
-                )))
+                Err(Box::new(std::io::Error::other(fl!(
+                    "failed-to-parse-response"
+                ))))
             }
         },
         status => {
             let http_rc = status.to_string();
             let http_err = response.text().await.unwrap();
             log::error!("HTTP Error: {http_rc} {http_err}");
-            Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                fl!("http-error", http_rc = http_rc, http_err = http_err),
-            )))
+            Err(Box::new(std::io::Error::other(fl!(
+                "http-error",
+                http_rc = http_rc,
+                http_err = http_err
+            ))))
         }
     }
 }
@@ -556,22 +556,15 @@ pub async fn check_account_on_instance(
     match response.status() {
         StatusCode::OK => match response.json::<LinkdingAccountApiResponse>().await {
             Ok(value) => Ok(value),
-            Err(_e) => Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                fl!("failed-to-find-linkding-api-endpoint"),
-            ))),
+            Err(_e) => Err(Box::new(std::io::Error::other(fl!(
+                "failed-to-find-linkding-api-endpoint"
+            )))),
         },
-        StatusCode::UNAUTHORIZED => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            fl!("invalid-api-token"),
-        ))),
-        _ => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            fl!(
-                "unexpected-http-return-code",
-                http_rc = response.status().to_string()
-            ),
-        ))),
+        StatusCode::UNAUTHORIZED => Err(Box::new(std::io::Error::other(fl!("invalid-api-token")))),
+        _ => Err(Box::new(std::io::Error::other(fl!(
+            "unexpected-http-return-code",
+            http_rc = response.status().to_string()
+        )))),
     }
 }
 
@@ -603,22 +596,15 @@ pub async fn check_bookmark_on_instance(
     match response.status() {
         StatusCode::OK => match response.json::<LinkdingBookmarksApiCheckResponse>().await {
             Ok(value) => Ok(value),
-            Err(_e) => Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                fl!("failed-to-find-linkding-api-endpoint"),
-            ))),
+            Err(_e) => Err(Box::new(std::io::Error::other(fl!(
+                "failed-to-find-linkding-api-endpoint"
+            )))),
         },
-        StatusCode::UNAUTHORIZED => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            fl!("invalid-api-token"),
-        ))),
-        _ => Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            fl!(
-                "unexpected-http-return-code",
-                http_rc = response.status().to_string()
-            ),
-        ))),
+        StatusCode::UNAUTHORIZED => Err(Box::new(std::io::Error::other(fl!("invalid-api-token")))),
+        _ => Err(Box::new(std::io::Error::other(fl!(
+            "unexpected-http-return-code",
+            http_rc = response.status().to_string()
+        )))),
     }
 }
 

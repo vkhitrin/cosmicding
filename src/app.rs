@@ -1307,12 +1307,34 @@ impl Application for Cosmicding {
                         if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
                             let favicon_url_clone = favicon_url.clone();
                             block_on(async {
-                                if !db::SqliteDatabase::check_if_favicon_cache_exists(
-                                    database,
-                                    &favicon_url_clone,
-                                )
-                                .await
-                                {
+                                let existing_favicon_opt =
+                                    db::SqliteDatabase::check_if_favicon_cache_exists(
+                                        database,
+                                        &favicon_url_clone,
+                                    )
+                                    .await;
+                                let should_fetch = match &existing_favicon_opt {
+                                    Ok(existing_favicon) => {
+                                        let now = SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_secs()
+                                            as i64;
+
+                                        let age = now - existing_favicon.last_sync_timestamp;
+                                        if existing_favicon.favicon_data.is_empty() {
+                                            log::info!(
+                                                "Attempting to refetch previously failed favicon."
+                                            );
+                                            age > 3600
+                                        } else {
+                                            log::info!("Favicon is stale, attempting to refetch.");
+                                            age > 86400
+                                        }
+                                    }
+                                    Err(_) => true,
+                                };
+                                if should_fetch {
                                     let message = move |b: Bytes| {
                                         cosmic::Action::App(
                                             ApplicationAction::DoneFetchFaviconForBookmark(
@@ -1331,27 +1353,25 @@ impl Application for Cosmicding {
                     }
                 }
             }
-            // FIXME: (vkhitrin) currently, if favicon was not fetched successfully,
-            //        it will be attempt to be re-fetched on next bookmarks reload.
             ApplicationAction::DoneFetchFaviconForBookmark(favicon_url, bytes) => {
-                if bytes.is_empty() {
+                let epoch_timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("SystemTime before UNIX EPOCH!")
+                    .as_secs();
+
+                let favicon = if bytes.is_empty() {
                     log::warn!("Failed to fetch favicon from {favicon_url:?}");
+                    Favicon::new(favicon_url.clone(), vec![], epoch_timestamp as i64)
                 } else {
-                    let epoch_timestamp = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .expect("")
-                        .as_secs();
-                    if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                        block_on(async {
-                            db::SqliteDatabase::add_favicon_cache(
-                                database,
-                                Favicon::new(favicon_url, bytes.to_vec(), epoch_timestamp as i64),
-                            )
-                            .await;
-                        });
-                    }
-                    commands.push(self.update(ApplicationAction::LoadBookmarks));
+                    Favicon::new(favicon_url.clone(), bytes.to_vec(), epoch_timestamp as i64)
+                };
+
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    block_on(async {
+                        db::SqliteDatabase::add_favicon_cache(database, favicon).await;
+                    });
                 }
+                commands.push(self.update(ApplicationAction::LoadBookmarks));
             }
             ApplicationAction::PurgeFaviconsCache => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {

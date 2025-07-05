@@ -74,8 +74,8 @@ impl PageBookmarksView {
                 let favicon_data = bookmark
                     .favicon_cached
                     .as_ref()
-                    .filter(|cached| !cached.data.is_empty())
-                    .map(|cached| cached.data.clone());
+                    .filter(|cached| !cached.favicon_data.is_empty())
+                    .map(|cached| cached.favicon_data.clone());
                 let favicon: widget::image::Handle = if let Some(data) = favicon_data {
                     widget::image::Handle::from_bytes(data)
                 } else {
