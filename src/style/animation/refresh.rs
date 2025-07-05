@@ -1,18 +1,19 @@
-use std::{rc::Rc, time::Duration};
+use std::rc::Rc;
+use std::time::Duration;
 
-use cosmic::cosmic_theme::palette::Mix;
+use cosmic::iced::{ContentFit, Rotation};
 use cosmic::iced_widget::svg::Style as SvgStyle;
 use cosmic::theme::{Svg, Theme};
+use cosmic::widget::Icon;
+use cosmic::widget::Id as CosmicId;
 use cosmic::widget::{icon, icon::Handle};
-use cosmic::widget::{Icon, Id as CosmicId};
-use cosmic_time::{
-    once_cell::sync::Lazy,
-    timeline::{self, Frame, Interped},
-    Timeline, *,
-};
+use cosmic_time::once_cell::sync::Lazy;
+use cosmic_time::timeline::{self, Interped};
+use cosmic_time::*;
+use cosmic_time::{timeline::Frame, Timeline};
 
-static REC_ICON_HANDLE: Lazy<Handle> =
-    Lazy::new(|| icon::from_name("media-record-symbolic").into());
+static REFRESH_ICON_HANDLE: Lazy<Handle> =
+    Lazy::new(|| icon::from_name("view-refresh-symbolic").into());
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Id(CosmicId);
@@ -31,7 +32,7 @@ impl Id {
     }
 
     pub fn as_widget(self, timeline: &Timeline, size: u16) -> Icon {
-        RecIcon::as_widget(self, timeline, size)
+        RefreshIcon::as_widget(self, timeline, size)
     }
 }
 
@@ -44,21 +45,20 @@ impl From<Id> for CosmicId {
 #[derive(Debug)]
 pub struct Chain {
     id: Id,
-    links: Vec<RecIcon>,
+    links: Vec<RefreshIcon>,
 }
 
 impl Chain {
     pub fn new(id: Id) -> Self {
-        Chain {
-            id,
-            links: vec![
-                RecIcon::new(Duration::ZERO).alpha(0.0),
-                RecIcon::new(Duration::from_millis(1000)).alpha(1.0),
-                RecIcon::new(Duration::from_millis(250)).alpha(1.0),
-                RecIcon::new(Duration::from_millis(1000)).alpha(0.0),
-                RecIcon::new(Duration::from_millis(250)).alpha(0.0),
-            ],
-        }
+        let links = (1..=72) // doubled the steps from 36 to 72 for smoother animation
+            .map(|i| {
+                let angle = i as f32 * 5.0; // reduced step size from 10 to 5 degrees
+                RefreshIcon::new(Duration::from_millis(50)) // shorter duration per frame
+                    .angle(angle)
+            })
+            .collect();
+
+        Chain { id, links }
     }
 }
 
@@ -77,52 +77,41 @@ impl From<Chain> for timeline::Chain {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct RecIcon {
+pub struct RefreshIcon {
     at: MovementType,
     ease: Ease,
-    alpha: f32,
+    angle: f32,
 }
 
-impl RecIcon {
-    pub fn new(at: impl Into<MovementType>) -> RecIcon {
+impl RefreshIcon {
+    pub fn new(at: impl Into<MovementType>) -> RefreshIcon {
         let at = at.into();
-        RecIcon {
+        RefreshIcon {
             at,
-            ease: Quadratic::InOut.into(),
-            alpha: 1.0,
+            ease: Cubic::InOut.into(),
+            angle: 0.0,
         }
     }
 
-    pub fn alpha(mut self, alpha: f32) -> Self {
-        self.alpha = alpha;
+    pub fn angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
         self
     }
 
     pub fn as_widget(id: Id, timeline: &Timeline, size: u16) -> Icon {
-        let value = if let Some(Interped { value, .. }) = timeline.get(&id.0, 0) {
+        let angle = if let Some(Interped { value, .. }) = timeline.get(&id.0, 0) {
             value
         } else {
-            1.0
+            0.0
         };
-        icon(REC_ICON_HANDLE.clone())
-            .class(Svg::Custom(Rc::new(move |theme: &Theme| {
-                let cosmic = theme.cosmic();
-                SvgStyle {
-                    color: Some(
-                        cosmic
-                            .background
-                            .base
-                            .mix(cosmic.destructive_text_color(), value)
-                            .into(),
-                    ),
-                }
-            })))
+        icon(REFRESH_ICON_HANDLE.clone())
+            .rotation(Rotation::Floating((angle.to_radians()).into()))
             .size(size)
     }
 }
 
-impl From<RecIcon> for Vec<Option<Frame>> {
-    fn from(icon: RecIcon) -> Vec<Option<Frame>> {
-        vec![Some(Frame::lazy(icon.at, icon.alpha, icon.ease))]
+impl From<RefreshIcon> for Vec<Option<Frame>> {
+    fn from(icon: RefreshIcon) -> Vec<Option<Frame>> {
+        vec![Some(Frame::lazy(icon.at, icon.angle, icon.ease))]
     }
 }

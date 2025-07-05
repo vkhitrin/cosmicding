@@ -66,6 +66,7 @@ Dependencies (Linux):
 
 Dependencies (macOS):
 
+- `brew`
 - `cargo`
 - `just`
 - `libxkbcommon`

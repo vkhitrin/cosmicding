@@ -17,6 +17,7 @@ use crate::{
         },
         db_cursor::{AccountsPaginationCursor, BookmarksPaginationCursor, Pagination},
         favicon_cache::Favicon,
+        sync_status::SyncStatus,
     },
     pages::{
         accounts::{add_account, edit_account, PageAccountsView},
@@ -41,11 +42,11 @@ use cosmic::{
         about::About,
         icon,
         menu::{key_bind::KeyBind, Action},
-        nav_bar, Id,
+        nav_bar,
     },
     Application, ApplicationExt, Element,
 };
-use cosmic_time::{anim, chain, once_cell::sync::Lazy, Timeline};
+use cosmic_time::{chain, once_cell::sync::Lazy, Timeline};
 use key_bind::key_binds;
 use std::{
     any::TypeId,
@@ -99,6 +100,7 @@ pub struct Cosmicding {
     pub state: ApplicationState,
     search_id: widget::Id,
     timeline: Timeline,
+    sync_status: SyncStatus,
     toasts: widget::toaster::Toasts<ApplicationAction>,
 }
 
@@ -198,6 +200,7 @@ impl Application for Cosmicding {
             state: ApplicationState::NoEnabledAccounts,
             search_id: widget::Id::unique(),
             timeline,
+            sync_status: SyncStatus::default(),
             toasts: widget::toaster::Toasts::new(ApplicationAction::CloseToast),
         };
 
@@ -217,6 +220,7 @@ impl Application for Cosmicding {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             app.bookmarks_cursor.refresh_count().await;
         });
+        app.timeline.set_chain(chain![REFRESH_ICON]).start();
 
         (app, Task::batch(commands))
     }
@@ -377,9 +381,6 @@ impl Application for Cosmicding {
         struct ThemeSubscription;
 
         let subscriptions = vec![
-            self.timeline
-                .as_subscription()
-                .map(|(_id, instant)| ApplicationAction::Tick(instant)),
             event::listen_with(|event, status, _| match event {
                 Event::Keyboard(KeyEvent::KeyPressed { key, modifiers, .. }) => match status {
                     event::Status::Ignored => Some(ApplicationAction::Key(modifiers, key)),
@@ -405,6 +406,11 @@ impl Application for Cosmicding {
                 }
                 ApplicationAction::SystemThemeModeChange
             }),
+            // NOTE: (vkhitrin) native implementation is too resource heavy.
+            // self.timeline
+            //     .as_subscription()
+            //     .map(|(_id, instant)| ApplicationAction::Tick(instant)),
+            cosmic::iced::time::every(Duration::from_millis(250)).map(ApplicationAction::Tick),
         ];
         Subscription::batch(subscriptions)
     }
@@ -473,7 +479,6 @@ impl Application for Cosmicding {
                 self.nav.activate(account_page_entity.unwrap());
             }
             ApplicationAction::Tick(now) => {
-                println!("WTF");
                 self.timeline.now(now);
             }
             ApplicationAction::ToggleContextPage(context_page) => {
@@ -731,7 +736,7 @@ impl Application for Cosmicding {
             ApplicationAction::DoneRefreshBookmarksForAllAccounts(remote_responses) => {
                 let mut failed_accounts: Vec<String> = Vec::new();
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
-                    for response in remote_responses {
+                    for response in remote_responses.iter().cloned() {
                         if !response.successful {
                             failed_accounts.push(response.account.display_name.clone());
                         }
@@ -750,12 +755,23 @@ impl Application for Cosmicding {
                     commands.push(self.update(ApplicationAction::LoadBookmarks));
                     self.state = ApplicationState::Ready;
                     if failed_accounts.is_empty() {
+                        self.sync_status = SyncStatus::Successful;
                         commands.push(
                             self.toasts
                                 .push(widget::toaster::Toast::new(fl!("refreshed-bookmarks")))
                                 .map(cosmic::Action::App),
                         );
+                    } else if remote_responses.len() == failed_accounts.len() {
+                        self.sync_status = SyncStatus::Failed;
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "failed-refreshing-all-accounts"
+                                )))
+                                .map(cosmic::Action::App),
+                        );
                     } else {
+                        self.sync_status = SyncStatus::Warning;
                         commands.push(
                             self.toasts
                                 .push(widget::toaster::Toast::new(fl!(
@@ -768,7 +784,6 @@ impl Application for Cosmicding {
                 }
             }
             ApplicationAction::StartRefreshBookmarksForAccount(account) => {
-                self.timeline.set_chain(chain![REFRESH_ICON]).start();
                 if let ApplicationState::Refreshing = self.state {
                 } else if account.enabled {
                     self.state = ApplicationState::Refreshing;
@@ -866,6 +881,7 @@ impl Application for Cosmicding {
                         }
                     }
                     self.state = ApplicationState::Loading;
+                    self.sync_status = SyncStatus::InProgress;
                 }
             }
             ApplicationAction::AddBookmarkForm => {

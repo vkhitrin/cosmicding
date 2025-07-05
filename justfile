@@ -48,6 +48,10 @@ build-release *args:
   if [ "$(uname)" = "Linux" ]; then
     just build-release-linux
   elif [ "$(uname)" = "Darwin" ]; then
+    export HOMEBREW_PREFIX="$(brew --prefix)"
+    export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig"
+    export LIBRARY_PATH="${HOMEBREW_PREFIX}/lib"
+    export C_INCLUDE_PATH="${HOMEBREW_PREFIX}/include"
     if [ "$(uname -m)" = "arm64" ]; then
         just build-release-macos-aarch64
     elif [ "$(uname -m)" = "x86_64" ]; then
