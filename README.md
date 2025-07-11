@@ -104,7 +104,7 @@ flatpak-builder --force-clean \
                 --ccache \
                 --mirror-screenshots-url=https://dl.flathub.org/media/ \
                 --repo=flatpak-repo builddir \
-                res/flatpak/com.vkhitrin.cosmicding
+                res/flatpak/com.vkhitrin.cosmicding.yaml
 ```
 
 ## Acknowledgments

@@ -32,4 +32,4 @@ modules:
       - cargo-sources.json
       - type: git
         url: https://github.com/vkhitrin/cosmicding.git
-        tag: v2025.5.1
+        tag: v2025.7.0
