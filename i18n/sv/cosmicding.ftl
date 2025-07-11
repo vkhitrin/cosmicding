@@ -36,6 +36,7 @@ enabled-public-sharing = Delning av offentliga bokmärken har aktiverats
 enabled-sharing = Bokmärkesdelning har aktiverats
 failed = misslyckades
 failed-refreshing-accounts = Misslyckades att uppdatera vissa konton ({$accounts})
+failed-refreshing-all-accounts = Misslyckades med att uppdatera alla konton
 failed-refreshing-bookmarks-for-account = Misslyckades att uppdatera konto {$account}
 failed-to-add-account = Misslyckades med att lägga till konto {$acc}: {$err}
 failed-to-edit-account = Misslyckades med att redigera konto {$acc}: {$err}

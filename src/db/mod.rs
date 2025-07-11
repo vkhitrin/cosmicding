@@ -1,15 +1,12 @@
-use crate::app::config::SortOption;
-use crate::models::favicon_cache::Favicon;
+use crate::{
+    app::{config::SortOption, APP, APPID, ORG, QUALIFIER},
+    models::{account::Account, bookmarks::Bookmark, favicon_cache::Favicon},
+};
 use anyhow::{anyhow, Result};
 
 use std::path::Path;
 
-use sqlx::sqlite::Sqlite;
-use sqlx::{migrate::MigrateDatabase, prelude::*, SqlitePool};
-
-use crate::app::{APP, APPID, ORG, QUALIFIER};
-use crate::models::account::Account;
-use crate::models::bookmarks::Bookmark;
+use sqlx::{migrate::MigrateDatabase, prelude::*, sqlite::Sqlite, SqlitePool};
 
 const DB_PATH: &str = constcat::concat!(APPID, "-db", ".sqlite");
 

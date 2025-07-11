@@ -317,7 +317,7 @@ dependencies = [
  "wayland-backend",
  "wayland-client",
  "wayland-protocols",
- "zbus 5.7.1",
+ "zbus 5.8.0",
 ]
 
 [[package]]
@@ -344,9 +344,9 @@ dependencies = [
 
 [[package]]
 name = "async-channel"
-version = "2.4.0"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16c74e56284d2188cabb6ad99603d1ace887a5d7e7b695d01b728155ed9ed427"
+checksum = "924ed96dd52d1b75e9c1a3e6275715fd320f5f9439fb5a4a11fa51f4221158d2"
 dependencies = [
  "concurrent-queue",
  "event-listener-strategy",
@@ -701,9 +701,9 @@ dependencies = [
 
 [[package]]
 name = "blocking"
-version = "1.6.1"
+version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "703f41c54fc768e63e091340b424302bb1c29ef4aa0c7f10fe849dfb114d29ea"
+checksum = "e83f8d02be6967315521be875afa792a316e28d57b5a2d401897e2a7921b7f21"
 dependencies = [
  "async-channel",
  "async-task",
@@ -790,9 +790,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.28"
+version = "1.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ad45f4f74e4e20eaa392913b7b33a7091c87e59628f4dd27888205ad888843c"
+checksum = "5c1599538de2394445747c8cf7935946e3cc27e9625f889d979bfb2aaf569362"
 dependencies = [
  "jobserver",
  "libc",
@@ -1054,7 +1054,7 @@ dependencies = [
 [[package]]
 name = "cosmic-config"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "atomicwrites",
  "cosmic-config-derive",
@@ -1070,13 +1070,13 @@ dependencies = [
  "tokio",
  "tracing",
  "xdg",
- "zbus 5.7.1",
+ "zbus 5.8.0",
 ]
 
 [[package]]
 name = "cosmic-config-derive"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "quote",
  "syn 2.0.104",
@@ -1112,7 +1112,7 @@ dependencies = [
 [[package]]
 name = "cosmic-settings-config"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/cosmic-settings-daemon#54b4418e1e7757d965166ae9dc00c522aebf4451"
+source = "git+https://github.com/pop-os/cosmic-settings-daemon#a36683fd5b7dea4011da278c91d0645117dc39f8"
 dependencies = [
  "cosmic-config",
  "ron",
@@ -1128,13 +1128,13 @@ name = "cosmic-settings-daemon"
 version = "0.1.0"
 source = "git+https://github.com/pop-os/dbus-settings-bindings#3b86984332be2c930a3536ab714b843c851fa8ca"
 dependencies = [
- "zbus 5.7.1",
+ "zbus 5.8.0",
 ]
 
 [[package]]
 name = "cosmic-text"
 version = "0.14.2"
-source = "git+https://github.com/pop-os/cosmic-text.git#d15011fba547ae6bd2cbc7591991ff74424c6db7"
+source = "git+https://github.com/pop-os/cosmic-text.git#85b07b4c8c6b825aca984648fed7ee49b6591d97"
 dependencies = [
  "bitflags 2.9.1",
  "fontdb 0.23.0",
@@ -1156,7 +1156,7 @@ dependencies = [
 [[package]]
 name = "cosmic-theme"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "almost",
  "cosmic-config",
@@ -1171,12 +1171,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmic-time"
+version = "0.4.0"
+source = "git+https://github.com/pop-os/cosmic-time.git#bbb9fb829b25e0bc2bbb382c25543646e82cda62"
+dependencies = [
+ "float-cmp",
+ "libcosmic",
+ "once_cell",
+]
+
+[[package]]
 name = "cosmicding"
 version = "2025.5.1"
 dependencies = [
  "anyhow",
  "chrono",
  "constcat",
+ "cosmic-time",
  "directories",
  "env_logger 0.11.8",
  "futures",
@@ -1378,9 +1389,9 @@ dependencies = [
 
 [[package]]
 name = "derive_setters"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9c848e86c87e5cc305313041c5677d4d95d60baa71cf95e5f6ea2554bb629ff"
+checksum = "ae5c625eda104c228c06ecaf988d1c60e542176bd7a490e60eeda3493244c0c9"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1818,6 +1829,9 @@ name = "float-cmp"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "float_next_after"
@@ -2559,9 +2573,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc2fdfdbff08affe55bb779f33b053aa1fe5dd5b54c257343c17edfa55711bdb"
+checksum = "7f66d5bd4c6f02bf0542fad85d626775bab9258cf795a4256dcaf3161114d1df"
 dependencies = [
  "base64",
  "bytes",
@@ -2585,9 +2599,9 @@ dependencies = [
 
 [[package]]
 name = "i18n-config"
-version = "0.4.7"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e88074831c0be5b89181b05e6748c4915f77769ecc9a4c372f88b169a8509c9"
+checksum = "3e06b90c8a0d252e203c94344b21e35a30f3a3a85dc7db5af8f8df9f3e0c63ef"
 dependencies = [
  "basic-toml",
  "log",
@@ -2677,7 +2691,7 @@ dependencies = [
 [[package]]
 name = "iced"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "dnd",
  "iced_accessibility",
@@ -2695,7 +2709,7 @@ dependencies = [
 [[package]]
 name = "iced_accessibility"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2704,7 +2718,7 @@ dependencies = [
 [[package]]
 name = "iced_core"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "bitflags 2.9.1",
  "bytes",
@@ -2729,7 +2743,7 @@ dependencies = [
 [[package]]
 name = "iced_futures"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "futures",
  "iced_core",
@@ -2755,7 +2769,7 @@ dependencies = [
 [[package]]
 name = "iced_graphics"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "bitflags 2.9.1",
  "bytemuck",
@@ -2777,7 +2791,7 @@ dependencies = [
 [[package]]
 name = "iced_renderer"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "iced_graphics",
  "iced_tiny_skia",
@@ -2789,7 +2803,7 @@ dependencies = [
 [[package]]
 name = "iced_runtime"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "bytes",
  "cosmic-client-toolkit",
@@ -2805,7 +2819,7 @@ dependencies = [
 [[package]]
 name = "iced_tiny_skia"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "bytemuck",
  "cosmic-text",
@@ -2821,7 +2835,7 @@ dependencies = [
 [[package]]
 name = "iced_wgpu"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "as-raw-xcb-connection",
  "bitflags 2.9.1",
@@ -2852,7 +2866,7 @@ dependencies = [
 [[package]]
 name = "iced_widget"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "cosmic-client-toolkit",
  "dnd",
@@ -2872,7 +2886,7 @@ dependencies = [
 [[package]]
 name = "iced_winit"
 version = "0.14.0-dev"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "cosmic-client-toolkit",
  "dnd",
@@ -3384,7 +3398,7 @@ checksum = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776"
 [[package]]
 name = "libcosmic"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic#aaa4b83577a70c15af8b91d1fb161e2a2931596b"
+source = "git+https://github.com/pop-os/libcosmic#50367b96e3bb9a2a2a62a6c51cd71fc2858e61ed"
 dependencies = [
  "apply",
  "ashpd",
@@ -3429,7 +3443,7 @@ dependencies = [
  "tracing",
  "unicode-segmentation",
  "url",
- "zbus 5.7.1",
+ "zbus 5.8.0",
 ]
 
 [[package]]
@@ -5055,9 +5069,9 @@ dependencies = [
 
 [[package]]
 name = "rgb"
-version = "0.8.50"
+version = "0.8.51"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57397d16646700483b67d2dd6511d79318f9d057fdbd21a4066aeac8b41d310a"
+checksum = "a457e416a0f90d246a4c3288bd7a25b2304ca727f253f95be383dd17af56be8f"
 dependencies = [
  "bytemuck",
 ]
@@ -5209,9 +5223,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.28"
+version = "0.23.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7160e3e10bf4535308537f3c4e1641468cd0e485175d6163087c0393c7d46643"
+checksum = "2491382039b29b9b11ff08b76ff6c97cf287671dbb74f0be44bda389fffe9bd1"
 dependencies = [
  "once_cell",
  "rustls-pki-types",
@@ -5231,9 +5245,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.3"
+version = "0.103.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4a72fe2bcf7a6ac6fd7d0b9e5cb68aeb7d4c0a0271730218b3e92d43b4eb435"
+checksum = "0a17884ae0c1b773f1ccd2bd4a8c72f16da897310a98b0e84bf349ad5ead92fc"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -5301,9 +5315,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1375ba8ef45a6f15d83fa8748f1079428295d403d6ea991d09ab100155fbc06d"
+checksum = "82d20c4491bc164fa2f6c5d44565947a52ad80b9505d8e36f8d54c27c739fcd0"
 dependencies = [
  "dyn-clone",
  "ref-cast",
@@ -5442,7 +5456,7 @@ dependencies = [
  "indexmap 1.9.3",
  "indexmap 2.10.0",
  "schemars 0.9.0",
- "schemars 1.0.3",
+ "schemars 1.0.4",
  "serde",
  "serde_derive",
  "serde_json",
@@ -6311,7 +6325,7 @@ checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap 2.10.0",
  "toml_datetime",
- "winnow 0.7.11",
+ "winnow 0.7.12",
 ]
 
 [[package]]
@@ -7566,9 +7580,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.7.11"
+version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74c7b26e3480b707944fc872477815d29a8e429d2f93a1ce000f5fa84a15cbcd"
+checksum = "f3edebf492c8125044983378ecb5766203ad3b4c2f7a922bd7dd207f6d443e95"
 dependencies = [
  "memchr",
 ]
@@ -7677,9 +7691,9 @@ dependencies = [
 
 [[package]]
 name = "xml-rs"
-version = "0.8.26"
+version = "0.8.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a62ce76d9b56901b19a74f19431b0d8b3bc7ca4ad685a746dfd78ca8f4fc6bda"
+checksum = "6fd8403733700263c6eb89f192880191f1b83e332f7a20371ddcf421c4a337c7"
 
 [[package]]
 name = "xmlwriter"
@@ -7761,9 +7775,9 @@ dependencies = [
 
 [[package]]
 name = "zbus"
-version = "5.7.1"
+version = "5.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3a7c7cee313d044fca3f48fa782cb750c79e4ca76ba7bc7718cd4024cdf6f68"
+checksum = "597f45e98bc7e6f0988276012797855613cd8269e23b5be62cc4e5d28b7e515d"
 dependencies = [
  "async-broadcast 0.7.2",
  "async-executor",
@@ -7787,10 +7801,10 @@ dependencies = [
  "tracing",
  "uds_windows",
  "windows-sys 0.59.0",
- "winnow 0.7.11",
- "zbus_macros 5.7.1",
+ "winnow 0.7.12",
+ "zbus_macros 5.8.0",
  "zbus_names 4.2.0",
- "zvariant 5.5.3",
+ "zvariant 5.6.0",
 ]
 
 [[package]]
@@ -7809,16 +7823,16 @@ dependencies = [
 
 [[package]]
 name = "zbus_macros"
-version = "5.7.1"
+version = "5.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a17e7e5eec1550f747e71a058df81a9a83813ba0f6a95f39c4e218bdc7ba366a"
+checksum = "e5c8e4e14dcdd9d97a98b189cd1220f30e8394ad271e8c987da84f73693862c2"
 dependencies = [
  "proc-macro-crate 3.3.0",
  "proc-macro2",
  "quote",
  "syn 2.0.104",
  "zbus_names 4.2.0",
- "zvariant 5.5.3",
+ "zvariant 5.6.0",
  "zvariant_utils 3.2.0",
 ]
 
@@ -7841,8 +7855,8 @@ checksum = "7be68e64bf6ce8db94f63e72f0c7eb9a60d733f7e0499e628dfab0f84d6bcb97"
 dependencies = [
  "serde",
  "static_assertions",
- "winnow 0.7.11",
- "zvariant 5.5.3",
+ "winnow 0.7.12",
+ "zvariant 5.6.0",
 ]
 
 [[package]]
@@ -7962,16 +7976,16 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "5.5.3"
+version = "5.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d30786f75e393ee63a21de4f9074d4c038d52c5b1bb4471f955db249f9dffb1"
+checksum = "d91b3680bb339216abd84714172b5138a4edac677e641ef17e1d8cb1b3ca6e6f"
 dependencies = [
  "endi",
  "enumflags2",
  "serde",
  "url",
- "winnow 0.7.11",
- "zvariant_derive 5.5.3",
+ "winnow 0.7.12",
+ "zvariant_derive 5.6.0",
  "zvariant_utils 3.2.0",
 ]
 
@@ -7990,9 +8004,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant_derive"
-version = "5.5.3"
+version = "5.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75fda702cd42d735ccd48117b1630432219c0e9616bf6cb0f8350844ee4d9580"
+checksum = "3a8c68501be459a8dbfffbe5d792acdd23b4959940fc87785fb013b32edbc208"
 dependencies = [
  "proc-macro-crate 3.3.0",
  "proc-macro2",
@@ -8023,5 +8037,5 @@ dependencies = [
  "serde",
  "static_assertions",
  "syn 2.0.104",
- "winnow 0.7.11",
+ "winnow 0.7.12",
 ]

@@ -1,10 +1,14 @@
-use crate::fl;
-use crate::models::account::{Account, LinkdingAccountApiResponse};
-use crate::models::bookmarks::{
-    Bookmark, BookmarkCheckDetailsResponse, BookmarkRemoveResponse, DetailedResponse,
-    LinkdingBookmarksApiCheckResponse, LinkdingBookmarksApiResponse,
+use crate::{
+    fl,
+    models::{
+        account::{Account, LinkdingAccountApiResponse},
+        bookmarks::{
+            Bookmark, BookmarkCheckDetailsResponse, BookmarkRemoveResponse, DetailedResponse,
+            LinkdingBookmarksApiCheckResponse, LinkdingBookmarksApiResponse,
+        },
+    },
+    utils::json::parse_serde_json_value_to_raw_string,
 };
-use crate::utils::json::parse_serde_json_value_to_raw_string;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use cosmic::iced_core::image::Bytes;
@@ -13,9 +17,10 @@ use reqwest::{
     ClientBuilder, StatusCode,
 };
 use serde_json::Value;
-use std::fmt::Write;
-use std::time::Duration;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    fmt::Write,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 use urlencoding::encode;
 
 pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<DetailedResponse> {

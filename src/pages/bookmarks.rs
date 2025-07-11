@@ -1,23 +1,26 @@
-use crate::app::{
-    actions::{ApplicationAction, BookmarksAction},
-    ApplicationState,
+use crate::{
+    app::{
+        actions::{ApplicationAction, BookmarksAction},
+        ApplicationState, REFRESH_ICON,
+    },
+    fl,
+    models::{
+        account::Account, bookmarks::Bookmark, db_cursor::BookmarksPaginationCursor,
+        sync_status::SyncStatus,
+    },
+    style::{button::ButtonStyle, text_editor::text_editor_class},
 };
-use crate::fl;
-use crate::models::account::Account;
-use crate::models::bookmarks::Bookmark;
-use crate::models::db_cursor::BookmarksPaginationCursor;
-use crate::style::{button::ButtonStyle, text_editor::text_editor_class};
 use chrono::{DateTime, Local};
-use cosmic::iced::Length;
-use cosmic::iced_core::text;
 use cosmic::{
     app::Task,
-    iced::Alignment,
-    style,
+    cosmic_theme,
+    iced::{Alignment, Length},
+    iced_core::text,
+    style, theme,
     widget::{self},
     Apply, Element,
 };
-use cosmic::{cosmic_theme, theme};
+use cosmic_time::{anim, Timeline};
 
 #[derive(Debug, Default, Clone)]
 pub struct PageBookmarksView {
@@ -32,8 +35,10 @@ impl PageBookmarksView {
     pub fn view(
         &self,
         app_state: ApplicationState,
+        sync_status: SyncStatus,
         bookmarks_cursor: &BookmarksPaginationCursor,
         no_accounts: bool,
+        refresh_animation: &Timeline,
     ) -> Element<'_, BookmarksAction> {
         let spacing = theme::active().cosmic().spacing;
         if no_accounts {
@@ -274,6 +279,52 @@ impl PageBookmarksView {
             };
             let mut new_bookmark_button = widget::button::standard(fl!("add-bookmark"));
 
+            let animation_widget = match app_state {
+                ApplicationState::Refreshing => anim![REFRESH_ICON, &refresh_animation, 16],
+                _ => match sync_status {
+                    SyncStatus::InProgress => anim![REFRESH_ICON, &refresh_animation, 16],
+                    SyncStatus::Warning => cosmic::widget::icon(
+                        widget::icon::from_name("dialog-warning-symbolic").handle(),
+                    )
+                    .class(cosmic::theme::Svg::Custom(std::rc::Rc::new(
+                        move |theme: &cosmic::theme::Theme| {
+                            let cosmic = theme.cosmic();
+                            cosmic::iced_widget::svg::Style {
+                                color: Some(cosmic.warning.base.into()),
+                            }
+                        },
+                    )))
+                    .size(16),
+                    SyncStatus::Failed => widget::icon::from_name("dialog-error-symbolic")
+                        .size(16)
+                        .into(),
+                    SyncStatus::Successful => cosmic::widget::icon(
+                        widget::icon::from_name("checkbox-checked-symbolic").handle(),
+                    )
+                    .class(cosmic::theme::Svg::Custom(std::rc::Rc::new(
+                        move |theme: &cosmic::theme::Theme| {
+                            let cosmic = theme.cosmic();
+                            cosmic::iced_widget::svg::Style {
+                                color: Some(cosmic.success.base.into()),
+                            }
+                        },
+                    )))
+                    .size(16),
+                    SyncStatus::None => cosmic::widget::icon(
+                        widget::icon::from_name("media-record-symbolic").handle(),
+                    )
+                    .class(cosmic::theme::Svg::Custom(std::rc::Rc::new(
+                        move |theme: &cosmic::theme::Theme| {
+                            let cosmic = theme.cosmic();
+                            cosmic::iced_widget::svg::Style {
+                                color: Some(cosmic.background.base.into()),
+                            }
+                        },
+                    )))
+                    .size(16),
+                },
+            };
+
             let mut search_input_widget =
                 widget::text_input::search_input(fl!("search"), self.query_placeholder.clone())
                     .id(self.search_id.clone().unwrap());
@@ -348,6 +399,7 @@ impl PageBookmarksView {
                         spacing.space_xxs,
                         spacing.space_none,
                     ])
+                    .push(animation_widget)
                     .push(search_input_widget)
                     .push(refresh_button)
                     .push(new_bookmark_button)

@@ -6,7 +6,7 @@ pub fn settings() -> cosmic::app::Settings {
             .min_width(360.0)
             .min_height(180.0),
     )
-    // NOTE: An example of client decorations enabled.
+    // NOTE: (vkhitrin) An example of client decorations enabled.
     //       Useless as long as we render the native
     //       libcosmic menu
     // #[cfg(target_os = "macos")]

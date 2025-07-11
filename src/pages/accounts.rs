@@ -1,22 +1,23 @@
 use crate::app::{
     actions::{AccountsAction, ApplicationAction},
-    ApplicationState,
+    ApplicationState, REFRESH_ICON,
 };
 use crate::fl;
-use crate::models::account::Account;
-use crate::models::db_cursor::AccountsPaginationCursor;
-use crate::style::button::ButtonStyle;
+use crate::{
+    models::{account::Account, db_cursor::AccountsPaginationCursor, sync_status::SyncStatus},
+    style::button::ButtonStyle,
+};
 use chrono::{DateTime, Local};
-use cosmic::iced::Length;
-use cosmic::iced_widget::tooltip;
 use cosmic::{
     app::Task,
     cosmic_theme,
-    iced::Alignment,
+    iced::{Alignment, Length},
+    iced_widget::tooltip,
     style, theme,
     widget::{self},
     Apply, Element,
 };
+use cosmic_time::{anim, Timeline};
 
 #[derive(Debug, Clone, Default)]
 pub struct PageAccountsView {
@@ -29,7 +30,9 @@ impl PageAccountsView {
     pub fn view(
         &self,
         app_state: ApplicationState,
+        sync_status: SyncStatus,
         accounts_cursor: &AccountsPaginationCursor,
+        refresh_animation: &Timeline,
     ) -> Element<'_, AccountsAction> {
         let spacing = theme::active().cosmic().spacing;
         if self.accounts.is_empty() {
@@ -251,6 +254,51 @@ impl PageAccountsView {
                     .apply(widget::container)
                     .into(),
             ]));
+            let animation_widget = match app_state {
+                ApplicationState::Refreshing => anim![REFRESH_ICON, &refresh_animation, 16],
+                _ => match sync_status {
+                    SyncStatus::InProgress => anim![REFRESH_ICON, &refresh_animation, 16],
+                    SyncStatus::Warning => cosmic::widget::icon(
+                        widget::icon::from_name("dialog-warning-symbolic").handle(),
+                    )
+                    .class(cosmic::theme::Svg::Custom(std::rc::Rc::new(
+                        move |theme: &cosmic::theme::Theme| {
+                            let cosmic = theme.cosmic();
+                            cosmic::iced_widget::svg::Style {
+                                color: Some(cosmic.warning.base.into()),
+                            }
+                        },
+                    )))
+                    .size(16),
+                    SyncStatus::Failed => widget::icon::from_name("dialog-error-symbolic")
+                        .size(16)
+                        .into(),
+                    SyncStatus::Successful => cosmic::widget::icon(
+                        widget::icon::from_name("checkbox-checked-symbolic").handle(),
+                    )
+                    .class(cosmic::theme::Svg::Custom(std::rc::Rc::new(
+                        move |theme: &cosmic::theme::Theme| {
+                            let cosmic = theme.cosmic();
+                            cosmic::iced_widget::svg::Style {
+                                color: Some(cosmic.success.base.into()),
+                            }
+                        },
+                    )))
+                    .size(16),
+                    SyncStatus::None => cosmic::widget::icon(
+                        widget::icon::from_name("media-record-symbolic").handle(),
+                    )
+                    .class(cosmic::theme::Svg::Custom(std::rc::Rc::new(
+                        move |theme: &cosmic::theme::Theme| {
+                            let cosmic = theme.cosmic();
+                            cosmic::iced_widget::svg::Style {
+                                color: Some(cosmic.background.base.into()),
+                            }
+                        },
+                    )))
+                    .size(16),
+                },
+            };
 
             widget::container(
                 widget::column::with_children(vec![widget::row::with_capacity(2)
@@ -266,6 +314,7 @@ impl PageAccountsView {
                         spacing.space_xxs,
                         spacing.space_none,
                     ])
+                    .push(animation_widget)
                     .push(widget::horizontal_space())
                     .push(
                         widget::button::standard(fl!("add-account"))
