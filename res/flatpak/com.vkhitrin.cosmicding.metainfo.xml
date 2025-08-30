@@ -35,6 +35,14 @@
         https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/icons/hicolor/scalable/apps/com.vkhitrin.cosmicding.svg</icon>
     <launchable type="desktop-id">com.vkhitrin.cosmicding.desktop</launchable>
     <releases>
+        <release version="2025.8.0" date="2025-08-30">
+            <description>
+                <p>Fixes:</p>
+                <ul>
+                    <li>Themes will be applied correctly from COSMIC Desktop Environment</li>
+                </ul>
+            </description>
+        </release>
         <release version="2025.7.0" date="2025-07-11">
             <description>
                 <p>New Features:</p>

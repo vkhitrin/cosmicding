@@ -1,6 +1,6 @@
 [package]
 name = "cosmicding"
-version = "2025.7.0"
+version = "2025.8.0"
 edition = "2021"
 
 [dependencies]
