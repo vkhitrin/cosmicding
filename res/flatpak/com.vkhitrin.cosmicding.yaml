@@ -14,6 +14,7 @@ finish-args:
   - --socket=wayland
   - --device=dri
   - --talk-name=com.system76.CosmicSettingsDaemon
+  - --filesystem=xdg-config/cosmic:rw
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
   env:
