@@ -147,7 +147,7 @@ impl Application for Cosmicding {
 
         let about = About::default()
             .name(fl!("cosmicding"))
-            .icon(Self::APP_ID)
+            .icon(icon::from_name(self::APPID))
             .version(release)
             .comments(fl!(
                 "git-description",
