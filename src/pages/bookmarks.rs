@@ -830,7 +830,7 @@ where
         .into()
 }
 
-pub fn view_notes(bookmark_notes: &widget::text_editor::Content) -> Element<ApplicationAction> {
+pub fn view_notes(bookmark_notes: &widget::text_editor::Content) -> Element<'_, ApplicationAction> {
     let spacing = theme::active().cosmic().spacing;
     let cosmic_theme::Spacing { space_xxs, .. } = theme::active().cosmic().spacing;
     let bookmark_notes_widget = widget::text_editor(bookmark_notes)
