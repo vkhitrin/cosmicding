@@ -304,7 +304,7 @@ pub async fn populate_bookmark(
     let bookmark_url =
         parse_serde_json_value_to_raw_string(transformed_json_value.get("url").unwrap());
     if check_remote {
-        match check_bookmark_on_instance(&account, bookmark_url.to_string()).await {
+        match check_bookmark_on_instance(&account, bookmark_url.clone()).await {
             Ok(check) => {
                 let metadata = check.metadata;
                 if check.bookmark.is_some() {
@@ -316,19 +316,19 @@ pub async fn populate_bookmark(
                         bkmrk.title = match parse_serde_json_value_to_raw_string(
                             transformed_json_value.get("title").unwrap(),
                         ) {
-                            ref s if !s.is_empty() => s.to_string(),
+                            ref s if !s.is_empty() => s.clone(),
                             _ => metadata.title.unwrap(),
                         };
                         bkmrk.description = match parse_serde_json_value_to_raw_string(
                             transformed_json_value.get("description").unwrap(),
                         ) {
-                            ref s if !s.is_empty() => s.to_string(),
+                            ref s if !s.is_empty() => s.clone(),
                             _ => metadata.description.unwrap_or_default(),
                         };
                         bkmrk.notes = match parse_serde_json_value_to_raw_string(
                             transformed_json_value.get("notes").unwrap(),
                         ) {
-                            ref s if !s.is_empty() => s.to_string(),
+                            ref s if !s.is_empty() => s.clone(),
                             _ => String::new(),
                         };
                         bkmrk.tag_names = if let Value::Array(arr) = &obj["tag_names"] {

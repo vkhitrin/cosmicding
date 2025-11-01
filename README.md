@@ -25,6 +25,7 @@ Features:
 - Aggregate bookmarks locally.
 - Add/Edit/Remove bookmarks.
 - Search bookmarks based on title, URL, tags, description, and notes.
+- Import/Export bookmarks.
 
 cosmicding has been tested with linkding releases >= `1.31.0`.
 

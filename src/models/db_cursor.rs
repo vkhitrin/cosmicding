@@ -78,7 +78,7 @@ impl Pagination for BookmarksPaginationCursor {
             } else {
                 let (count, bookmarks) = database
                     .search_bookmarks(
-                        self.search_query.as_ref().unwrap().to_string(),
+                        self.search_query.as_ref().unwrap().clone(),
                         self.items_per_page,
                         self.offset,
                         self.sort_option,
