@@ -76,54 +76,24 @@ pub static REFRESH_ICON: std::sync::LazyLock<refresh::Id> =
     std::sync::LazyLock::new(refresh::Id::unique);
 
 async fn open_save_file_dialog(default_name: &str) -> Option<PathBuf> {
-    use ashpd::desktop::file_chooser::{FileFilter, SaveFileRequest};
+    use rfd::AsyncFileDialog;
 
-    let filter = FileFilter::new("HTML Files")
-        .mimetype("text/html")
-        .glob("*.html");
-
-    match SaveFileRequest::default()
-        .current_name(default_name)
-        .modal(true)
-        .filter(filter)
-        .send()
+    AsyncFileDialog::new()
+        .set_file_name(default_name)
+        .add_filter("HTML Files", &["html"])
+        .save_file()
         .await
-        .and_then(|request| request.response())
-    {
-        Ok(selected_files) => selected_files
-            .uris()
-            .first()
-            .and_then(|url| url.to_file_path().ok()),
-        Err(e) => {
-            log::error!("Failed to open save file dialog: {e}");
-            None
-        }
-    }
+        .map(|file| file.path().to_path_buf())
 }
 
 async fn open_file_dialog() -> Option<PathBuf> {
-    use ashpd::desktop::file_chooser::{FileFilter, OpenFileRequest};
+    use rfd::AsyncFileDialog;
 
-    let filter = FileFilter::new("HTML Files")
-        .mimetype("text/html")
-        .glob("*.html");
-
-    match OpenFileRequest::default()
-        .modal(true)
-        .filter(filter)
-        .send()
+    AsyncFileDialog::new()
+        .add_filter("HTML Files", &["html"])
+        .pick_file()
         .await
-        .and_then(|request| request.response())
-    {
-        Ok(selected_files) => selected_files
-            .uris()
-            .first()
-            .and_then(|url| url.to_file_path().ok()),
-        Err(e) => {
-            log::error!("Failed to open file dialog: {e}");
-            None
-        }
-    }
+        .map(|file| file.path().to_path_buf())
 }
 
 pub struct Flags {
@@ -1491,8 +1461,7 @@ impl Application for Cosmicding {
                             commands.push(self.update(ApplicationAction::LoadBookmarks));
                         }
                         DialogPage::ExportBookmarks(_, _, _)
-                        | DialogPage::ImportBookmarks(_, _, _) => {
-                        }
+                        | DialogPage::ImportBookmarks(_, _, _) => {}
                     }
                 }
                 commands.push(self.update(ApplicationAction::LoadAccounts));

@@ -133,7 +133,7 @@ fn parse_bookmark_entry(
         .get("HREF")
         .or_else(|| attributes.get("href"))
         .ok_or_else(|| anyhow!("Missing HREF attribute"))?
-        .to_string();
+        .clone();
 
     let title = extract_title_from_anchor(line)?;
 
