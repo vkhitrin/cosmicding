@@ -226,7 +226,7 @@ impl Application for Cosmicding {
         (app, Task::batch(commands))
     }
 
-    fn header_start(&self) -> Vec<Element<Self::Message>> {
+    fn header_start(&self) -> Vec<Element<'_, Self::Message>> {
         vec![app_menu::menu_bar(
             &self.key_binds,
             !self.accounts_view.accounts.is_empty(),
@@ -249,7 +249,7 @@ impl Application for Cosmicding {
         Task::none()
     }
 
-    fn context_drawer(&self) -> Option<context_drawer::ContextDrawer<ApplicationAction>> {
+    fn context_drawer(&self) -> Option<context_drawer::ContextDrawer<'_, ApplicationAction>> {
         if !self.core.window.show_context {
             return None;
         }
@@ -257,7 +257,7 @@ impl Application for Cosmicding {
             ContextPage::About => Some(
                 context_drawer::about(
                     &self.about,
-                    ApplicationAction::OpenExternalUrl,
+                    |url| ApplicationAction::OpenExternalUrl(url.to_string()),
                     ApplicationAction::ContextClose,
                 )
                 .title(self.context_page.title()),
@@ -315,7 +315,7 @@ impl Application for Cosmicding {
         }
     }
 
-    fn dialog(&self) -> Option<Element<ApplicationAction>> {
+    fn dialog(&self) -> Option<Element<'_, ApplicationAction>> {
         let dialog_page = self.dialog_pages.front()?;
 
         let dialog = match dialog_page {
@@ -358,7 +358,7 @@ impl Application for Cosmicding {
         Some(dialog.into())
     }
 
-    fn view(&self) -> Element<Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         let spacing = cosmic::theme::active().cosmic().spacing;
         let entity = self.nav.active();
         let nav_page = self.nav.data::<AppNavPage>(entity).unwrap_or_default();
@@ -1454,7 +1454,7 @@ impl Application for Cosmicding {
 
 impl Cosmicding {
     #[allow(clippy::unused_self)]
-    fn settings(&self) -> Element<ApplicationAction> {
+    fn settings(&self) -> Element<'_, ApplicationAction> {
         widget::settings::view_column(vec![
             widget::settings::section()
                 .title(fl!("appearance"))
