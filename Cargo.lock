@@ -1183,6 +1183,7 @@ name = "cosmicding"
 version = "2025.8.0"
 dependencies = [
  "anyhow",
+ "ashpd 0.12.0",
  "chrono",
  "constcat",
  "cosmic-time",

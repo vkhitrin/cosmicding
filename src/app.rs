@@ -24,6 +24,7 @@ use crate::{
         bookmarks::{edit_bookmark, new_bookmark, view_notes, PageBookmarksView},
     },
     style::animation::refresh,
+    utils::bookmark_parser,
 };
 use cosmic::{
     app::{context_drawer, Core, Task},
@@ -37,6 +38,7 @@ use cosmic::{
     },
     iced_core::image::Bytes,
     iced_widget::tooltip,
+    theme,
     widget::{
         self,
         about::About,
@@ -51,6 +53,7 @@ use key_bind::key_binds;
 use std::{
     any::TypeId,
     collections::{HashMap, VecDeque},
+    path::PathBuf,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -71,6 +74,57 @@ const REPOSITORY: &str = "https://github.com/vkhitrin/cosmicding";
 
 pub static REFRESH_ICON: std::sync::LazyLock<refresh::Id> =
     std::sync::LazyLock::new(refresh::Id::unique);
+
+async fn open_save_file_dialog(default_name: &str) -> Option<PathBuf> {
+    use ashpd::desktop::file_chooser::{FileFilter, SaveFileRequest};
+
+    let filter = FileFilter::new("HTML Files")
+        .mimetype("text/html")
+        .glob("*.html");
+
+    match SaveFileRequest::default()
+        .current_name(default_name)
+        .modal(true)
+        .filter(filter)
+        .send()
+        .await
+        .and_then(|request| request.response())
+    {
+        Ok(selected_files) => selected_files
+            .uris()
+            .first()
+            .and_then(|url| url.to_file_path().ok()),
+        Err(e) => {
+            log::error!("Failed to open save file dialog: {e}");
+            None
+        }
+    }
+}
+
+async fn open_file_dialog() -> Option<PathBuf> {
+    use ashpd::desktop::file_chooser::{FileFilter, OpenFileRequest};
+
+    let filter = FileFilter::new("HTML Files")
+        .mimetype("text/html")
+        .glob("*.html");
+
+    match OpenFileRequest::default()
+        .modal(true)
+        .filter(filter)
+        .send()
+        .await
+        .and_then(|request| request.response())
+    {
+        Ok(selected_files) => selected_files
+            .uris()
+            .first()
+            .and_then(|url| url.to_file_path().ok()),
+        Err(e) => {
+            log::error!("Failed to open file dialog: {e}");
+            None
+        }
+    }
+}
 
 pub struct Flags {
     pub config_handler: Option<cosmic_config::Config>,
@@ -103,6 +157,7 @@ pub struct Cosmicding {
     timeline: Timeline,
     sync_status: SyncStatus,
     toasts: widget::toaster::Toasts<ApplicationAction>,
+    pending_import_count: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -203,6 +258,7 @@ impl Application for Cosmicding {
             timeline,
             sync_status: SyncStatus::default(),
             toasts: widget::toaster::Toasts::new(ApplicationAction::CloseToast),
+            pending_import_count: 0,
         };
 
         app.bookmarks_cursor.items_per_page = app.config.items_per_page;
@@ -353,6 +409,166 @@ impl Application for Cosmicding {
                     widget::button::standard(fl!("cancel"))
                         .on_press(ApplicationAction::DialogCancel),
                 ),
+            DialogPage::ExportBookmarks(accounts, selected, path) => {
+                let spacing = cosmic::theme::active().cosmic().spacing;
+                let mut body_column = widget::column::with_capacity(3).spacing(spacing.space_s);
+
+                body_column = body_column.push(widget::text::body(fl!("export-bookmarks-body")));
+
+                let mut accounts_list =
+                    widget::column::with_capacity(accounts.len()).spacing(spacing.space_xxs);
+
+                for (idx, account) in accounts.iter().enumerate() {
+                    let is_selected = selected.get(idx).copied().unwrap_or(false);
+                    let checkbox = widget::checkbox(&account.display_name, is_selected).on_toggle(
+                        move |checked| {
+                            let mut new_selected = selected.clone();
+                            if idx < new_selected.len() {
+                                new_selected[idx] = checked;
+                            }
+                            ApplicationAction::ExportBookmarksSelectAccounts(new_selected)
+                        },
+                    );
+                    accounts_list = accounts_list.push(checkbox);
+                }
+
+                let accounts_container = widget::container(
+                    widget::container(accounts_list)
+                        .padding([spacing.space_xs, spacing.space_s])
+                        .width(Length::Fill),
+                )
+                .padding([spacing.space_xxs, 0])
+                .width(Length::Fill)
+                .class(theme::Container::Background);
+
+                body_column = body_column.push(
+                    widget::column::with_capacity(2)
+                        .spacing(spacing.space_xxs)
+                        .push(widget::text::caption(fl!("select-accounts")))
+                        .push(accounts_container),
+                );
+
+                let path_container = widget::container(
+                    widget::row::with_capacity(2)
+                        .spacing(spacing.space_xs)
+                        .align_y(cosmic::iced::Alignment::Center)
+                        .push(
+                            widget::container(widget::text::body(if let Some(p) = path {
+                                p.to_string_lossy().to_string()
+                            } else {
+                                fl!("no-file-selected")
+                            }))
+                            .width(Length::Fill)
+                            .padding([spacing.space_xxs, spacing.space_xs])
+                            .class(theme::Container::Background),
+                        )
+                        .push(
+                            widget::button::standard(fl!("browse"))
+                                .on_press(ApplicationAction::SelectExportPath),
+                        ),
+                )
+                .width(Length::Fill);
+
+                body_column = body_column.push(path_container);
+
+                let has_selection = selected.iter().any(|&s| s);
+                let has_path = path.is_some();
+                let selected_accounts: Vec<Account> = accounts
+                    .iter()
+                    .zip(selected.iter())
+                    .filter(|(_, &sel)| sel)
+                    .map(|(acc, _)| acc.clone())
+                    .collect();
+
+                widget::dialog()
+                    .title(fl!("export-bookmarks"))
+                    .icon(icon::from_name("document-save-symbolic").size(58))
+                    .control(body_column)
+                    .primary_action(if has_selection && has_path {
+                        widget::button::suggested(fl!("export"))
+                            .on_press(ApplicationAction::PerformExportBookmarks(selected_accounts))
+                    } else {
+                        widget::button::suggested(fl!("export"))
+                    })
+                    .secondary_action(
+                        widget::button::standard(fl!("cancel"))
+                            .on_press(ApplicationAction::DialogCancel),
+                    )
+            }
+            DialogPage::ImportBookmarks(accounts, selected_idx, path) => {
+                let spacing = cosmic::theme::active().cosmic().spacing;
+                let mut body_column = widget::column::with_capacity(3).spacing(spacing.space_s);
+
+                body_column = body_column.push(widget::text::body(fl!("import-bookmarks-body")));
+
+                let account_dropdown = widget::row::with_capacity(2)
+                    .spacing(spacing.space_xs)
+                    .align_y(cosmic::iced::Alignment::Center)
+                    .push(
+                        widget::container(widget::text::body(fl!("account")))
+                            .padding([spacing.space_xxs, spacing.space_xs])
+                            .align_y(cosmic::iced::alignment::Vertical::Center)
+                            .height(Length::Shrink),
+                    )
+                    .push({
+                        let account_names: Vec<String> = accounts
+                            .iter()
+                            .map(|acc| acc.display_name.clone())
+                            .collect();
+                        widget::container(
+                            widget::dropdown(account_names, Some(*selected_idx), move |idx| {
+                                ApplicationAction::ImportBookmarksSelectAccount(idx)
+                            })
+                            .width(Length::Fixed(150.0)),
+                        )
+                        .class(theme::Container::Background)
+                    });
+
+                body_column = body_column.push(account_dropdown);
+
+                let path_container = widget::container(
+                    widget::row::with_capacity(2)
+                        .spacing(spacing.space_xs)
+                        .align_y(cosmic::iced::Alignment::Center)
+                        .push(
+                            widget::container(widget::text::body(if let Some(p) = path {
+                                p.to_string_lossy().to_string()
+                            } else {
+                                fl!("no-file-selected")
+                            }))
+                            .width(Length::Fill)
+                            .padding([spacing.space_xxs, spacing.space_xs])
+                            .class(theme::Container::Background),
+                        )
+                        .push(
+                            widget::button::standard(fl!("browse"))
+                                .on_press(ApplicationAction::SelectImportPath),
+                        ),
+                )
+                .width(Length::Fill);
+
+                body_column = body_column.push(path_container);
+
+                let has_path = path.is_some();
+
+                widget::dialog()
+                    .title(fl!("import-bookmarks"))
+                    .icon(icon::from_name("document-open-symbolic").size(58))
+                    .control(body_column)
+                    .primary_action(if has_path {
+                        widget::button::suggested(fl!("import")).on_press(
+                            ApplicationAction::PerformImportBookmarks(
+                                accounts[*selected_idx].clone(),
+                            ),
+                        )
+                    } else {
+                        widget::button::suggested(fl!("import"))
+                    })
+                    .secondary_action(
+                        widget::button::standard(fl!("cancel"))
+                            .on_press(ApplicationAction::DialogCancel),
+                    )
+            }
         };
 
         Some(dialog.into())
@@ -1073,6 +1289,13 @@ impl Application for Cosmicding {
                         }
                     }
                 }
+
+                if self.pending_import_count > 0 {
+                    self.pending_import_count -= 1;
+                    if self.pending_import_count == 0 {
+                        commands.push(self.update(ApplicationAction::DoneImportBookmarks));
+                    }
+                }
             }
             ApplicationAction::StartRemoveBookmark(account_id, bookmark) => {
                 if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
@@ -1267,12 +1490,278 @@ impl Application for Cosmicding {
                             commands.push(self.update(ApplicationAction::PurgeFaviconsCache));
                             commands.push(self.update(ApplicationAction::LoadBookmarks));
                         }
+                        DialogPage::ExportBookmarks(_, _, _)
+                        | DialogPage::ImportBookmarks(_, _, _) => {
+                        }
                     }
                 }
                 commands.push(self.update(ApplicationAction::LoadAccounts));
             }
             ApplicationAction::DialogCancel => {
                 self.dialog_pages.pop_front();
+            }
+            ApplicationAction::StartExportBookmarks => {
+                let enabled_accounts: Vec<Account> = self
+                    .accounts_view
+                    .accounts
+                    .iter()
+                    .filter(|acc| acc.enabled)
+                    .cloned()
+                    .collect();
+
+                if !enabled_accounts.is_empty() {
+                    let selected = vec![false; enabled_accounts.len()];
+                    if self.dialog_pages.pop_front().is_none() {
+                        self.dialog_pages.push_back(DialogPage::ExportBookmarks(
+                            enabled_accounts,
+                            selected,
+                            None,
+                        ));
+                    }
+                }
+            }
+            ApplicationAction::ExportBookmarksSelectAccounts(selected) => {
+                if let Some(DialogPage::ExportBookmarks(accounts, _, path)) =
+                    self.dialog_pages.front()
+                {
+                    self.dialog_pages[0] =
+                        DialogPage::ExportBookmarks(accounts.clone(), selected, path.clone());
+                }
+            }
+            ApplicationAction::StartImportBookmarks => {
+                let enabled_accounts: Vec<Account> = self
+                    .accounts_view
+                    .accounts
+                    .iter()
+                    .filter(|acc| acc.enabled)
+                    .cloned()
+                    .collect();
+
+                if !enabled_accounts.is_empty() && self.dialog_pages.pop_front().is_none() {
+                    self.dialog_pages.push_back(DialogPage::ImportBookmarks(
+                        enabled_accounts,
+                        0,
+                        None,
+                    ));
+                }
+            }
+            ApplicationAction::ImportBookmarksSelectAccount(idx) => {
+                if let Some(DialogPage::ImportBookmarks(accounts, _, path)) =
+                    self.dialog_pages.front()
+                {
+                    self.dialog_pages[0] =
+                        DialogPage::ImportBookmarks(accounts.clone(), idx, path.clone());
+                }
+            }
+            ApplicationAction::SelectExportPath => {
+                commands.push(Task::perform(
+                    async { open_save_file_dialog("cosmicding_bookmarks_export.html").await },
+                    |path| cosmic::Action::App(ApplicationAction::SetExportPath(path)),
+                ));
+            }
+            ApplicationAction::SelectImportPath => {
+                commands.push(Task::perform(async { open_file_dialog().await }, |path| {
+                    cosmic::Action::App(ApplicationAction::SetImportPath(path))
+                }));
+            }
+            ApplicationAction::SetExportPath(path) => {
+                if let Some(DialogPage::ExportBookmarks(accounts, selected, _)) =
+                    self.dialog_pages.front()
+                {
+                    self.dialog_pages[0] =
+                        DialogPage::ExportBookmarks(accounts.clone(), selected.clone(), path);
+                }
+            }
+            ApplicationAction::SetImportPath(path) => {
+                if let Some(DialogPage::ImportBookmarks(accounts, idx, _)) =
+                    self.dialog_pages.front()
+                {
+                    self.dialog_pages[0] =
+                        DialogPage::ImportBookmarks(accounts.clone(), *idx, path);
+                }
+            }
+            ApplicationAction::PerformExportBookmarks(accounts) => {
+                let export_path_from_dialog = if let Some(DialogPage::ExportBookmarks(_, _, path)) =
+                    self.dialog_pages.front()
+                {
+                    path.clone()
+                } else {
+                    None
+                };
+
+                self.dialog_pages.pop_front();
+
+                if let Some(ref mut database) = &mut self.bookmarks_cursor.database {
+                    let account_ids: Vec<i64> = accounts.iter().filter_map(|acc| acc.id).collect();
+
+                    block_on(async {
+                        let total_count = database.count_bookmarks_entries().await;
+
+                        let mut all_bookmarks: Vec<Bookmark> = Vec::new();
+                        let limit: u8 = 255;
+                        let mut offset: usize = 0;
+
+                        while offset < total_count {
+                            let bookmarks = database
+                                .select_bookmarks_with_limit(
+                                    limit,
+                                    offset,
+                                    self.bookmarks_cursor.sort_option,
+                                )
+                                .await;
+
+                            if bookmarks.is_empty() {
+                                break;
+                            }
+
+                            all_bookmarks.extend(bookmarks);
+                            offset += limit as usize;
+                        }
+
+                        let filtered_bookmarks: Vec<Bookmark> = all_bookmarks
+                            .into_iter()
+                            .filter(|bm| {
+                                if let Some(user_account_id) = bm.user_account_id {
+                                    account_ids.contains(&user_account_id)
+                                } else {
+                                    false
+                                }
+                            })
+                            .collect();
+
+                        let bookmark_count = filtered_bookmarks.len();
+
+                        let html_content = bookmark_parser::netscape::BookmarkIO::generate(
+                            &filtered_bookmarks,
+                            bookmark_parser::netscape::BookmarkFormat::Netscape,
+                        );
+
+                        if let Some(export_path) = export_path_from_dialog {
+                            match std::fs::write(&export_path, html_content) {
+                                Ok(()) => {
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(fl!(
+                                                "export-bookmarks-success",
+                                                count = bookmark_count,
+                                                path = export_path.display().to_string()
+                                            )))
+                                            .map(cosmic::Action::App),
+                                    );
+                                }
+                                Err(e) => {
+                                    commands.push(
+                                        self.toasts
+                                            .push(widget::toaster::Toast::new(fl!(
+                                                "export-bookmarks-error",
+                                                error = e.to_string()
+                                            )))
+                                            .map(cosmic::Action::App),
+                                    );
+                                }
+                            }
+                        } else {
+                            commands.push(
+                                self.toasts
+                                    .push(widget::toaster::Toast::new(fl!(
+                                        "export-bookmarks-no-path"
+                                    )))
+                                    .map(cosmic::Action::App),
+                            );
+                        }
+                    });
+                }
+            }
+            ApplicationAction::PerformImportBookmarks(account) => {
+                let import_path_from_dialog = if let Some(DialogPage::ImportBookmarks(_, _, path)) =
+                    self.dialog_pages.front()
+                {
+                    path.clone()
+                } else {
+                    None
+                };
+
+                self.dialog_pages.pop_front();
+
+                self.state = ApplicationState::Refreshing;
+
+                if let Some(import_path) = import_path_from_dialog {
+                    if import_path.exists() {
+                        match std::fs::read_to_string(&import_path) {
+                            Ok(html_content) => {
+                                match bookmark_parser::netscape::BookmarkIO::parse(
+                                    &html_content,
+                                    bookmark_parser::netscape::BookmarkFormat::Netscape,
+                                ) {
+                                    Ok(bookmarks) => {
+                                        let import_count = bookmarks.len();
+                                        self.pending_import_count = import_count;
+                                        for bookmark in bookmarks {
+                                            commands.push(self.update(
+                                                ApplicationAction::StartAddBookmark(
+                                                    account.clone(),
+                                                    bookmark,
+                                                ),
+                                            ));
+                                        }
+                                        commands.push(
+                                            self.toasts
+                                                .push(widget::toaster::Toast::new(fl!(
+                                                    "import-bookmarks-started",
+                                                    count = import_count
+                                                )))
+                                                .map(cosmic::Action::App),
+                                        );
+                                    }
+                                    Err(e) => {
+                                        commands.push(
+                                            self.toasts
+                                                .push(widget::toaster::Toast::new(fl!(
+                                                    "import-bookmarks-error",
+                                                    error = e.to_string()
+                                                )))
+                                                .map(cosmic::Action::App),
+                                        );
+                                        commands.push(
+                                            self.update(ApplicationAction::DoneImportBookmarks),
+                                        );
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                commands.push(
+                                    self.toasts
+                                        .push(widget::toaster::Toast::new(fl!(
+                                            "import-bookmarks-error",
+                                            error = e.to_string()
+                                        )))
+                                        .map(cosmic::Action::App),
+                                );
+                                commands.push(self.update(ApplicationAction::DoneImportBookmarks));
+                            }
+                        }
+                    } else {
+                        commands.push(
+                            self.toasts
+                                .push(widget::toaster::Toast::new(fl!(
+                                    "import-bookmarks-file-not-found",
+                                    path = import_path.display().to_string()
+                                )))
+                                .map(cosmic::Action::App),
+                        );
+                        commands.push(self.update(ApplicationAction::DoneImportBookmarks));
+                    }
+                } else {
+                    commands.push(
+                        self.toasts
+                            .push(widget::toaster::Toast::new(fl!("import-bookmarks-no-path")))
+                            .map(cosmic::Action::App),
+                    );
+                    commands.push(self.update(ApplicationAction::DoneImportBookmarks));
+                }
+            }
+            ApplicationAction::DoneImportBookmarks => {
+                self.state = ApplicationState::Ready;
             }
             ApplicationAction::CloseToast(id) => {
                 self.toasts.remove(id);

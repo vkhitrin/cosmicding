@@ -16,7 +16,7 @@ use cosmic::{
     widget::{self},
 };
 
-use std::time::Instant;
+use std::{path::PathBuf, time::Instant};
 
 #[derive(Debug, Clone)]
 pub enum ApplicationAction {
@@ -45,6 +45,17 @@ pub enum ApplicationAction {
     EditBookmarkForm(i64, Bookmark),
     Empty,
     EnableFavicons(bool),
+    ExportBookmarksSelectAccounts(Vec<bool>),
+    ImportBookmarksSelectAccount(usize),
+    StartExportBookmarks,
+    StartImportBookmarks,
+    SelectExportPath,
+    SelectImportPath,
+    SetExportPath(Option<PathBuf>),
+    SetImportPath(Option<PathBuf>),
+    PerformExportBookmarks(Vec<Account>),
+    PerformImportBookmarks(Account),
+    DoneImportBookmarks,
     IncrementPageIndex(String),
     InputBookmarkDescription(widget::text_editor::Action),
     InputBookmarkNotes(widget::text_editor::Action),

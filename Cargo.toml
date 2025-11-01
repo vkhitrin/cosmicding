@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.89"
+ashpd = "0.12"
 chrono = "0.4.38"
 constcat = "0.5.1"
 cosmic-time = { git = "https://github.com/pop-os/cosmic-time.git", version = "0.4.0", features = ["once_cell"] }
