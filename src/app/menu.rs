@@ -65,7 +65,13 @@ pub fn menu_bar<'a>(
             menu::items(
                 key_binds,
                 vec![
-                    Item::Button(fl!("add-account"), None, MenuAction::AddAccount),
+                    if accounts_present && matches!(app_state, ApplicationState::Ready)
+                        || matches!(app_state, ApplicationState::NoEnabledAccounts)
+                    {
+                        Item::Button(fl!("add-account"), None, MenuAction::AddAccount)
+                    } else {
+                        Item::ButtonDisabled(fl!("add-account"), None, MenuAction::AddAccount)
+                    },
                     if accounts_present && matches!(app_state, ApplicationState::Ready) {
                         Item::Button(fl!("add-bookmark"), None, MenuAction::AddBookmark)
                     } else {

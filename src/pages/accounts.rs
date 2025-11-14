@@ -4,8 +4,12 @@ use crate::app::{
 };
 use crate::fl;
 use crate::{
-    models::{account::Account, db_cursor::AccountsPaginationCursor, sync_status::SyncStatus},
+    models::{
+        account::Account, db_cursor::AccountsPaginationCursor, operation::OperationProgress,
+        sync_status::SyncStatus,
+    },
     style::button::ButtonStyle,
+    widgets::progress_info::{operation_progress_widget, ProgressInfo},
 };
 use chrono::{DateTime, Local};
 use cosmic::{
@@ -33,8 +37,15 @@ impl PageAccountsView {
         sync_status: SyncStatus,
         accounts_cursor: &AccountsPaginationCursor,
         refresh_animation: &Timeline,
+        operation_progress: Option<&OperationProgress>,
     ) -> Element<'_, AccountsAction> {
         let spacing = theme::active().cosmic().spacing;
+        let add_button = match app_state {
+            ApplicationState::Ready | ApplicationState::NoEnabledAccounts => {
+                widget::button::standard(fl!("add-account")).on_press(AccountsAction::AddAccount)
+            }
+            _ => widget::button::standard(fl!("add-account")),
+        };
         if self.accounts.is_empty() {
             let container = widget::container(
                 widget::column::with_children(vec![
@@ -42,9 +53,7 @@ impl PageAccountsView {
                         .size(64)
                         .into(),
                     widget::text::title3(fl!("no-accounts")).into(),
-                    widget::button::standard(fl!("add-account"))
-                        .on_press(AccountsAction::AddAccount)
-                        .into(),
+                    add_button.into(),
                 ])
                 .spacing(20)
                 .align_x(Alignment::Center),
@@ -300,7 +309,7 @@ impl PageAccountsView {
                 },
             };
 
-            widget::container(
+            let mut main_column =
                 widget::column::with_children(vec![widget::row::with_capacity(2)
                     .align_y(Alignment::Center)
                     .push(widget::text::title3(fl!(
@@ -316,17 +325,37 @@ impl PageAccountsView {
                     ])
                     .push(animation_widget)
                     .push(widget::horizontal_space())
-                    .push(
-                        widget::button::standard(fl!("add-account"))
-                            .on_press(AccountsAction::AddAccount),
-                    )
+                    .push(add_button)
                     .width(Length::Fill)
                     .apply(widget::container)
-                    .into()])
+                    .into()]);
+
+            // Add operation progress widget if any operation is active
+            if let Some(progress) = operation_progress {
+                let progress_info = ProgressInfo {
+                    total: progress.total,
+                    current: progress.current,
+                    label: progress.operation_label.clone(),
+                    cancellable: progress.cancellable,
+                };
+
+                let progress_widget = operation_progress_widget(
+                    &progress_info,
+                    if progress.cancellable {
+                        Some(AccountsAction::CancelImport(progress.operation_id))
+                    } else {
+                        None
+                    },
+                );
+
+                main_column = main_column.push(progress_widget);
+            }
+
+            main_column = main_column
                 .push(accounts_widget)
-                .push(page_navigation_widget),
-            )
-            .into()
+                .push(page_navigation_widget);
+
+            widget::container(main_column).into()
         }
     }
     pub fn update(&mut self, message: AccountsAction) -> Task<ApplicationAction> {
@@ -335,6 +364,11 @@ impl PageAccountsView {
             AccountsAction::AddAccount => {
                 commands.push(Task::perform(async {}, |()| {
                     cosmic::Action::App(ApplicationAction::AddAccountForm)
+                }));
+            }
+            AccountsAction::CancelImport(import_id) => {
+                commands.push(Task::perform(async {}, move |()| {
+                    cosmic::Action::App(ApplicationAction::CancelImportBookmarks(import_id))
                 }));
             }
             AccountsAction::EditAccount(account) => {
