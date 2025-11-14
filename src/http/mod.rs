@@ -23,29 +23,21 @@ use std::{
 };
 use urlencoding::encode;
 
-pub async fn fetch_bookmarks_from_all_accounts(accounts: Vec<Account>) -> Vec<DetailedResponse> {
-    let mut all_responses: Vec<DetailedResponse> = Vec::new();
-    for account in accounts {
-        if account.enabled {
-            match fetch_bookmarks_for_account(&account).await {
-                Ok(new_response) => {
-                    all_responses.push(new_response);
-                }
-                Err(e) => {
-                    let epoch_timestamp = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .expect("")
-                        .as_secs();
-                    #[allow(clippy::cast_possible_wrap)]
-                    let error_response =
-                        DetailedResponse::new(account, epoch_timestamp as i64, false, None);
-                    all_responses.push(error_response);
-                    log::error!("Error fetching bookmarks: {e}");
-                }
-            }
+pub async fn fetch_bookmarks_for_single_account(account: Account) -> DetailedResponse {
+    match fetch_bookmarks_for_account(&account).await {
+        Ok(response) => response,
+        Err(e) => {
+            let epoch_timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("")
+                .as_secs();
+            #[allow(clippy::cast_possible_wrap)]
+            let error_response =
+                DetailedResponse::new(account, epoch_timestamp as i64, false, None);
+            log::error!("Error fetching bookmarks: {e}");
+            error_response
         }
     }
-    all_responses
 }
 
 //  NOTE: (vkhitrin) perhaps this method should be split into three:
@@ -273,6 +265,7 @@ pub async fn populate_bookmark(
     account: Account,
     bookmark: Bookmark,
     check_remote: bool,
+    disable_scraping: bool,
 ) -> Option<BookmarkCheckDetailsResponse> {
     let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
     let mut headers = HeaderMap::new();
@@ -304,7 +297,7 @@ pub async fn populate_bookmark(
     let bookmark_url =
         parse_serde_json_value_to_raw_string(transformed_json_value.get("url").unwrap());
     if check_remote {
-        match check_bookmark_on_instance(&account, bookmark_url.clone()).await {
+        match check_bookmark_on_instance(&account, bookmark_url.clone(), disable_scraping).await {
             Ok(check) => {
                 let metadata = check.metadata;
                 if check.bookmark.is_some() {
@@ -354,45 +347,92 @@ pub async fn populate_bookmark(
         api_response.bookmark = Some(bookmark);
     }
     if api_response.is_new {
-        let response: reqwest::Response = http_client
-            .post(rest_api_url)
-            .headers(headers)
-            .json(&transformed_json_value)
-            .send()
-            .await
-            .unwrap();
+        let max_retries = 3;
+        let mut retry_count = 0;
+        let mut last_error: Option<String> = None;
 
-        match response.status() {
-            StatusCode::CREATED => match response.json::<Bookmark>().await {
-                Ok(mut value) => {
-                    value.linkding_internal_id = value.id;
-                    value.user_account_id = account.id;
-                    value.id = None;
-                    api_response.bookmark = Some(value);
-                    api_response.successful = true;
-                }
-                Err(_e) => api_response.error = Some(fl!("failed-to-parse-response")),
-            },
-            status => {
-                api_response.error = Some(fl!(
-                    "http-error",
-                    http_rc = status.to_string(),
-                    http_err = response.text().await.unwrap()
-                ));
-                log::error!(
-                    "Error adding bookmark: {}",
-                    api_response.error.as_ref().unwrap()
+        while retry_count <= max_retries {
+            if retry_count > 0 {
+                let backoff_ms = 1000 * u64::pow(2, retry_count - 1);
+                log::warn!(
+                    "Retrying bookmark creation (attempt {}/{}) after {}ms backoff",
+                    retry_count,
+                    max_retries,
+                    backoff_ms
                 );
+                tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+            }
+
+            let response_result = http_client
+                .post(&rest_api_url)
+                .headers(headers.clone())
+                .json(&transformed_json_value)
+                .send()
+                .await;
+
+            match response_result {
+                Ok(response) => match response.status() {
+                    StatusCode::CREATED => match response.json::<Bookmark>().await {
+                        Ok(mut value) => {
+                            value.linkding_internal_id = value.id;
+                            value.user_account_id = account.id;
+                            value.id = None;
+                            api_response.bookmark = Some(value);
+                            api_response.successful = true;
+                            break;
+                        }
+                        Err(_e) => {
+                            api_response.error = Some(fl!("failed-to-parse-response"));
+                            break;
+                        }
+                    },
+                    StatusCode::SERVICE_UNAVAILABLE => {
+                        let error_msg = response.text().await.unwrap_or_default();
+                        last_error = Some(fl!(
+                            "http-error",
+                            http_rc = StatusCode::SERVICE_UNAVAILABLE.to_string(),
+                            http_err = error_msg
+                        ));
+                        log::error!(
+                            "Error adding bookmark (503): {}",
+                            last_error.as_ref().unwrap()
+                        );
+                        retry_count += 1;
+                    }
+                    status => {
+                        api_response.error = Some(fl!(
+                            "http-error",
+                            http_rc = status.to_string(),
+                            http_err = response.text().await.unwrap_or_default()
+                        ));
+                        log::error!(
+                            "Error adding bookmark: {}",
+                            api_response.error.as_ref().unwrap()
+                        );
+                        break;
+                    }
+                },
+                Err(e) => {
+                    api_response.error = Some(format!("Request failed: {e}"));
+                    log::error!("Error sending request: {e}");
+                    break;
+                }
             }
         }
-    } else {
-        match edit_bookmark(&account, &api_response.bookmark.clone().unwrap().clone()).await {
+
+        if retry_count > max_retries && api_response.error.is_none() {
+            api_response.error = last_error;
+        }
+    } else if let Some(bookmark) = &api_response.bookmark {
+        match edit_bookmark(&account, bookmark).await {
             Ok(value) => {
                 api_response.bookmark = Some(value);
                 api_response.successful = true;
             }
             Err(_e) => api_response.error = Some(fl!("failed-to-parse-response")),
         }
+    } else {
+        api_response.error = Some(fl!("failed-to-parse-response"));
     }
     Some(api_response)
 }
@@ -576,15 +616,26 @@ pub async fn check_account_on_instance(
 pub async fn check_bookmark_on_instance(
     account: &Account,
     url: String,
+    disable_scraping: bool,
 ) -> Result<LinkdingBookmarksApiCheckResponse, Box<dyn std::error::Error>> {
     let mut rest_api_url: String = String::new();
     let encoded_bookmark_url = encode(&url);
-    write!(
-        &mut rest_api_url,
-        "{}/api/bookmarks/check/?url={}",
-        account.instance, encoded_bookmark_url
-    )
-    .unwrap();
+
+    if disable_scraping {
+        write!(
+            &mut rest_api_url,
+            "{}/api/bookmarks/check/?url={}&disable_scraping=true",
+            account.instance, encoded_bookmark_url
+        )
+        .unwrap();
+    } else {
+        write!(
+            &mut rest_api_url,
+            "{}/api/bookmarks/check/?url={}",
+            account.instance, encoded_bookmark_url
+        )
+        .unwrap();
+    }
     let mut headers = HeaderMap::new();
     let http_client = ClientBuilder::new()
         .danger_accept_invalid_certs(account.trust_invalid_certs)

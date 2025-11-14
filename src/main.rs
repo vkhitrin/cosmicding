@@ -6,6 +6,7 @@ mod models;
 mod pages;
 mod style;
 mod utils;
+mod widgets;
 
 use core::settings;
 

@@ -6,9 +6,10 @@ use crate::{
     fl,
     models::{
         account::Account, bookmarks::Bookmark, db_cursor::BookmarksPaginationCursor,
-        sync_status::SyncStatus,
+        operation::OperationProgress, sync_status::SyncStatus,
     },
     style::{button::ButtonStyle, text_editor::text_editor_class},
+    widgets::progress_info::{operation_progress_widget, ProgressInfo},
 };
 use chrono::{DateTime, Local};
 use cosmic::{
@@ -39,6 +40,7 @@ impl PageBookmarksView {
         bookmarks_cursor: &BookmarksPaginationCursor,
         no_accounts: bool,
         refresh_animation: &Timeline,
+        operation_progress: Option<&OperationProgress>,
     ) -> Element<'_, BookmarksAction> {
         let spacing = theme::active().cosmic().spacing;
         if no_accounts {
@@ -385,7 +387,7 @@ impl PageBookmarksView {
                     .into(),
             ]));
 
-            widget::container(
+            let mut main_column =
                 widget::column::with_children(vec![widget::row::with_capacity(2)
                     .align_y(Alignment::Center)
                     .push(widget::text::title3(fl!(
@@ -405,11 +407,34 @@ impl PageBookmarksView {
                     .push(new_bookmark_button)
                     .width(Length::Fill)
                     .apply(widget::container)
-                    .into()])
+                    .into()]);
+
+            // Add operation progress widget if any operation is active
+            if let Some(progress) = operation_progress {
+                let progress_info = ProgressInfo {
+                    total: progress.total,
+                    current: progress.current,
+                    label: progress.operation_label.clone(),
+                    cancellable: progress.cancellable,
+                };
+
+                let progress_widget = operation_progress_widget(
+                    &progress_info,
+                    if progress.cancellable {
+                        Some(BookmarksAction::CancelImport(progress.operation_id))
+                    } else {
+                        None
+                    },
+                );
+
+                main_column = main_column.push(progress_widget);
+            }
+
+            main_column = main_column
                 .push(bookmarks_widget)
-                .push(page_navigation_widget),
-            )
-            .into()
+                .push(page_navigation_widget);
+
+            widget::container(main_column).into()
         }
     }
     pub fn update(&mut self, message: BookmarksAction) -> Task<ApplicationAction> {
@@ -428,6 +453,11 @@ impl PageBookmarksView {
             BookmarksAction::AddBookmark => {
                 commands.push(Task::perform(async {}, |()| {
                     cosmic::Action::App(ApplicationAction::AddBookmarkForm)
+                }));
+            }
+            BookmarksAction::CancelImport(import_id) => {
+                commands.push(Task::perform(async {}, move |()| {
+                    cosmic::Action::App(ApplicationAction::CancelImportBookmarks(import_id))
                 }));
             }
             BookmarksAction::DeleteBookmark(account_id, bookmark) => {
@@ -561,12 +591,16 @@ where
         } else {
             fl!("shared-disabled")
         });
-    let buttons_widget_container =
-        widget::container(widget::button::standard(fl!("save")).on_press(
-            ApplicationAction::StartAddBookmark(accounts[selected_account_index].clone(), bookmark),
-        ))
-        .width(Length::Fill)
-        .align_x(Alignment::Center);
+    let buttons_widget_container = widget::container(
+        widget::button::standard(fl!("save")).on_press(ApplicationAction::StartAddBookmark(
+            accounts[selected_account_index].clone(),
+            bookmark,
+            None,
+            Vec::new(),
+        )),
+    )
+    .width(Length::Fill)
+    .align_x(Alignment::Center);
 
     widget::column()
         .spacing(space_xxs)

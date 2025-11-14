@@ -33,13 +33,17 @@ pub enum ApplicationAction {
     DialogCancel,
     DialogUpdate(DialogPage),
     DoneAddAccount(Account, Option<LinkdingAccountApiResponse>),
-    DoneAddBookmark(Account, Option<BookmarkCheckDetailsResponse>),
+    DoneAddBookmark(
+        Account,
+        Option<BookmarkCheckDetailsResponse>,
+        Option<ImportAction>,
+        Vec<(Bookmark, ImportAction)>,
+    ),
     DoneEditAccount(Account, Option<LinkdingAccountApiResponse>),
     DoneEditBookmark(Account, Option<BookmarkCheckDetailsResponse>),
     DoneFetchFaviconForBookmark(String, Bytes),
     DoneRefreshAccountProfile(Account, Option<LinkdingAccountApiResponse>),
-    DoneRefreshBookmarksForAccount(Account, Vec<DetailedResponse>),
-    DoneRefreshBookmarksForAllAccounts(Vec<DetailedResponse>),
+    DoneRefreshSingleAccount(DetailedResponse, Vec<Account>),
     DoneRemoveBookmark(Account, Bookmark, Option<BookmarkRemoveResponse>),
     EditAccountForm(Account),
     EditBookmarkForm(i64, Bookmark),
@@ -55,7 +59,8 @@ pub enum ApplicationAction {
     SetImportPath(Option<PathBuf>),
     PerformExportBookmarks(Vec<Account>),
     PerformImportBookmarks(Account),
-    DoneImportBookmarks,
+    CancelImportBookmarks(u64),
+    DoneImportBookmarks(usize),
     IncrementPageIndex(String),
     InputBookmarkDescription(widget::text_editor::Action),
     InputBookmarkNotes(widget::text_editor::Action),
@@ -86,7 +91,12 @@ pub enum ApplicationAction {
     SetItemsPerPage(u8),
     SortOption(SortOption),
     StartAddAccount(Account),
-    StartAddBookmark(Account, Bookmark),
+    StartAddBookmark(
+        Account,
+        Bookmark,
+        Option<ImportAction>,
+        Vec<(Bookmark, ImportAction)>,
+    ),
     StartEditAccount(Account),
     StartEditBookmark(Account, Bookmark),
     StartFetchFaviconForBookmark(Bookmark),
@@ -105,6 +115,7 @@ pub enum ApplicationAction {
 #[derive(Debug, Clone)]
 pub enum AccountsAction {
     AddAccount,
+    CancelImport(u64),
     DecrementPageIndex,
     DeleteAccount(Account),
     EditAccount(Account),
@@ -116,6 +127,7 @@ pub enum AccountsAction {
 #[derive(Debug, Clone)]
 pub enum BookmarksAction {
     AddBookmark,
+    CancelImport(u64),
     ClearSearch,
     DecrementPageIndex,
     DeleteBookmark(i64, Bookmark),
@@ -127,4 +139,11 @@ pub enum BookmarksAction {
     RefreshBookmarks,
     SearchBookmarks(String),
     ViewNotes(Bookmark),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ImportAction {
+    pub import_id: u64,
+    pub total_count: usize,
+    pub current_index: usize,
 }
