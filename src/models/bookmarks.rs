@@ -8,7 +8,7 @@ use super::favicon_cache::Favicon;
 pub struct Bookmark {
     pub id: Option<i64>,
     pub user_account_id: Option<i64>,
-    pub linkding_internal_id: Option<i64>,
+    pub provider_internal_id: Option<i64>,
     pub url: String,
     pub title: String,
     pub description: String,
@@ -55,16 +55,32 @@ impl Bookmark {
         Self {
             id: None,
             user_account_id: account_id,
-            linkding_internal_id: linkding_id,
+            provider_internal_id: linkding_id,
             url: linkding_url,
             title: linkding_title,
             description: linkding_description,
-            website_title: Some(linkding_website_title),
-            website_description: Some(linkding_website_description),
+            website_title: if linkding_website_title.is_empty() {
+                None
+            } else {
+                Some(linkding_website_title)
+            },
+            website_description: if linkding_website_description.is_empty() {
+                None
+            } else {
+                Some(linkding_website_description)
+            },
             notes: linkding_notes,
             web_archive_snapshot_url: linkding_web_archive_snapshot_url,
-            favicon_url: Some(linkding_favicon_url),
-            preview_image_url: Some(linkding_preview_image_url),
+            favicon_url: if linkding_favicon_url.is_empty() {
+                None
+            } else {
+                Some(linkding_favicon_url)
+            },
+            preview_image_url: if linkding_preview_image_url.is_empty() {
+                None
+            } else {
+                Some(linkding_preview_image_url)
+            },
             is_archived: linkding_is_archived,
             unread: linkding_unread,
             shared: linkding_shared,
@@ -79,7 +95,7 @@ impl Bookmark {
         Self {
             id: self.id.or(other.id),
             user_account_id: self.user_account_id.or(other.user_account_id),
-            linkding_internal_id: self.linkding_internal_id.or(other.linkding_internal_id),
+            provider_internal_id: self.provider_internal_id.or(other.provider_internal_id),
             url: other.url,
             title: other.title,
             description: other.description,

@@ -91,6 +91,8 @@ impl SqliteDatabase {
                 instance: row.get("instance"),
                 last_sync_status: row.get("last_sync_status"),
                 last_sync_timestamp: row.get("last_sync_timestamp"),
+                provider_string: row.get("provider"),
+                provider_version: row.get("provider_version"),
                 trust_invalid_certs: row.get("trust_invalid_certs"),
             })
             .collect();
@@ -105,7 +107,7 @@ impl SqliteDatabase {
             .unwrap();
     }
     pub async fn update_account(&mut self, account: &Account) {
-        let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, trust_invalid_certs=$5, enabled=$6, enable_sharing=$7, enable_public_sharing=$8 WHERE id=$1;";
+        let query: &str = "UPDATE UserAccounts SET display_name=$2, instance=$3, api_token=$4, trust_invalid_certs=$5, enabled=$6, enable_sharing=$7, enable_public_sharing=$8, provider=$9, provider_version=$10 WHERE id=$1;";
         sqlx::query(query)
             .bind(account.id)
             .bind(&account.display_name)
@@ -115,12 +117,14 @@ impl SqliteDatabase {
             .bind(account.enabled)
             .bind(account.enable_sharing)
             .bind(account.enable_public_sharing)
+            .bind(&account.provider_string)
+            .bind(&account.provider_version)
             .execute(&self.conn)
             .await
             .unwrap();
     }
     pub async fn create_account(&mut self, account: &Account) {
-        let query: &str = "INSERT INTO UserAccounts (display_name, instance, api_token, last_sync_status, last_sync_timestamp, trust_invalid_certs, enabled, enable_sharing, enable_public_sharing) VALUES ($1, $2, $3, 0, 0, $4, $5, $6, $7);";
+        let query: &str = "INSERT INTO UserAccounts (display_name, instance, api_token, last_sync_status, last_sync_timestamp, trust_invalid_certs, enabled, enable_sharing, enable_public_sharing, provider, provider_version) VALUES ($1, $2, $3, 0, 0, $4, $5, $6, $7, $8, $9);";
         sqlx::query(query)
             .bind(&account.display_name)
             .bind(&account.instance)
@@ -129,6 +133,8 @@ impl SqliteDatabase {
             .bind(account.enabled)
             .bind(account.enable_sharing)
             .bind(account.enable_public_sharing)
+            .bind(&account.provider_string)
+            .bind(&account.provider_version)
             .execute(&self.conn)
             .await
             .unwrap();
@@ -189,7 +195,7 @@ impl SqliteDatabase {
         let query: &str = r"
             INSERT INTO Bookmarks (
                 user_account_id,
-                linkding_internal_id,
+                provider_internal_id,
                 url,
                 title,
                 description,
@@ -209,7 +215,7 @@ impl SqliteDatabase {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);";
         sqlx::query(query)
             .bind(bookmark.user_account_id)
-            .bind(bookmark.linkding_internal_id)
+            .bind(bookmark.provider_internal_id)
             .bind(&bookmark.url)
             .bind(&bookmark.title)
             .bind(&bookmark.description)
@@ -299,7 +305,7 @@ impl SqliteDatabase {
                 }
                 Bookmark {
                     id: row.get("id"),
-                    linkding_internal_id: row.get("linkding_internal_id"),
+                    provider_internal_id: row.get("provider_internal_id"),
                     user_account_id: row.get("user_account_id"),
                     url: row.get("url"),
                     title: row.get("title"),
@@ -328,7 +334,9 @@ impl SqliteDatabase {
         data
     }
     pub async fn update_bookmark(&mut self, old_bookmark: &Bookmark, new_bookmark: &Bookmark) {
-        let query: &str = r"
+        // NOTE: (vkhitrin) For local bookmarks (cosmicding), use id instead of provider_internal_id
+        let query: &str = if old_bookmark.provider_internal_id.is_some() {
+            r"
             UPDATE Bookmarks SET
                 url=$1,
                 title=$2,
@@ -345,7 +353,34 @@ impl SqliteDatabase {
                 date_modified=$13,
                 website_title=$14,
                 website_description=$15
-            WHERE linkding_internal_id=$16 AND user_account_id=$17;";
+            WHERE provider_internal_id=$16 AND user_account_id=$17;"
+        } else {
+            r"
+            UPDATE Bookmarks SET
+                url=$1,
+                title=$2,
+                description=$3,
+                notes=$4,
+                web_archive_snapshot_url=$5,
+                favicon_url=$6,
+                preview_image_url=$7,
+                is_archived=$8,
+                unread=$9,
+                shared=$10,
+                tag_names=$11,
+                date_added=$12,
+                date_modified=$13,
+                website_title=$14,
+                website_description=$15
+            WHERE id=$16 AND user_account_id=$17;"
+        };
+
+        let id = if old_bookmark.provider_internal_id.is_some() {
+            old_bookmark.provider_internal_id
+        } else {
+            old_bookmark.id
+        };
+
         sqlx::query(query)
             .bind(&new_bookmark.url)
             .bind(&new_bookmark.title)
@@ -362,7 +397,7 @@ impl SqliteDatabase {
             .bind(&new_bookmark.date_modified)
             .bind(&new_bookmark.website_title)
             .bind(&new_bookmark.website_description)
-            .bind(old_bookmark.linkding_internal_id)
+            .bind(id)
             .bind(old_bookmark.user_account_id)
             .execute(&self.conn)
             .await
@@ -461,7 +496,7 @@ impl SqliteDatabase {
                 }
                 Bookmark {
                     id: row.get("id"),
-                    linkding_internal_id: row.get("linkding_internal_id"),
+                    provider_internal_id: row.get("provider_internal_id"),
                     user_account_id: row.get("user_account_id"),
                     url: row.get("url"),
                     title: row.get("title"),
@@ -547,5 +582,49 @@ impl SqliteDatabase {
     pub async fn purge_favicons_cache(&mut self) {
         let query: &str = "DELETE FROM FaviconCache;";
         sqlx::query(query).execute(&self.conn).await.unwrap();
+    }
+    pub async fn find_bookmark_by_url(&mut self, account_id: i64, url: &str) -> Option<Bookmark> {
+        let query: &str = "SELECT * FROM Bookmarks WHERE user_account_id = $1 AND url = $2;";
+        let result = sqlx::query(query)
+            .bind(account_id)
+            .bind(url)
+            .fetch_optional(&self.conn)
+            .await
+            .ok()?;
+
+        result.as_ref()?;
+
+        let row = result.unwrap();
+        let tags_string: String = row.get("tag_names");
+        let mut tags: Vec<String> = Vec::new();
+        if !tags_string.is_empty() {
+            tags = tags_string
+                .split(' ')
+                .map(|s| s.trim().to_string())
+                .collect();
+        }
+
+        Some(Bookmark {
+            id: row.get("id"),
+            provider_internal_id: row.get("provider_internal_id"),
+            user_account_id: row.get("user_account_id"),
+            url: row.get("url"),
+            title: row.get("title"),
+            description: row.get("description"),
+            notes: row.get("notes"),
+            web_archive_snapshot_url: row.get("web_archive_snapshot_url"),
+            favicon_url: row.get("favicon_url"),
+            preview_image_url: row.get("preview_image_url"),
+            is_archived: row.get("is_archived"),
+            unread: row.get("unread"),
+            shared: row.get("shared"),
+            tag_names: tags,
+            date_added: row.get("date_added"),
+            date_modified: row.get("date_modified"),
+            website_title: row.get("website_title"),
+            website_description: row.get("website_description"),
+            is_owner: row.get("is_owner"),
+            favicon_cached: None,
+        })
     }
 }

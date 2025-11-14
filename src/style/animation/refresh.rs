@@ -27,6 +27,7 @@ impl Id {
         Chain::new(self)
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn as_widget(self, timeline: &Timeline, size: u16) -> Icon {
         RefreshIcon::as_widget(&self, timeline, size)
     }

@@ -1,6 +1,7 @@
 use crate::models::{
     account::{Account, LinkdingAccountApiResponse},
     bookmarks::{Bookmark, BookmarkRemoveResponse, DetailedResponse},
+    provider::Provider,
 };
 use crate::{
     app::{
@@ -80,6 +81,7 @@ pub enum ApplicationAction {
     SetAccountAPIKey(String),
     SetAccountDisplayName(String),
     SetAccountInstance(String),
+    SetAccountProvider(Provider),
     SetAccountStatus(bool),
     SetAccountTrustInvalidCertificates(bool),
     SetBookmarkArchived(bool),
@@ -122,6 +124,7 @@ pub enum AccountsAction {
     IncrementPageIndex,
     OpenExternalURL(String),
     RefreshBookmarksForAccount(Account),
+    ToggleAccountStatus(Account),
 }
 
 #[derive(Debug, Clone)]
