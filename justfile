@@ -1,23 +1,15 @@
 name := 'cosmicding'
 appid := 'com.vkhitrin.cosmicding'
-
 rootdir := ''
 prefix := '/usr'
-
 base-dir := absolute_path(clean(rootdir / prefix))
-
 bin-src := 'target' / 'release' / name
 bin-dst := base-dir / 'bin' / name
-
 desktop := appid + '.desktop'
-desktop-src := 'res' / 'linux' / desktop
 desktop-dst := clean(rootdir / prefix) / 'share' / 'applications' / desktop
-
 metainfo-dst := clean(rootdir / prefix) / 'share' / 'metainfo' / 'com.vkhitrin.cosmicding.metainfo.xml'
-
 icons-src := 'res' / 'icons' / 'hicolor'
 icons-dst := clean(rootdir / prefix) / 'share' / 'icons' / 'hicolor'
-
 macos-assets-dir := 'res' / 'macOS'
 macos-release-dir := 'target' / 'release'
 macos-app-name := 'Cosmicding' + '.app'
@@ -28,7 +20,6 @@ macos-app-binary := macos-release-dir / name
 macos-app-binary-dir := macos-app-dir / macos-app-name / 'Contents' / 'MacOS'
 macos-app-extras-dir := macos-app-dir / macos-app-name / 'Contents' / 'Resources'
 macos-dmg-name := name + '.dmg'
-macos-dmg-release := macos-release-dir / 'macos'
 
 default: build-release
 
@@ -41,73 +32,90 @@ clean-vendor:
 clean-dist: clean clean-vendor
 
 build-debug *args:
-    cargo build {{args}}
+    cargo build {{ args }}
 
 build-release *args:
-  #!/usr/bin/env sh
-  if [ "$(uname)" = "Linux" ]; then
-    just build-release-linux
-  elif [ "$(uname)" = "Darwin" ]; then
-    export HOMEBREW_PREFIX="$(brew --prefix)"
-    export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig"
-    export LIBRARY_PATH="${HOMEBREW_PREFIX}/lib"
-    export C_INCLUDE_PATH="${HOMEBREW_PREFIX}/include"
-    if [ "$(uname -m)" = "arm64" ]; then
-        just build-release-macos-aarch64
-    elif [ "$(uname -m)" = "x86_64" ]; then
-        just build-release-macos-x86_64
+    #!/usr/bin/env sh
+    if [ "$(uname)" = "Linux" ]; then
+      just build-release-linux {{ args }}
+    elif [ "$(uname)" = "Darwin" ]; then
+      export HOMEBREW_PREFIX="$(brew --prefix)"
+      export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig"
+      export LIBRARY_PATH="${HOMEBREW_PREFIX}/lib"
+      export C_INCLUDE_PATH="${HOMEBREW_PREFIX}/include"
+      if [ "$(uname -m)" = "arm64" ]; then
+          just build-release-macos-aarch64
+      elif [ "$(uname -m)" = "x86_64" ]; then
+          just build-release-macos-x86_64
+      fi
     fi
-  fi
 
 build-release-linux *args: (build-debug '--release' args)
 
 build-release-macos-aarch64 *args:
     #!/usr/bin/env sh
-    if [ ! -z $COSMICDING_UNIVERAL_BUILD ]; then
+    if [ ! -z ${COSMICDING_UNIVERSAL_BUILD} ]; then
         SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-        CFLAGS="-isysroot $SDKROOT"
-        rustup run stable cargo build --release --target aarch64-apple-darwin {{args}}
+        CFLAGS="-isysroot ${SDKROOT}"
+        rustup run stable cargo build --release --target aarch64-apple-darwin {{ args }}
     else
-        cargo build --release --target=aarch64-apple-darwin {{args}}
-        lipo "target/aarch64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
+        cargo build --release --target=aarch64-apple-darwin {{ args }}
+        lipo "target/aarch64-apple-darwin/release/{{ name }}" -create -output "{{ macos-app-binary }}"
         just bundle-macos
     fi
 
 build-release-macos-x86_64 *args:
     #!/usr/bin/env sh
-    echo $COSMICDING_UNIVERAL_BUILD
-    if [ ! -z $COSMICDING_UNIVERAL_BUILD ]; then
+    if [ ! -z ${COSMICDING_UNIVERSAL_BUILD} ]; then
         SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-        CFLAGS="-isysroot $SDKROOT"
-        rustup run stable cargo build --release --target x86_64-apple-darwin {{args}}
+        CFLAGS="-isysroot ${SDKROOT}"
+        rustup run stable cargo build --release --target x86_64-apple-darwin {{ args }}
     else
-        cargo build --release --target x86_64-apple-darwin {{args}}
-        lipo "target/x86_64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
+        cargo build --release --target x86_64-apple-darwin {{ args }}
+        lipo "target/x86_64-apple-darwin/release/{{ name }}" -create -output "{{ macos-app-binary }}"
         just bundle-macos
     fi
 
-build-release-macos-universal *args:
+build-release-macos-universal:
     which rustup || exit 1
     rustup toolchain install stable
     rustup target add aarch64-apple-darwin
     rustup target add x86_64-apple-darwin
-    env COSMICDING_UNIVERAL_BUILD=true just build-release-macos-aarch64
-    env COSMICDING_UNIVERAL_BUILD=true just build-release-macos-x86_64
-    lipo "target/aarch64-apple-darwin/release/{{name}}" "target/x86_64-apple-darwin/release/{{name}}" -create -output "{{macos-app-binary}}"
+    env COSMICDING_UNIVERSAL_BUILD=true just build-release-macos-aarch64
+    env COSMICDING_UNIVERSAL_BUILD=true just build-release-macos-x86_64
+    lipo "target/aarch64-apple-darwin/release/{{ name }}" "target/x86_64-apple-darwin/release/{{ name }}" -create -output "{{ macos-app-binary }}"
     just bundle-macos
+
+build-release-linux-multi-arch *args:
+    #!/usr/bin/env sh
+    which cross || exit 1
+    just build-release-linux {{ args }}
+    if [ "$(uname -m)" = "arm64" ]; then
+        cross build --target x86_64-unknown-linux-gnu --release
+    elif [ "$(uname -m)" = "x86_64" ]; then
+        cross build --target aarch64-unknown-linux-gnu --release
+    fi
+    just bundle-linux
 
 bundle-macos:
     # Using native macOS' sed
-    /usr/bin/sed -i '' -e "s/__VERSION__/$(cargo pkgid | cut -d "#" -f2)/g" {{macos-app-template-plist}}
-    /usr/bin/sed -i '' -e "s/__BUILD__/$(git describe --always --exclude='*')/g" {{macos-app-template-plist}}
-    mkdir -p "{{macos-app-binary-dir}}"
-    mkdir -p "{{macos-app-extras-dir}}/icons/hicolor"
-    cp -fRp "{{macos-app-template}}" "{{macos-app-dir}}"
-    cp -fp "{{macos-app-binary}}" "{{macos-app-binary-dir}}"
-    cp -r ./res/icons/hicolor/* "{{macos-app-extras-dir}}/icons/hicolor"
-    touch -r "{{macos-app-binary}}" "{{macos-app-dir}}/{{macos-app-name}}"
-    echo "Created '{{macos-app-name}}' in '{{macos-app-dir}}'"
-    git stash -- {{macos-app-template-plist}}
+    /usr/bin/sed -i '' -e "s/__VERSION__/$(cargo pkgid | cut -d "#" -f2)/g" {{ macos-app-template-plist }}
+    /usr/bin/sed -i '' -e "s/__BUILD__/$(git describe --always --exclude='*')/g" {{ macos-app-template-plist }}
+    mkdir -p "{{ macos-app-binary-dir }}"
+    mkdir -p "{{ macos-app-extras-dir }}/icons/hicolor"
+    cp -fRp "{{ macos-app-template }}" "{{ macos-app-dir }}"
+    cp -fp "{{ macos-app-binary }}" "{{ macos-app-binary-dir }}"
+    cp -r ./res/icons/hicolor/* "{{ macos-app-extras-dir }}/icons/hicolor"
+    touch -r "{{ macos-app-binary }}" "{{ macos-app-dir }}/{{ macos-app-name }}"
+    echo "Created '{{ macos-app-name }}' in '{{ macos-app-dir }}'"
+    git stash -- {{ macos-app-template-plist }}
+
+bundle-linux:
+    rm -rf cosmicding; mkdir -p cosmicding cosmicding/desktop
+    cp -r res/icons cosmicding/
+    cp res/icons/favicon_placeholder.png cosmicding/icons/favicon_placeholder.png
+    cp res/icons/linkding-logo.svg cosmicding/icons/linkding-logo.svg
+    cp res/linux/app.desktop cosmicding/desktop/{{desktop}}
 
 distribute-macos-dmg:
     which create-dmg || exit 1
@@ -117,10 +125,25 @@ distribute-macos-dmg:
       --window-size 800 400 \
       --icon-size 100 \
       --hide-extension "Cosmicding.app" \
-      --icon {{macos-app-name}} 200 160 \
+      --icon {{ macos-app-name }} 200 160 \
       --app-drop-link 600 155 \
-      {{macos-app-dir}}/{{macos-dmg-name}} \
-      {{macos-app-dir}}/{{macos-app-name}}
+      {{ macos-app-dir }}/{{ macos-dmg-name }} \
+      {{ macos-app-dir }}/{{ macos-app-name }}
+
+distribute-linux-archives:
+    #!/usr/bin/env sh
+    COSMICDING_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+    COSMICDING_X86_64_ARCHIVE="cosmicding-${COSMICDING_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+    COSMICDING_ARM64_ARCHIVE="cosmicding-${COSMICDING_VERSION}-aarch64-unknown-linux-gnu.tar.gz"
+    tar cv cosmicding -f "${COSMICDING_X86_64_ARCHIVE}"
+    tar cv cosmicding -f "${COSMICDING_ARM64_ARCHIVE}"
+    if [ "$(uname -m)" = "arm64" ]; then
+        tar cv target/release/cosmicding -f "${COSMICDING_ARM64_ARCHIVE}" cosmicding/
+        tar cv target/x86-64-unknown-linux-gnu/release/cosmicding -f "${COSMICDING_X86_64_ARCHIVE}" cosmicding/
+    elif [ "$(uname -m)" = "x86_64" ]; then
+        tar cv target/release/cosmicding -f "${COSMICDING_X86_64_ARCHIVE}" cosmicding/
+        tar cv target/aarch64-unknown-linux-gnu/release/cosmicding -f "${COSMICDING_ARM64_ARCHIVE}" cosmicding/
+    fi
 
 build-release-linux-flatpak:
     which flatpak-builder || exit 1
@@ -137,57 +160,57 @@ build-release-linux-flatpak:
 build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
 
 check *args:
-    cargo clippy --all-features {{args}} -- -W clippy::pedantic
+    cargo clippy --all-features {{ args }} -- -W clippy::pedantic
 
 check-json: (check '--message-format=json')
 
 run-linux *args:
-    env RUST_BACKTRACE=full cargo run --release {{args}}
+    env RUST_BACKTRACE=full cargo run --release {{ args }}
 
 run-macos:
     just build-release
-    env RUST_BACKTRACE=full {{macos-app-binary-dir}}/{{name}}
+    env RUST_BACKTRACE=full {{ macos-app-binary-dir }}/{{ name }}
 
 run *args:
-  #!/usr/bin/env sh
-  if [ "$(uname)" = "Linux" ]; then
-    just run-linux
-  elif [ "$(uname)" = "Darwin" ]; then
-    just run-macos
-  fi
-  
+    #!/usr/bin/env sh
+    if [ "$(uname)" = "Linux" ]; then
+      just run-linux {{ args }}
+    elif [ "$(uname)" = "Darwin" ]; then
+      just run-macos {{ args }}
+    fi
+
 install:
     #!/usr/bin/env sh
     if [ "$(uname)" = "Linux" ]; then
-        install -Dm0755 {{bin-src}} {{bin-dst}}
-        find {{icons-src}} -type f -path "*/apps/*.svg" -exec bash -c '
+        install -Dm0755 {{ bin-src }} {{ bin-dst }}
+        find {{ icons-src }} -type f -path "*/apps/*.svg" -exec bash -c '
             for src; do
-                rel_path="${src#{{icons-src}}/}"
-                dst="{{icons-dst}}/$rel_path"
+                rel_path="${src#{{ icons-src }}/}"
+                dst="{{ icons-dst }}/$rel_path"
                 install -Dm0644 "$src" "$dst"
             done
         ' bash {} +
-        install -Dm0644 res/linux/app.desktop {{desktop-dst}}
-        install -Dm0644 res/flatpak/com.vkhitrin.cosmicding.metainfo.xml {{metainfo-dst}}
+        install -Dm0644 res/linux/app.desktop {{ desktop-dst }}
+        install -Dm0644 res/flatpak/com.vkhitrin.cosmicding.metainfo.xml {{ metainfo-dst }}
     elif [ "$(uname)" = "Darwin" ]; then
-        cp -r {{macos-app-dir}}/{{name}}.app /Applications/
+        cp -r {{ macos-app-dir }}/{{ name }}.app /Applications/
     fi
 
 uninstall:
     #!/usr/bin/env sh
     if [ "$(uname)" = "Linux" ]; then
-        rm {{bin-dst}} {{desktop-dst}}
-        find {{icons-src}} -type f -path "*/apps/*.svg" -exec bash -c '
+        rm {{ bin-dst }} {{ desktop-dst }}
+        find {{ icons-src }} -type f -path "*/apps/*.svg" -exec bash -c '
             for src; do
-                rel_path="${src#{{icons-src}}/}"
-                dst="{{icons-dst}}/$rel_path"
+                rel_path="${src#{{ icons-src }}/}"
+                dst="{{ icons-dst }}/$rel_path"
                 if [ -f "$dst" ]; then
                     rm "$dst"
                 fi
             done
         ' bash {} +
     elif [ "$(uname)" = "Darwin" ]; then
-        rm -rf /Applications/{{name}}.app
+        rm -rf /Applications/{{ name }}.app
     fi
 
 vendor:
