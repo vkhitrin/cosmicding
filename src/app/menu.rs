@@ -54,7 +54,6 @@ impl _MenuAction for MenuAction {
 #[allow(clippy::module_name_repetitions)]
 pub fn menu_bar<'a>(
     key_binds: &HashMap<KeyBind, MenuAction>,
-    accounts_present: bool,
     bookmarks_present: bool,
     sort_option: SortOption,
     app_state: ApplicationState,
@@ -65,14 +64,18 @@ pub fn menu_bar<'a>(
             menu::items(
                 key_binds,
                 vec![
-                    if accounts_present && matches!(app_state, ApplicationState::Ready)
-                        || matches!(app_state, ApplicationState::NoEnabledAccounts)
-                    {
+                    if matches!(
+                        app_state,
+                        ApplicationState::Ready | ApplicationState::NoEnabledRemoteAccounts
+                    ) {
                         Item::Button(fl!("add-account"), None, MenuAction::AddAccount)
                     } else {
                         Item::ButtonDisabled(fl!("add-account"), None, MenuAction::AddAccount)
                     },
-                    if accounts_present && matches!(app_state, ApplicationState::Ready) {
+                    if matches!(
+                        app_state,
+                        ApplicationState::Ready | ApplicationState::NoEnabledRemoteAccounts
+                    ) {
                         Item::Button(fl!("add-bookmark"), None, MenuAction::AddBookmark)
                     } else {
                         Item::ButtonDisabled(fl!("add-bookmark"), None, MenuAction::AddBookmark)
@@ -83,7 +86,7 @@ pub fn menu_bar<'a>(
                     } else {
                         Item::ButtonDisabled(fl!("export-bookmarks"), None, MenuAction::Empty)
                     },
-                    if accounts_present && matches!(app_state, ApplicationState::Ready) {
+                    if matches!(app_state, ApplicationState::Ready) {
                         Item::Button(fl!("import-bookmarks"), None, MenuAction::ImportBookmarks)
                     } else {
                         Item::ButtonDisabled(fl!("import-bookmarks"), None, MenuAction::Empty)

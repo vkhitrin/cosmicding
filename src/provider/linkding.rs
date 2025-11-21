@@ -23,23 +23,6 @@ use std::{
 };
 use urlencoding::encode;
 
-pub async fn fetch_bookmarks_for_single_account(account: Account) -> DetailedResponse {
-    match fetch_bookmarks_for_account(&account).await {
-        Ok(response) => response,
-        Err(e) => {
-            let epoch_timestamp = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("")
-                .as_secs();
-            #[allow(clippy::cast_possible_wrap)]
-            let error_response =
-                DetailedResponse::new(account, epoch_timestamp as i64, false, None);
-            log::error!("Error fetching bookmarks: {e}");
-            error_response
-        }
-    }
-}
-
 //  NOTE: (vkhitrin) perhaps this method should be split into three:
 //        (1) fetch bookmarks
 //        (2) fetch archived bookmarks
@@ -235,7 +218,7 @@ pub async fn fetch_bookmarks_for_account(
                     // account based on linkding internal bookmark ID.
                     // if !bookmarks.contains(&transformed_bookmark) {
                     if !bookmarks.iter().any(|b| {
-                        b.linkding_internal_id == transformed_bookmark.linkding_internal_id
+                        b.provider_internal_id == transformed_bookmark.provider_internal_id
                     }) {
                         bookmarks.push(transformed_bookmark);
                     } else if bookmarks.is_empty() {
@@ -264,7 +247,7 @@ pub async fn fetch_bookmarks_for_account(
 pub async fn populate_bookmark(
     account: Account,
     bookmark: Bookmark,
-    check_remote: bool,
+    check_for_existing: bool,
     disable_scraping: bool,
 ) -> Option<BookmarkCheckDetailsResponse> {
     let rest_api_url: String = account.instance.clone() + "/api/bookmarks/";
@@ -282,7 +265,7 @@ pub async fn populate_bookmark(
     if let Some(obj) = transformed_json_value.as_object_mut() {
         obj.remove("id");
         obj.remove("user_account_id");
-        obj.remove("linkding_internal_id");
+        obj.remove("provider_internal_id");
         obj.remove("website_title");
         obj.remove("website_description");
         obj.remove("web_archive_snapshot_url");
@@ -296,13 +279,13 @@ pub async fn populate_bookmark(
     //let bookmark_url = transformed_json_value["url"].to_string().replace('"', "");
     let bookmark_url =
         parse_serde_json_value_to_raw_string(transformed_json_value.get("url").unwrap());
-    if check_remote {
+    if check_for_existing {
         match check_bookmark_on_instance(&account, bookmark_url.clone(), disable_scraping).await {
             Ok(check) => {
                 let metadata = check.metadata;
                 if check.bookmark.is_some() {
                     let mut bkmrk = check.bookmark.unwrap();
-                    bkmrk.linkding_internal_id = bkmrk.id;
+                    bkmrk.provider_internal_id = bkmrk.id;
                     bkmrk.user_account_id = account.id;
                     bkmrk.id = None;
                     if let Some(obj) = transformed_json_value.as_object() {
@@ -374,7 +357,7 @@ pub async fn populate_bookmark(
                 Ok(response) => match response.status() {
                     StatusCode::CREATED => match response.json::<Bookmark>().await {
                         Ok(mut value) => {
-                            value.linkding_internal_id = value.id;
+                            value.provider_internal_id = value.id;
                             value.user_account_id = account.id;
                             value.id = None;
                             api_response.bookmark = Some(value);
@@ -447,7 +430,7 @@ pub async fn remove_bookmark(
         &mut rest_api_url,
         "{}/api/bookmarks/{:?}/",
         account.instance.clone(),
-        bookmark.linkding_internal_id.unwrap()
+        bookmark.provider_internal_id.unwrap()
     )
     .unwrap();
     let mut headers = HeaderMap::new();
@@ -493,7 +476,7 @@ pub async fn edit_bookmark(
         &mut rest_api_url,
         "{}/api/bookmarks/{:?}/",
         account.instance.clone(),
-        bookmark.linkding_internal_id.unwrap()
+        bookmark.provider_internal_id.unwrap()
     )
     .unwrap();
     let mut headers = HeaderMap::new();
@@ -509,7 +492,7 @@ pub async fn edit_bookmark(
     if let Some(obj) = transformed_json_value.as_object_mut() {
         obj.remove("id");
         obj.remove("user_account_id");
-        obj.remove("linkding_internal_id");
+        obj.remove("provider_internal_id");
         obj.remove("website_title");
         obj.remove("website_description");
         obj.remove("web_archive_snapshot_url");
@@ -528,7 +511,7 @@ pub async fn edit_bookmark(
     match response.status() {
         StatusCode::OK => match response.json::<Bookmark>().await {
             Ok(mut value) => {
-                value.linkding_internal_id = value.id;
+                value.provider_internal_id = value.id;
                 value.user_account_id = account.id;
                 value.id = None;
                 value.is_owner = Some(true);
@@ -578,6 +561,11 @@ pub async fn fetch_account_details(account: Account) -> Option<LinkdingAccountAp
         }
     }
     account_details
+}
+
+/// Get provider version for linkding from API response
+pub fn get_provider_version(api_response: &LinkdingAccountApiResponse) -> Option<String> {
+    api_response.version.clone()
 }
 
 pub async fn check_account_on_instance(

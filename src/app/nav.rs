@@ -50,9 +50,9 @@ impl AppNavPage {
                     app.state,
                     app.sync_status,
                     &app.bookmarks_cursor,
-                    app.accounts_cursor.total_entries == 0,
                     &app.timeline,
                     app.operation_progress.as_ref(),
+                    &app.context_accounts_list,
                 )
                 .map(ApplicationAction::BookmarksView),
         }

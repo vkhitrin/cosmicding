@@ -11,29 +11,31 @@
 
 <p align="center"><a href='https://flathub.org/apps/com.vkhitrin.cosmicding'><img width='190' alt='Download on Flathub' src='https://flathub.org/api/badge?locale=en'/></a></p>
 
-# cosmicding
+# Cosmicding
 
-cosmicding is a [linkding](https://github.com/sissbruecker/linkding) companion app for COSMIC™ Desktop Environment.  
-It provides an alternative frontend to linkding based on [libcosmic](https://github.com/pop-os/libcosmic).
+Cosmicding is a bookmarks companion app for COSMIC™ Desktop Environment.  
+It allows storing bookmarks locally, and syncing bookmarks with remote providers.
 
-While cosmicding was designed for COSMIC™ Desktop Environment, it may run cross-platform ([#24](https://github.com/vkhitrin/cosmicding/issues/24),
+While Cosmicding was designed for COSMIC™ Desktop Environment, it may run cross-platform ([#24](https://github.com/vkhitrin/cosmicding/issues/24),
 tested on Linux, and macOS).
 
 Features:
 
-- Support multiple linkding instances (or multiple users on the same instance).
-- Aggregate bookmarks locally.
+- Store bookmarks locally.
+- Support remote bookmarks providers:
+  - linkding
+- Aggregate bookmarks from multiple providers.
 - Add/Edit/Remove bookmarks.
 - Search bookmarks based on title, URL, tags, description, and notes.
 - Import/Export bookmarks.
 
-cosmicding has been tested with linkding releases >= `1.31.0`.
+Cosmicding has been tested with linkding releases >= `1.31.0`.
 
 ## Installation
 
 ### Remote
 
-cosmicding can be installed from remote sources in several ways:
+Cosmicding can be installed from remote sources in several ways:
 
 #### Linux
 
@@ -112,7 +114,7 @@ flatpak-builder --force-clean \
 
 [cosmic-utils](https://github.com/cosmic-utils) organization for their code examples.  
 [@sissbruecker](https://github.com/sissbruecker) for creating linkding.  
-[system76](https://system76.com) for creating COSMIC, and making it fun to develop for.  
+[system76](https://system76.com) for creating COSMIC, and making it fun to develop for.
 
 Translations:
 

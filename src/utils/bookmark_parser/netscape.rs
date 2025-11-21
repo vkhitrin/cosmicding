@@ -175,7 +175,7 @@ fn parse_bookmark_entry(
     let bookmark = Bookmark {
         id: None,
         user_account_id: None,
-        linkding_internal_id: None,
+        provider_internal_id: None,
         url,
         title,
         description,
