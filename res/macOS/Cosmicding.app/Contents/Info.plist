@@ -28,6 +28,8 @@
         <string>__BUILD__</string>
         <key>CFBundleIconFile</key>
         <string>AppIcon.icns</string>
+        <key>CFBundleIconName</key>
+        <string>Cosmicding</string>
         <key>NSHighResolutionCapable</key>
         <true />
         <key>NSMainNibFile</key>
