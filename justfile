@@ -132,17 +132,17 @@ distribute-macos-dmg:
 
 distribute-linux-archives:
     #!/usr/bin/env sh
-    COSMICDING_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+    COSMICDING_VERSION="v$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')"
     COSMICDING_X86_64_ARCHIVE="cosmicding-${COSMICDING_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
     COSMICDING_ARM64_ARCHIVE="cosmicding-${COSMICDING_VERSION}-aarch64-unknown-linux-gnu.tar.gz"
-    tar cv cosmicding -f "${COSMICDING_X86_64_ARCHIVE}"
-    tar cv cosmicding -f "${COSMICDING_ARM64_ARCHIVE}"
+    tar --gzip -c cosmicding --file "${COSMICDING_X86_64_ARCHIVE}"
+    tar --gzip -c cosmicding --file "${COSMICDING_ARM64_ARCHIVE}"
     if [ "$(uname -m)" = "arm64" ]; then
-        tar cv target/release/cosmicding -f "${COSMICDING_ARM64_ARCHIVE}" cosmicding/
-        tar cv target/x86-64-unknown-linux-gnu/release/cosmicding -f "${COSMICDING_X86_64_ARCHIVE}" cosmicding/
+        tar --gzip -c target/release/cosmicding --file "${COSMICDING_ARM64_ARCHIVE}" cosmicding/
+        tar --gzip -c target/x86-64-unknown-linux-gnu/release/cosmicding --file "${COSMICDING_X86_64_ARCHIVE}" cosmicding/
     elif [ "$(uname -m)" = "x86_64" ]; then
-        tar cv target/release/cosmicding -f "${COSMICDING_X86_64_ARCHIVE}" cosmicding/
-        tar cv target/aarch64-unknown-linux-gnu/release/cosmicding -f "${COSMICDING_ARM64_ARCHIVE}" cosmicding/
+        tar --gzip -c target/release/cosmicding -f "${COSMICDING_X86_64_ARCHIVE}" cosmicding/
+        tar --gzip -c target/aarch64-unknown-linux-gnu/release/cosmicding --file "${COSMICDING_ARM64_ARCHIVE}" cosmicding/
     fi
 
 build-release-linux-flatpak:
