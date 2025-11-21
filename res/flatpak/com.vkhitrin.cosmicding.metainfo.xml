@@ -17,13 +17,18 @@
     <name>Cosmicding</name>
     <summary>Manage your bookmarks</summary>
     <description>
-        <p>A client to manage your linkding bookmarks.</p>
+        <p>A client to manage your bookmarks.</p>
         <p>Features:</p>
         <ul>
-            <li>Support multiple linkding instances (or multiple users on the same instance).</li>
-            <li>Aggregate bookmarks locally.</li>
+            <li>Store bookmarks locally</li>
+            <li>Support remote bookmarks providers:</li>
+            <ul>
+                <li>linkding</li>
+            </ul>
+            <li>Aggregate bookmarks from multiple providers.</li>
             <li>Add/Edit/Remove bookmarks.</li>
             <li>Search bookmarks based on title, URL, tags, description, and notes.</li>
+            <li>Import/Export bookmarks.</li>
         </ul>
     </description>
     <branding>
@@ -35,6 +40,18 @@
         https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/icons/hicolor/scalable/apps/com.vkhitrin.cosmicding.svg</icon>
     <launchable type="desktop-id">com.vkhitrin.cosmicding.desktop</launchable>
     <releases>
+        <release version="2025.11.0" date="2025-11-21">
+            <description>
+                <p>
+                    Cosmicding now supports storing bookmarks locally without the requirement of a remote linkding instance!
+                </p>
+                <p>New Features:</p>
+                <ul>
+                    <li>Import/Export bookmarks.</li>
+                    <li>Progress bar for ongoing operations.</li>
+                </ul>
+            </description>
+        </release>
         <release version="2025.8.0" date="2025-08-30">
             <description>
                 <p>Fixes:</p>
