@@ -16,15 +16,13 @@
     <url type="translate">https://github.com/vkhitrin/cosmicding/tree/main/i18n</url>
     <name>Cosmicding</name>
     <summary>Manage your bookmarks</summary>
+    <summary xml:lang="cs">Spravujte své záložky</summary>
     <description>
         <p>A client to manage your bookmarks.</p>
         <p>Features:</p>
         <ul>
             <li>Store bookmarks locally</li>
-            <li>Support remote bookmarks providers:</li>
-            <ul>
-                <li>linkding</li>
-            </ul>
+            <li>Support remote bookmarks providers: 'linkding'</li>
             <li>Aggregate bookmarks from multiple providers.</li>
             <li>Add/Edit/Remove bookmarks.</li>
             <li>Search bookmarks based on title, URL, tags, description, and notes.</li>
@@ -43,7 +41,8 @@
         <release version="2025.11.0" date="2025-11-21">
             <description>
                 <p>
-                    Cosmicding now supports storing bookmarks locally without the requirement of a remote linkding instance!
+                    Cosmicding now supports storing bookmarks locally without the requirement of a
+                    remote linkding instance!
                 </p>
                 <p>New Features:</p>
                 <ul>
@@ -99,11 +98,13 @@
             <image>
                 https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/screenshots/bookmarks.png</image>
             <caption>Bookmarks View</caption>
+            <caption xml:lang="cs">Zobrazení záložek</caption>
         </screenshot>
         <screenshot>
             <image>
                 https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/screenshots/accounts.png</image>
             <caption>Accounts View</caption>
+            <caption xml:lang="cs">Zobrazení účtů</caption>
         </screenshot>
     </screenshots>
     <categories>
