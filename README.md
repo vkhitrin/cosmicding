@@ -119,6 +119,7 @@ flatpak-builder --force-clean \
 Translations:
 
 - Swedish - [@bittin](https://github.com/bittin)
+- Czech - [@lorduskordus](https://github.com/lorduskordus)
 
 Icon:
 

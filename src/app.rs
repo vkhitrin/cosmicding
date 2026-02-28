@@ -188,7 +188,10 @@ impl Application for Cosmicding {
                 ("Support", &format!("{REPOSITORY}/issues")),
                 ("Linkding Official Site", "https://linkding.link"),
             ])
-            .translators([("Luna Jernberg", "lunajernberg@gnome.org")])
+            .translators([
+                ("Luna Jernberg", "lunajernberg@gnome.org"),
+                ("lorduskordus", ""),
+            ])
             .developers([("Vadim Khitrin", "me@vkhitrin.com")]);
 
         for &nav_page in AppNavPage::all() {
