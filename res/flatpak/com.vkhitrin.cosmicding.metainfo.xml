@@ -38,7 +38,7 @@
         https://raw.githubusercontent.com/vkhitrin/cosmicding/refs/heads/main/res/icons/hicolor/scalable/apps/com.vkhitrin.cosmicding.svg</icon>
     <launchable type="desktop-id">com.vkhitrin.cosmicding.desktop</launchable>
     <releases>
-        <release version="2025.11.0" date="2025-11-21">
+        <release version="2025.11.1" date="2025-11-21">
             <description>
                 <p>
                     Cosmicding now supports storing bookmarks locally without the requirement of a
