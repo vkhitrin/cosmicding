@@ -25,11 +25,8 @@
         <ul>
             <li>Store bookmarks locally</li>
             <li xml:lang="cs">Lokální ukládání záložek</li>
-            <li>Support remote bookmarks providers:</li>
-            <li xml:lang="cs">Podpora poskytovatelů vzdálených záložek:</li>
-            <ul>
-                <li>linkding</li>
-            </ul>
+            <li>Support remote bookmarks providers: 'linkding'</li>
+            <li xml:lang="cs">Podpora poskytovatelů vzdálených záložek: 'linkding'</li>
             <li>Aggregate bookmarks from multiple providers.</li>
             <li xml:lang="cs">Kombinace záložek od více poskytovatelů.</li>
             <li>Add/Edit/Remove bookmarks.</li>
