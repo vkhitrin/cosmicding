@@ -30,11 +30,11 @@
             <li>Aggregate bookmarks from multiple providers</li>
             <li xml:lang="cs">Kombinace záložek od více poskytovatelů</li>
             <li>Add/Edit/Remove bookmarks</li>
-            <li xml:lang="cs">Přidávání/Upravování/Odstraňování záložek</li>
+            <li xml:lang="cs">Přidávání, upravování a odstraňování záložek</li>
             <li>Search bookmarks based on title, URL, tags, description, and notes</li>
             <li xml:lang="cs">Vyhledávání záložek podle názvu, URL, štítků, popisu a poznámek</li>
             <li>Import/Export bookmarks</li>
-            <li xml:lang="cs">Import/Export záložek</li>
+            <li xml:lang="cs">Import a export záložek</li>
         </ul>
     </description>
     <branding>
