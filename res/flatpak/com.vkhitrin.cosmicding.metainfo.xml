@@ -25,16 +25,16 @@
         <ul>
             <li>Store bookmarks locally</li>
             <li xml:lang="cs">Lokální ukládání záložek</li>
-            <li>Support remote bookmarks providers: 'linkding'</li>
+            <li>Support for remote bookmarks providers: 'linkding'</li>
             <li xml:lang="cs">Podpora poskytovatelů vzdálených záložek: 'linkding'</li>
-            <li>Aggregate bookmarks from multiple providers.</li>
-            <li xml:lang="cs">Kombinace záložek od více poskytovatelů.</li>
-            <li>Add/Edit/Remove bookmarks.</li>
-            <li xml:lang="cs">Přidávání/Upravování/Odstraňování záložek.</li>
-            <li>Search bookmarks based on title, URL, tags, description, and notes.</li>
-            <li xml:lang="cs">Vyhledávání záložek podle názvu, URL, štítků, popisu a poznámek.</li>
-            <li>Import/Export bookmarks.</li>
-            <li xml:lang="cs">Import/Export záložek.</li>
+            <li>Aggregate bookmarks from multiple providers</li>
+            <li xml:lang="cs">Kombinace záložek od více poskytovatelů</li>
+            <li>Add/Edit/Remove bookmarks</li>
+            <li xml:lang="cs">Přidávání/Upravování/Odstraňování záložek</li>
+            <li>Search bookmarks based on title, URL, tags, description, and notes</li>
+            <li xml:lang="cs">Vyhledávání záložek podle názvu, URL, štítků, popisu a poznámek</li>
+            <li>Import/Export bookmarks</li>
+            <li xml:lang="cs">Import/Export záložek</li>
         </ul>
     </description>
     <branding>
